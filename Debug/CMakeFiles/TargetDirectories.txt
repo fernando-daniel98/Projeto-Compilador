@@ -1,0 +1,3 @@
+/home/ferdanielinux/desktop-linux/scripts-c/Projeto-Compilador/Debug/CMakeFiles/main.dir
+/home/ferdanielinux/desktop-linux/scripts-c/Projeto-Compilador/Debug/CMakeFiles/edit_cache.dir
+/home/ferdanielinux/desktop-linux/scripts-c/Projeto-Compilador/Debug/CMakeFiles/rebuild_cache.dir
