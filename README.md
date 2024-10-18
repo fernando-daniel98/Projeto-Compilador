@@ -3,8 +3,8 @@ Projeto final da disciplina de Compiladores da Universidade Federal de São Paul
 
 ## Integrantes
 Os integrantes deste projeto são:
-- [Fernando Daniel Marcelino](github.com/fernando-daniel98)
-- [Marcos Vinívius Gasparoto Bauab](github.com/MarcosBauab)
+- [Fernando Daniel Marcelino](https://github.com/fernando-daniel98)
+- [Marcos Vinívius Gasparoto Bauab](https://github.com/MarcosBauab)
 
 ## Tecnologias
 
@@ -21,6 +21,3 @@ Para executar o projeto, basta rodar o comando:
 
 ## Referências
 As referências utilizadas para a realização deste projeto foram:
-
-```
-```
