@@ -4,7 +4,7 @@ Projeto final da disciplina de Compiladores da Universidade Federal de São Paul
 ## Integrantes
 Os integrantes deste projeto são:
 - [Fernando Daniel Marcelino](https://github.com/fernando-daniel98)
-- [Marcos Vinívius Gasparoto Bauab](https://github.com/MarcosBauab)
+- [Marcos Vinicius Gasparoto Bauab](https://github.com/MarcosBauab)
 
 ## Tecnologias
 
