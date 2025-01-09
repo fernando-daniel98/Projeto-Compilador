@@ -480,25 +480,22 @@ int yy_flex_debug = 0;
 #define YY_RESTORE_YY_MORE_OFFSET
 char *yytext;
 #line 1 "lexer.l"
-/*
-Projeto de Compiladores - Analisador Léxico
-    Discentes: Fernando Daniel Marcelino e Marcos Vinicius Gasparoto Bauab
-    Docente: Dr. Luiz Eduardo Galvão Martins
-
-Atividade da disciplina de Compiladores, como parte avaliativa para o projeto de um compilador para a linguagem C-.
-*/
-#line 10 "lexer.l"
-
+#line 2 "lexer.l"
 #include "../../Include/globals.h"
+#include <stdio.h>
+#include <string.h>
 
 int lineNum = 1; // Definição da variável lineNum
 int countErrors = 1;
 
-#line 498 "lex.yy.c"
+char tokenString[MAXTOKENLEN+1]; // Definição do lexema do identificador ou palavra reservada
+char stackID[MAXSTACK][MAXTOKENLEN+1]; // Definição da pilha de ID's
+
+#line 495 "lex.yy.c"
 /* Definições regulares */
 /* Espaços em branco. O espaço em branco é composto por branco, mudanças de linha e tabulações.
 É ignorado, exceto quando é usado como separador de ID, NUMs e palavras-chave. */
-#line 502 "lex.yy.c"
+#line 499 "lex.yy.c"
 
 #define INITIAL 0
 
@@ -715,10 +712,10 @@ YY_DECL
 		}
 
 	{
-#line 34 "lexer.l"
+#line 30 "lexer.l"
 
 
-#line 722 "lex.yy.c"
+#line 719 "lex.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -777,132 +774,132 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 36 "lexer.l"
-{fprintf(yyout, "ELSE");}
+#line 32 "lexer.l"
+{return ELSE;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 37 "lexer.l"
-{fprintf(yyout, "IF");}
+#line 33 "lexer.l"
+{return IF;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 38 "lexer.l"
-{fprintf(yyout, "INT");}
+#line 34 "lexer.l"
+{return INT;}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 39 "lexer.l"
-{fprintf(yyout, "RETURN");}
+#line 35 "lexer.l"
+{return RETURN;}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 40 "lexer.l"
-{fprintf(yyout, "VOID");}
+#line 36 "lexer.l"
+{return VOID;}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 41 "lexer.l"
-{fprintf(yyout, "WHILE");}
+#line 37 "lexer.l"
+{return WHILE;}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 43 "lexer.l"
-{fprintf(yyout, "PLUS");}
+#line 39 "lexer.l"
+{return PLUS;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 44 "lexer.l"
-{fprintf(yyout, "MINUS");}
+#line 40 "lexer.l"
+{return MINUS;}
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 45 "lexer.l"
-{fprintf(yyout, "MULT");}
+#line 41 "lexer.l"
+{return MULT;}
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 46 "lexer.l"
-{fprintf(yyout, "DIV");}
+#line 42 "lexer.l"
+{return DIV;}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 47 "lexer.l"
-{fprintf(yyout, "SMAL");}
+#line 43 "lexer.l"
+{return SMAL;}
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 48 "lexer.l"
-{fprintf(yyout, "SMALEQ");}
+#line 44 "lexer.l"
+{return SMALEQ;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 49 "lexer.l"
-{fprintf(yyout, "GREAT");}
+#line 45 "lexer.l"
+{return GREAT;}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 50 "lexer.l"
-{fprintf(yyout, "GREATEQ");}
+#line 46 "lexer.l"
+{return GREATEQ;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 51 "lexer.l"
-{fprintf(yyout, "EQ");}
+#line 47 "lexer.l"
+{return EQ;}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 52 "lexer.l"
-{fprintf(yyout, "DIFF");}
+#line 48 "lexer.l"
+{return DIFF;}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 53 "lexer.l"
-{fprintf(yyout, "ASSIGN");}
+#line 49 "lexer.l"
+{return ASSIGN;}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 54 "lexer.l"
-{fprintf(yyout, "SEMICOL");}
+#line 50 "lexer.l"
+{return SEMICOL;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 55 "lexer.l"
-{fprintf(yyout, "COMMA");}
+#line 51 "lexer.l"
+{return COMMA;}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 56 "lexer.l"
-{fprintf(yyout, "LPAREN");}
+#line 52 "lexer.l"
+{return LPAREN;}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 57 "lexer.l"
-{fprintf(yyout, "RPAREN");}
+#line 53 "lexer.l"
+{return RPAREN;}
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 58 "lexer.l"
-{fprintf(yyout, "LBRACKET");}
+#line 54 "lexer.l"
+{return LBRACKET;}
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 59 "lexer.l"
-{fprintf(yyout, "RBRACKET");}
+#line 55 "lexer.l"
+{return RBRACKET;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 60 "lexer.l"
-{fprintf(yyout, "LBRACE");}
+#line 56 "lexer.l"
+{return LBRACE;}
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 61 "lexer.l"
-{fprintf(yyout, "RBRACE");}
+#line 57 "lexer.l"
+{return RBRACE;}
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 62 "lexer.l"
+#line 58 "lexer.l"
 {
                         while (1) {
                             int c = input();
@@ -929,7 +926,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 85 "lexer.l"
+#line 81 "lexer.l"
 {fprintf(yyout, "ERROR%d", countErrors);
                 printf("ERRO LÉXICO: \"%s\" ", yytext);
                 printf("LINHA: %d.\n", lineNum);
@@ -937,48 +934,48 @@ YY_RULE_SETUP
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 91 "lexer.l"
-{fprintf(yyout, "NUM");}
+#line 87 "lexer.l"
+{yylval = atoi(yytext); return NUM;}
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 92 "lexer.l"
-{fprintf(yyout, "ID");}
+#line 88 "lexer.l"
+{strncpy(tokenString, yytext, MAXTOKENLEN); return ID;}
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 94 "lexer.l"
-{fprintf(yyout, " ");}
+#line 90 "lexer.l"
+{ /* Ignorar espaços em branco */ }
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 95 "lexer.l"
-{fprintf(yyout, "\t");}
+#line 91 "lexer.l"
+{ /* Ignorar tabulações */ }
 	YY_BREAK
 case 32:
 /* rule 32 can match eol */
 YY_RULE_SETUP
-#line 96 "lexer.l"
-{lineNum++; fprintf(yyout, "\n");}
+#line 92 "lexer.l"
+{lineNum++;}
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 98 "lexer.l"
+#line 94 "lexer.l"
 {fprintf(yyout, "ERROR%d", countErrors);
                     printf(ANSI_COLOR_PURPLE "ERRO LÉXICO: " ANSI_COLOR_RESET "\"%s\" ", yytext);
                     printf(ANSI_COLOR_RED "LINHA: %d.\n" ANSI_COLOR_RESET, lineNum);
                     countErrors++;}
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
-#line 102 "lexer.l"
-{fprintf(yyout, "ENDOFFILE"); return 0;}
+#line 98 "lexer.l"
+{return ENDOFFILE;}
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 104 "lexer.l"
+#line 100 "lexer.l"
 ECHO;
 	YY_BREAK
-#line 982 "lex.yy.c"
+#line 979 "lex.yy.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -1981,44 +1978,28 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 104 "lexer.l"
+#line 100 "lexer.l"
 
 
 /* Rotina auxiliar */
 
-int main(int argc, char *argv[]) {
-    FILE *inputFile;
-    FILE *outputFile;
+TokenType getToken(void){
 
-    if (argc == 3) {
-        inputFile = fopen(argv[1], "r");
-        outputFile = fopen(argv[2], "w");
+    static int firstTime = TRUE;
 
-        // Abrir o arquivo de entrada
-        if (inputFile) {
-            yyin = inputFile;
-        } else {
-            perror(argv[0]);
-            return EXIT_FAILURE;
-        }
+    if (firstTime){
+        firstTime = FALSE;
+        lineNum++;
+        yyin = arquivoEntrada;
+        yyout = arquivoSaida;
 
-        // Abrir o arquivo de saída
-        if (outputFile) {
-            yyout = outputFile;
-        } else {
-            perror("Erro ao abrir arquivo de saída");
-            fclose(inputFile); // Fecha o arquivo de entrada antes de sair
-            return EXIT_FAILURE;
-        }
-    } else {
-        fprintf(stderr, "Uso: %s <arquivo_entrada> <arquivo_saida>\n", argv[0]);
-        return EXIT_FAILURE;
     }
 
-    yylex(); // Inicia o analisador léxico
+    TokenType currentToken = yylex();
 
-    fclose(inputFile); // Fecha o arquivo de entrada
-    fclose(outputFile); // Fecha o arquivo de saída
+    if (currentToken == ID){
+        strncpy(tokenString, yytext, MAXTOKENLEN);
+    }
 
-    return EXIT_SUCCESS;
+    return currentToken;    
 }
