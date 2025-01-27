@@ -12,6 +12,12 @@ Os integrantes deste projeto são:
 ## Execução
 Para executar o projeto, basta rodar o comando:
 
+bison -d -v <nome_do_arquivo>.y
+
+flex <nome_do_arquivo>.l
+
+g++ -o <nome_do_executavel> <nome_do_compilado>.o <nome_do_arquivo>.tab.c lex.yy.c -lfl
+
 ## Funcionalidades
 
 ## Estrutura do Projeto

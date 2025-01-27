@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define TRUE 1
 #define FALSE 0
@@ -35,7 +36,7 @@ typedef enum
 
     /* reserved words */
     // if  else  int  return  void  while
-    IF, ELSE, INT, RETURN , VOID, WHILE,
+    IF, ELSE, INT, RETURN, VOID, WHILE,
 
     /* multicharacter tokens */
     // ID  NUM
