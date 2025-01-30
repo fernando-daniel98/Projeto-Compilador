@@ -1,230 +1,178 @@
 %{
-#include "../../Include/globals.h"
+#include "../Include/globals.h"
+extern char* yytext;
+extern int yylex(void);
+void yyerror(const char *s);
 
 int countErrorsParser = 1;
 
-static int yylex(void);
-void yyerror(char *s);
-int yyparse(void);
-
-
 %}
 
-%token NUM
-%token ID
-%token ENDOFFILE ERROR IF ELSE INT RETURN VOID WHILE
-%token PLUS MINUS MULT DIV SMAL SMALEQ GREAT GREATEQ EQ DIFF ASSIGN SEMICOL COMMA LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE BEGCOMM CLOSCOMM
+%token NUM ID IF ELSE INT RETURN VOID WHILE
+%token PLUS MINUS MULT DIV SMAL SMALEQ GREAT GREATEQ EQ DIFF ASSIGN SEMICOL COMMA 
+%token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE
 
-%left ELSE
+%nonassoc LOWER_THAN_ELSE
+%nonassoc ELSE
+%left ASSIGN
+%left EQ DIFF SMAL SMALEQ GREAT GREATEQ
 %left PLUS MINUS
 %left MULT DIV
-%left SMAL SMALEQ GREAT GREATEQ EQ DIFF
-%right ASSIGN
+%right UMINUS
 
 %%
 
-/* Regras de gramática aqui */
-programa: declaracao_lista
-        ;
+programa: declaracao_lista;
 
-declaracao_lista: declaracao_lista declaracao { $$ = $1; }
-                | declaracao { $$ = $1; }
-                ;
+declaracao_lista: 
+    declaracao_lista declaracao 
+    | declaracao 
+;
 
-declaracao: var_declaracao { $$ = $1; }
-            | fun_declaracao { $$ = $1; }
-            ;
+declaracao: 
+    var_declaracao 
+    | fun_declaracao 
+;
 
-var_declaracao: tipo_especificador ID SEMICOL { $$ = $1; }
-                | tipo_especificador ID LBRACKET NUM RBRACKET SEMICOL { $$ = $1; }
-                ;
+var_declaracao: 
+    tipo_especificador ID SEMICOL 
+    | tipo_especificador ID LBRACKET NUM RBRACKET SEMICOL 
+;
 
-tipo_especificador: INT
-                    | VOID
-                    ;
+tipo_especificador: 
+    INT 
+    | VOID 
+;
 
-fun_declaracao: tipo_especificador ID LPAREN params RPAREN composto_decl { $$ = $1; }
-                ;
+fun_declaracao: 
+    tipo_especificador ID LPAREN params RPAREN composto_decl 
+;
 
-params: param_lista { $$ = $1; }
-        | VOID { $$ = $1; }
-        ;
+params: 
+    param_lista 
+    | VOID 
+;
 
-param_lista: param_lista COMMA param {
-                if ($$ != NULL) {
-                    $$ = $1;
-                }
-                else {
-                    $$ = $3;
-                }
-            }
-            | param { $$ = $1; }
-            ;
+param_lista: 
+    param_lista COMMA param 
+    | param 
+;
 
-param: tipo_especificador ID { $$ = $1; }
-        | tipo_especificador ID LBRACKET RBRACKET { $$ = $1; }
-        ;
+param: 
+    tipo_especificador ID 
+    | tipo_especificador ID LBRACKET RBRACKET 
+;
 
-composto_decl: LBRACE local_declaracoes statement_lista RBRACE {
-                if ($$ != NULL) {
-                    $$ = $2;
-                }
-                else {
-                    $$ = $3;
-                }
-            }
-                ;
+composto_decl: 
+    LBRACE local_declaracoes statement_lista RBRACE 
+;
 
-local_declaracoes: local_declaracoes var_declaracao{
-                if ($1 != NULL) {
-                    $$ = $1;
-                }
-                else {
-                    $$ = $2;
-                }
-            }
-                | vazio { $$ = $1; }
-                ;
+local_declaracoes: 
+    local_declaracoes var_declaracao 
+    | /* vazio */ 
+;
 
-statement_lista: statement_lista statement {
-                if ($1 != NULL) {
-                    $$ = $1;
-                }
-                else {
-                    $$ = $2;
-                }
-            }
-                | vazio { $$ = $1; }
-                ;
+statement_lista: 
+    statement_lista statement 
+    | /* vazio */ 
+;
 
-statement: expressao_decl { $$ = $1; }
-            | composto_decl { $$ = $1; }
-            | selecao_decl { $$ = $1; }
-            | iteracao_decl { $$ = $1; }
-            | retorno_decl { $$ = $1; }
-            ;
+statement: 
+    expressao_decl 
+    | composto_decl 
+    | selecao_decl 
+    | iteracao_decl 
+    | retorno_decl 
+;
 
-expressao_decl: expressao SEMICOL { $$ = $1; }
-                | SEMICOL { $$ = $1; }
-                ;
+expressao_decl: 
+    expressao SEMICOL 
+    | SEMICOL 
+;
 
-selecao_decl: IF LPAREN expressao RPAREN statement %prec ELSE {
-                if ($$ != NULL) {
-                    $$ = $4;
-                }
-                else {
-                    $$ = $5;
-                }
-        }
-            | IF LPAREN expressao RPAREN statement ELSE statement {
-                if ($$ != NULL) {
-                    $$ = $4;
-                }
-                else {
-                    $$ = $6;
-                }
-            }
-            ;
+selecao_decl: 
+    IF LPAREN expressao RPAREN statement %prec LOWER_THAN_ELSE 
+    | IF LPAREN expressao RPAREN statement ELSE statement 
+;
 
-iteracao_decl: WHILE LPAREN expressao RPAREN statement {
-                if ($$ != NULL) {
-                    $$ = $4;
-                }
-                else {
-                    $$ = $5;
-                }
-                }
-                ;
+iteracao_decl: 
+    WHILE LPAREN expressao RPAREN statement 
+;
 
-retorno_decl: RETURN SEMICOL { $$ = $1; }
-            | RETURN expressao SEMICOL
-            ;
+retorno_decl: 
+    RETURN SEMICOL 
+    | RETURN expressao SEMICOL 
+;
 
-expressao: var ASSIGN expressao { $$ = $1; }
-            | simples_expressao { $$ = $1; }
-            ;
+expressao: 
+    var ASSIGN expressao 
+    | simples_expressao 
+;
 
-var: ID { $$ = $1; }
-    | ID LBRACKET expressao RBRACKET {
-        if ($$ != NULL) {
-            $$ = $1;
-        }
-        else {
-            $$ = $3;
-        }
-    }
-    ;
+var: 
+    ID 
+    | ID LBRACKET expressao RBRACKET 
+;
 
-simples_expressao: soma_expressao relacional soma_expressao {
-                if ($$ != NULL) {
-                    $$ = $1;
-                }
-                else {
-                    $$ = $3;
-                }
-            }
-                | soma_expressao { $$ = $1; }
-                ;
+simples_expressao: 
+    soma_expressao relacional soma_expressao 
+    | soma_expressao 
+;
 
-relacional: SMAL
-            | SMALEQ
-            | GREAT
-            | GREATEQ
-            | EQ
-            | DIFF
-            ;
+relacional: 
+    SMAL | SMALEQ | GREAT | GREATEQ | EQ | DIFF 
+;
 
-soma_expressao: soma_expressao soma termo {
-                $$ = $2;
-}
-                | termo { $$ = $1; }
-                ;
+soma_expressao: 
+    soma_expressao soma termo 
+    | termo 
+;
 
-soma: PLUS { $$ = $1; }
-    | MINUS { $$ = $1; }
-    ;
+soma: 
+    PLUS | MINUS 
+;
 
-termo: termo mult fator {
-                if ($$ != NULL) {
-                    $$ = $2;
-                }
-                else {
-                    $$ = $3;
-                }
-            }
-        | fator { $$ = $1; }
-        ;
+termo: 
+    termo mult fator 
+    | fator 
+;
 
-mult: MULT { $$ = $1; }
-    | DIV { $$ = $1; }
-    ;
+mult: 
+    MULT | DIV 
+;
 
-fator: LPAREN expressao RPAREN { $$ = $2; }
-        | var { $$ = $1; }
-        | ativacao { $$ = $1; }
-        | NUM { $$ = $1; }
-        ;
+fator: 
+    LPAREN expressao RPAREN 
+    | var 
+    | ativacao 
+    | NUM 
+    | MINUS fator %prec UMINUS 
+;
 
-ativacao: ID LPAREN args RPAREN { $$ = $1; }
-        ;
+ativacao: 
+    ID LPAREN args RPAREN 
+;
 
-args: arg_lista { $$ = $1; }
-    | vazio { $$ = $1; }
-    ;
+args: 
+    arg_lista 
+    | /* vazio */ 
+;
 
-arg_lista: arg_lista COMMA expressao { $$ = $1; }
-        | expressao { $$ = $1; }
-        ;
-
-vazio: /* vazio */ { $$ = NULL; }
-        ;
-
+arg_lista: 
+    arg_lista COMMA expressao 
+    | expressao 
+;
 
 %%
 
-void yyerror(char *s) {
+void yyerror(const char *s) {
     printf(ANSI_COLOR_GREEN "ERRO SINTÁTICO: " ANSI_COLOR_RESET "\"%s\" ", yytext);
-    printf(ANSI_COLOR_RED "LINHA: %d.\n" ANSI_COLOR_RESET, lineNum);
+    printf(ANSI_COLOR_RED "LINHA: %d\n" ANSI_COLOR_RESET, lineNum);
     countErrorsParser++;
 }
 
+int main(int argc, char **argv) {
+    formaEntrada(argc, argv);
+    yyparse();
+    return 0;
+}
