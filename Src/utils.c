@@ -11,7 +11,6 @@ char tokenString[MAXTOKENLEN];  // Add this line to define tokenString
     Para a entrada 2, a entrada será passada como parâmetro e a saída será no terminal.
     Para a entrada 3, a entrada e saída serão passadas como parâmetro.
 */
-// Entrada para execução: 
 void formaEntrada(int argc, char **argv){
     if (argc == 1){
         yyin = stdin;

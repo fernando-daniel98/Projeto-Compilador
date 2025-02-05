@@ -4,11 +4,11 @@ extern char* yytext;
 extern int yylex(void);
 void yyerror(const char *s);
 
-int hasErrors = 0;
+int countErrorsParser = 1;
 
 %}
 
-%token NUM ID IF ELSE INT RETURN VOID WHILE ERROR ENDOFFILE
+%token NUM ID IF ELSE INT RETURN VOID WHILE
 %token PLUS MINUS MULT DIV SMAL SMALEQ GREAT GREATEQ EQ DIFF ASSIGN SEMICOL COMMA 
 %token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE
 
@@ -37,10 +37,6 @@ declaracao:
 var_declaracao: 
     tipo_especificador ID SEMICOL 
     | tipo_especificador ID LBRACKET NUM RBRACKET SEMICOL 
-    | error SEMICOL {  // Recuperação em declarações de variáveis
-        hasErrors = 1;
-        yyerrok;
-    }
 ;
 
 tipo_especificador: 
@@ -87,11 +83,6 @@ statement:
     | selecao_decl 
     | iteracao_decl 
     | retorno_decl 
-    | error SEMICOL {  // Recuperação em declarações
-        hasErrors = 1;
-        yyerrok;
-        printf("Tentando recuperar...\n");
-    }
 ;
 
 expressao_decl: 
@@ -177,16 +168,11 @@ arg_lista:
 void yyerror(const char *s) {
     printf(ANSI_COLOR_GREEN "ERRO SINTÁTICO: " ANSI_COLOR_RESET "\"%s\" ", yytext);
     printf(ANSI_COLOR_RED "LINHA: %d\n" ANSI_COLOR_RESET, lineNum);
-    hasErrors = 1;
+    countErrorsParser++;
 }
 
 int main(int argc, char **argv) {
     formaEntrada(argc, argv);
     yyparse();
-    if(hasErrors) {
-        printf("\nCompilação concluída com erros!\n");
-        return 1;
-    }
-    printf("\nCompilação bem-sucedida!\n");
     return 0;
 }

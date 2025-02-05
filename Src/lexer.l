@@ -6,7 +6,8 @@
 extern YYSTYPE yylval;
 extern char* yytext;
 
-unsigned int lineNum = 1;
+int lineNum = 1;
+int countErrorsLexer = 1;
 
 %}
 
@@ -65,6 +66,7 @@ WHITESPACE [ \t]+
     if (c == EOF) {
         fprintf(stderr, ANSI_COLOR_PURPLE "ERRO LÉXICO: Comentário não fechado" ANSI_COLOR_RESET);
         fprintf(stderr, ANSI_COLOR_RED " LINHA: %d\n" ANSI_COLOR_RESET, lineNum);
+        countErrorsLexer++;
     }
 }
 
@@ -79,7 +81,7 @@ WHITESPACE [ \t]+
 .                 {
     fprintf(stderr, ANSI_COLOR_PURPLE "ERRO LÉXICO: " ANSI_COLOR_RESET "\"%s\"", yytext);
     fprintf(stderr, ANSI_COLOR_RED " LINHA: %d\n" ANSI_COLOR_RESET, lineNum);
-    return ERROR;
+    countErrorsLexer++;
 }
 
 <<EOF>>           { return 0; }
