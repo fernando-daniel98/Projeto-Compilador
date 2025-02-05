@@ -23,10 +23,9 @@ extern char tokenString[MAXTOKENLEN];
 #define ANSI_COLOR_GREEN    "\x1b[0;32m"
 
 // Variáveis globais
-extern int lineNum;
-extern int countErrorsLexer;
-extern int countErrorsParser;
-extern int countErrorsSemantic;
+extern unsigned int lineNum;
+extern int hasErrors;
+
 extern FILE *arquivoEntrada;
 extern FILE *arquivoSaida;
 extern char tokenString[MAXTOKENLEN];

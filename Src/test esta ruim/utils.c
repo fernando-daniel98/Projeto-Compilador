@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>  // Para exit()
-#include "../Include/globals.h"
+#include "../../Include/globals.h"
 
 extern FILE *yyin, *yyout;
 char tokenString[MAXTOKENLEN];  // Add this line to define tokenString

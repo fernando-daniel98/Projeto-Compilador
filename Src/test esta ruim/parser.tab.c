@@ -69,7 +69,7 @@
 /* First part of user prologue.  */
 #line 1 "parser.y"
 
-#include "../Include/globals.h"
+#include "../../Include/globals.h"
 extern char* yytext;
 extern int yylex(void);
 void yyerror(const char *s);

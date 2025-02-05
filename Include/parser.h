@@ -10,7 +10,7 @@ void formaEntrada(int argc, char **argv);
 
 typedef enum
     /* book-keeping tokens */
-   {ENDOFFILE = 256, ERROR = 256,
+   {ENDOFFILE = 300, ERROR,
 
     /* reserved words */
     // if  else  int  return  void  while

@@ -1,6 +1,7 @@
 %{
 #include "parser.tab.h"  // Deve vir primeiro
-#include "../Include/globals.h"
+#include "../../Include/globals.h"
+#include <stdio.h>
 
 
 extern YYSTYPE yylval;
@@ -10,7 +11,8 @@ unsigned int lineNum = 1;
 
 %}
 
-%option noyywrap
+%option noyywrap nounput
+
 
 DIGITO    [0-9]
 NUMBER    {DIGITO}+
@@ -49,22 +51,18 @@ WHITESPACE [ \t]+
 "}"               { return RBRACE; }
 
 "/*" {
-    int c, next_char;
-    while ((c = input()) != EOF) {
-        if (c == '\n') {
-            lineNum++;
-        } else if (c == '*') {
-            next_char = input(); // Lê o próximo caractere após '*'
-            if (next_char == '/') {
-                break; // Fecha o comentário
-            } else {
-                unput(next_char); // Devolve o caractere lido
-            }
+    int c;
+    for(;;) {
+        while ((c = yylex()) == EOF) {
+            fprintf(stderr, ANSI_COLOR_PURPLE "ERRO LÉXICO: Comentário não fechado" ANSI_COLOR_RESET);
+            fprintf(stderr, ANSI_COLOR_RED " LINHA: %d\n" ANSI_COLOR_RESET, lineNum);
+            return ERROR;
         }
-    }
-    if (c == EOF) {
-        fprintf(stderr, ANSI_COLOR_PURPLE "ERRO LÉXICO: Comentário não fechado" ANSI_COLOR_RESET);
-        fprintf(stderr, ANSI_COLOR_RED " LINHA: %d\n" ANSI_COLOR_RESET, lineNum);
+        if (c == '\n') lineNum++;
+        else if (c == '*') {
+            if ((c = yylex()) == '/') break;
+            if (c == '\n') lineNum++;
+        }
     }
 }
 
