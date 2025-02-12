@@ -2,7 +2,8 @@
 #include <stdlib.h>  // Para exit()
 #include "../Include/globals.h"
 
-extern FILE *yyin, *yyout;
+FILE *yyin = NULL;
+FILE *yyout = NULL;
 char tokenString[MAXTOKENLEN];  // Add this line to define tokenString
 
 /* Função que verifica se o usuário deseja compilar um arquivo ou escrever o código diretamente no terminal */

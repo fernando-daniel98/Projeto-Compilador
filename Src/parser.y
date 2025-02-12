@@ -1,14 +1,18 @@
 %{
-#include "../Include/globals.h"
-extern char* yytext;
-extern int yylex(void);
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+extern char* yytext;       // Uncommented line
+extern int yylex(void);    // Uncommented line
 void yyerror(const char *s);
 
-int countErrorsParser = 1;
+extern int lineNum = 1;
 
 %}
 
-%token NUM ID IF ELSE INT RETURN VOID WHILE
+%token NUM ID IF ELSE INT RETURN VOID WHILE ERROR
 %token PLUS MINUS MULT DIV SMAL SMALEQ GREAT GREATEQ EQ DIFF ASSIGN SEMICOL COMMA 
 %token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE
 
@@ -18,7 +22,6 @@ int countErrorsParser = 1;
 %left EQ DIFF SMAL SMALEQ GREAT GREATEQ
 %left PLUS MINUS
 %left MULT DIV
-%right UMINUS
 
 %%
 
@@ -146,7 +149,6 @@ fator:
     | var 
     | ativacao 
     | NUM 
-    | MINUS fator %prec UMINUS 
 ;
 
 ativacao: 
@@ -166,13 +168,11 @@ arg_lista:
 %%
 
 void yyerror(const char *s) {
-    printf(ANSI_COLOR_GREEN "ERRO SINTÁTICO: " ANSI_COLOR_RESET "\"%s\" ", yytext);
-    printf(ANSI_COLOR_RED "LINHA: %d\n" ANSI_COLOR_RESET, lineNum);
-    countErrorsParser++;
+    printf("ERRO SINTÁTICO: \"%s\" ", yytext);
+    printf("LINHA: %d\n", lineNum);
 }
 
 int main(int argc, char **argv) {
-    formaEntrada(argc, argv);
     yyparse();
     return 0;
 }

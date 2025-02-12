@@ -12,8 +12,6 @@
 #define MAXIDLEN 33
 #define MAXSTACK 30
 
-extern char tokenString[MAXTOKENLEN];
-
 // Cores ANSI
 #define ANSI_COLOR_RED      "\x1b[31m"
 #define ANSI_COLOR_GRAY     "\x1b[0;37m"
@@ -24,9 +22,8 @@ extern char tokenString[MAXTOKENLEN];
 
 // Variáveis globais
 extern int lineNum;
-extern int countErrorsLexer;
-extern int countErrorsParser;
-extern int countErrorsSemantic;
+extern FILE *yyin, *yyout; // Remova arquivoEntrada e arquivoSaida se não são usados
+
 extern FILE *arquivoEntrada;
 extern FILE *arquivoSaida;
 extern char tokenString[MAXTOKENLEN];
