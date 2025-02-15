@@ -9,7 +9,7 @@ extern FILE *yyin;
 extern FILE *yyout;
 extern char* yytext;
 
-int lineNum;
+int lineNum = 1;
 int countErrorsLexer;
 char tokenString[MAXTOKENLEN];
 %}
@@ -22,6 +22,8 @@ LETRA     [a-zA-Z]
 IDENT     {LETRA}({LETRA}|{DIGITO})*
 NEWLINE   \n
 WHITESPACE [ \t]+
+COMMENT    "/*"(.|\n)*"*/"
+
 
 %%
 
@@ -52,27 +54,7 @@ WHITESPACE [ \t]+
 "{"               { return LBRACE; }
 "}"               { return RBRACE; }
 
-"/*" {
-    int c, next_char;
-    while ((c = input()) != EOF) {
-        if (c == '\n') {
-            lineNum++;
-        } else if (c == '*') {
-            next_char = input(); // Lê o próximo caractere após '*'
-            if (next_char == '/') {
-                break; // Fecha o comentário
-            } else {
-                unput(next_char); // Devolve o caractere lido
-            }
-        }
-    }
-    if (c == EOF) {
-        fprintf(stderr, "ERRO LÉXICO: Comentário não fechado");
-        fprintf(stderr, " LINHA: %d\n", lineNum);
-        countErrorsLexer++;
-    }
-}
-
+{COMMENT}         { /* Ignorar */ }
 {NUMBER}          { yylval = atoi(yytext); return NUM; }
 {IDENT}           { strncpy(tokenString, yytext, MAXTOKENLEN); return ID; }
 
@@ -80,9 +62,9 @@ WHITESPACE [ \t]+
 {NEWLINE}         { lineNum++; }
 
 .                 {
-    fprintf(stderr, "ERRO LÉXICO: \"%s\"", yytext);
-    fprintf(stderr, " LINHA: %d\n", lineNum);
-    countErrorsLexer++;
+    fprintf(stderr, "ERRO LÉXICO: \"%s\" ", yytext);
+    fprintf(stderr, "LINHA: %d\n", lineNum);
+    return ERROR;
 }
 
 <<EOF>>           { return 0; }

@@ -1,7 +1,7 @@
 clean:
-	rm -f lex.yy.c parser.output parser.tab.c parser.tab.h
+	rm -f lex.yy.* parser.output parser.tab.* parser.tab.h compilador
 run:
-	bison -d -v parser.y
+	bison -d -v -Wcounterexamples parser.y
 	flex lexer.l
 	gcc -c lex.yy.c
 	gcc -c parser.tab.c

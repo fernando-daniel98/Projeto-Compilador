@@ -7,15 +7,14 @@ extern FILE *yyin;
 extern FILE *yyout;
 extern char* yytext;
 
-// extern int lineNum;
+extern int lineNum;
 extern int countErrorsLexer;
 
 extern int yylex(void);
 void yyerror(const char *s);
-int countErrorsParser = 1;
 %}
 
-%token NUM ID IF ELSE INT RETURN VOID WHILE
+%token NUM ID IF ELSE INT RETURN VOID WHILE ERROR
 %token PLUS MINUS MULT DIV SMAL SMALEQ GREAT GREATEQ EQ DIFF ASSIGN SEMICOL COMMA 
 %token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE
 
@@ -72,6 +71,12 @@ param:
 
 composto_decl: 
     LBRACE local_declaracoes statement_lista RBRACE 
+    | LBRACE error RBRACE  // Recupera erro dentro do bloco
+        {
+            yyerrok;
+            yyclearin;
+            printf("Bloco recuperado após erro.\n");
+        }
 ;
 
 local_declaracoes: 
@@ -81,7 +86,12 @@ local_declaracoes:
 
 statement_lista: 
     statement_lista statement 
-    | /* vazio */ 
+    | /* vazio */
+    | error SEMICOL  // Pula até ';' para continuar
+        {
+            yyerrok;
+            printf("Erro recuperado. Continuando...\n");
+        }
 ;
 
 statement: 
@@ -173,9 +183,8 @@ arg_lista:
 %%
 
 void yyerror(const char *s) {
-    printf( "ERRO SINTÁTICO: \"%s\" \n", yytext);
-    /* printf( "LINHA: %d\n" , lineNum); */
-    countErrorsParser++;
+    printf( "ERRO SINTÁTICO: \"%s\" ", yytext);
+    printf( "LINHA: %d\n" , lineNum);
 }
 
 void formaEntrada(int argc, char **argv){
