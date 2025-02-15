@@ -1,11 +1,17 @@
 %{
-#include "../Include/globals.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+extern FILE *yyin;
+extern FILE *yyout;
 extern char* yytext;
+
+extern int lineNum;
+extern int countErrorsLexer;
+
 extern int yylex(void);
 void yyerror(const char *s);
-
-int countErrorsParser = 1;
-
 %}
 
 %token NUM ID IF ELSE INT RETURN VOID WHILE
@@ -64,7 +70,7 @@ param:
 ;
 
 composto_decl: 
-    LBRACE local_declaracoes statement_lista RBRACE 
+    LBRACE local_declaracoes statement_lista RBRACE
 ;
 
 local_declaracoes: 
@@ -74,7 +80,12 @@ local_declaracoes:
 
 statement_lista: 
     statement_lista statement 
-    | /* vazio */ 
+    | /* vazio */
+    | error SEMICOL  // Pula até ';' para continuar
+        {
+            yyerrok;
+            printf("Erro recuperado. Continuando...\n");
+        }
 ;
 
 statement: 
@@ -166,13 +177,30 @@ arg_lista:
 %%
 
 void yyerror(const char *s) {
-    printf(ANSI_COLOR_GREEN "ERRO SINTÁTICO: " ANSI_COLOR_RESET "\"%s\" ", yytext);
-    printf(ANSI_COLOR_RED "LINHA: %d\n" ANSI_COLOR_RESET, lineNum);
-    countErrorsParser++;
+    printf( "ERRO SINTÁTICO: \"%s\" ", yytext);
+    printf( "LINHA: %d\n" , lineNum);
+}
+
+void formaEntrada(int argc, char **argv){
+    if (argc == 1){
+        yyin = stdin;
+        yyout = stdout;
+    } else if (argc == 2){
+        yyin = fopen(argv[1], "r");
+        yyout = stdout;
+    } else if (argc == 3){
+        yyin = fopen(argv[1], "r");
+        yyout = fopen(argv[2], "w");
+    } else {
+        fprintf(stderr, "Uso: %s [arquivo_entrada] [arquivo_saida]\n", argv[0]);
+        exit(1);
+    }
 }
 
 int main(int argc, char **argv) {
+
     formaEntrada(argc, argv);
+
     yyparse();
     return 0;
 }

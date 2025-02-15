@@ -1,3 +1,0 @@
-/home/ferdanielinux/desktop-linux/scripts-c/Projeto-Compilador/Release/CMakeFiles/main.dir
-/home/ferdanielinux/desktop-linux/scripts-c/Projeto-Compilador/Release/CMakeFiles/edit_cache.dir
-/home/ferdanielinux/desktop-linux/scripts-c/Projeto-Compilador/Release/CMakeFiles/rebuild_cache.dir

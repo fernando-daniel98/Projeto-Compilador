@@ -64,7 +64,7 @@ COMMENT    "/*"(.|\n)*"*/"
 .                 {
     fprintf(stderr, "ERRO LÉXICO: \"%s\" ", yytext);
     fprintf(stderr, "LINHA: %d\n", lineNum);
-    return ERROR;
+    return -1;
 }
 
 <<EOF>>           { return 0; }
