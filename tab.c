@@ -231,13 +231,6 @@ void insertNode(TreeNode* node) {
                     break;
                     
                 case FunDeclK:
-                    // Save old scope
-                    char oldScope[MAXNOLIN];
-                    strcpy(oldScope, currentScope);
-                    
-                    // Set new scope
-                    strcpy(currentScope, node->attr.name);
-                    
                     // Add function to symbol table
                     adicionaIdentificarTabela(symbolTable, 
                                             node->attr.name,
@@ -246,14 +239,26 @@ void insertNode(TreeNode* node) {
                                             node->type,
                                             node->lineno);
                     
-                    // Process function body
+                    // Save old scope
+                    char oldScope[MAXNOLIN];
+                    strcpy(oldScope, currentScope);
+                    
+                    // Set new scope to function name
+                    strcpy(currentScope, node->attr.name);
+                    
+                    // Process function body (parameters and body)
                     for (int i = 0; i < MAXCHILDREN; i++) {
                         buildSymTabFromTree(node->child[i]);
                     }
                     
+                    // Process siblings inside function
+                    if (node->sibling != NULL) {
+                        buildSymTabFromTree(node->sibling);
+                    }
+                    
                     // Restore old scope
                     strcpy(currentScope, oldScope);
-                    return;  // Already processed children
+                    return;  // Already processed children and siblings
                     
                 case VarParamK:
                     adicionaIdentificarTabela(symbolTable, 
@@ -278,35 +283,37 @@ void insertNode(TreeNode* node) {
         case ExpressionK:
             switch (node->kind.exp) {
                 case IdK:
-                    // For variable uses, we just add the line number
                     PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, node->attr.name);
                     if (existing != NULL) {
                         adicionaLinhaIdentificador(existing, node->lineno);
-                    } else {
-                        // Could add error handling for undeclared variables
-                        printf("Warning: Undeclared identifier %s at line %d\n", 
-                               node->attr.name, node->lineno);
+                    }
+                    break;
+                    
+                case VetorK:
+                    existing = buscaIdentificadorTabela(symbolTable, node->attr.name);
+                    if (existing != NULL) {
+                        adicionaLinhaIdentificador(existing, node->lineno);
                     }
                     break;
                     
                 case AtivK:
-                    // For function calls, add line number to function entry
                     existing = buscaIdentificadorTabela(symbolTable, node->attr.name);
                     if (existing != NULL) {
                         adicionaLinhaIdentificador(existing, node->lineno);
-                    } else {
-                        printf("Warning: Undeclared function %s at line %d\n", 
-                               node->attr.name, node->lineno);
                     }
                     break;
             }
             break;
     }
     
-    // Process siblings and children
+    // Process children
     for (int i = 0; i < MAXCHILDREN; i++) {
-        buildSymTabFromTree(node->child[i]);
+        if (node->child[i] != NULL) {
+            buildSymTabFromTree(node->child[i]);
+        }
     }
+    
+    // Process siblings
     if (node->sibling != NULL) {
         buildSymTabFromTree(node->sibling);
     }
