@@ -14,4 +14,5 @@ run:
 	$(CC) $(CFLAGS) -c $(BUILD_DIR)/lex.yy.c -o $(BUILD_DIR)/lex.yy.o && \
 	$(CC) $(CFLAGS) -c $(BUILD_DIR)/parser.tab.c -o $(BUILD_DIR)/parser.tab.o && \
 	$(CC) $(CFLAGS) -c ./parser/util.c -o $(BUILD_DIR)/util.o && \
-	$(CC) $(CFLAGS) -o compilador $(BUILD_DIR)/lex.yy.o $(BUILD_DIR)/parser.tab.o $(BUILD_DIR)/util.o -lfl)
+	$(CC) $(CFLAGS) -c ./tab.c -o $(BUILD_DIR)/tab.o && \
+	$(CC) $(CFLAGS) -o compilador $(BUILD_DIR)/lex.yy.o $(BUILD_DIR)/parser.tab.o $(BUILD_DIR)/tab.o $(BUILD_DIR)/util.o -lfl)

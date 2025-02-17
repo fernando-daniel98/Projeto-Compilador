@@ -570,13 +570,13 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,    70,    70,    73,    86,    90,    91,    95,   106,   119,
-     120,   124,   138,   139,   148,   158,   162,   229,   254,   265,
-     275,   279,   289,   290,   299,   300,   301,   302,   303,   307,
-     308,   312,   313,   317,   321,   322,   326,   334,   338,   339,
-     351,   358,   362,   364,   366,   368,   370,   372,   376,   383,
-     387,   389,   393,   400,   404,   406,   410,   411,   412,   413,
-     414,   424,   436,   437,   441,   451
+       0,    70,    70,    73,    86,    90,    91,    95,   105,   118,
+     119,   123,   137,   138,   147,   157,   161,   176,   193,   204,
+     214,   218,   228,   229,   238,   239,   240,   241,   242,   246,
+     247,   251,   260,   272,   283,   289,   299,   307,   311,   312,
+     324,   331,   335,   337,   339,   341,   343,   345,   349,   356,
+     360,   362,   366,   373,   377,   379,   383,   384,   385,   386,
+     387,   397,   409,   410,   414,   424
 };
 #endif
 
@@ -1217,18 +1217,18 @@ yyreduce:
 
   case 3: /* declaracao_lista: declaracao_lista declaracao  */
 #line 74 "./parser/parser.y"
-                { 
-                    TreeNode* t = (yyvsp[-1].node);
-                    if (t != NULL)
-                    { 
-                        while (t->sibling != NULL) {
-                            t = t->sibling;
-                        }
-                        t->sibling = (yyvsp[0].node);
-                        (yyval.node) = (yyvsp[-1].node);
-                    }
-                    else (yyval.node) = (yyvsp[0].node);
+        { 
+            TreeNode* t = (yyvsp[-1].node);
+            if (t != NULL)
+            { 
+                while (t->sibling != NULL) {
+                    t = t->sibling;
                 }
+                t->sibling = (yyvsp[0].node);
+                (yyval.node) = (yyvsp[-1].node);
+            }
+            else (yyval.node) = (yyvsp[0].node);
+        }
 #line 1233 "./build/parser.tab.c"
     break;
 
@@ -1246,14 +1246,13 @@ yyreduce:
 
   case 6: /* declaracao: fun_declaracao  */
 #line 91 "./parser/parser.y"
-                     { debug_print("Entrei na fun_decl\n"); (yyval.node) = (yyvsp[0].node);}
+                     { (yyval.node) = (yyvsp[0].node);}
 #line 1251 "./build/parser.tab.c"
     break;
 
   case 7: /* var_declaracao: tipo_especificador ID SEMICOL  */
 #line 96 "./parser/parser.y"
     {
-        debug_print("Estou no var_decl\n");
         TreeNode* t = newNode(StatementK);
         t->kind.stmt = VarDeclK;
         t->attr.name = (yyvsp[-1].node)->attr.name;  // Copy the ID name
@@ -1261,11 +1260,11 @@ yyreduce:
         free((yyvsp[-1].node));  // Free the ID node since we copied its data
         (yyval.node) = t;
     }
-#line 1265 "./build/parser.tab.c"
+#line 1264 "./build/parser.tab.c"
     break;
 
   case 8: /* var_declaracao: tipo_especificador ID LBRACKET NUM RBRACKET SEMICOL  */
-#line 107 "./parser/parser.y"
+#line 106 "./parser/parser.y"
     {
         TreeNode* t = newNode(StatementK);
         t->kind.stmt = VetDeclK;       // Vector declaration
@@ -1275,23 +1274,23 @@ yyreduce:
         free((yyvsp[-4].node));                      // Free the ID node
         (yyval.node) = t;
     }
-#line 1279 "./build/parser.tab.c"
+#line 1278 "./build/parser.tab.c"
     break;
 
   case 9: /* tipo_especificador: INT  */
-#line 119 "./parser/parser.y"
+#line 118 "./parser/parser.y"
          { (yyval.type) = Integer; }
-#line 1285 "./build/parser.tab.c"
+#line 1284 "./build/parser.tab.c"
     break;
 
   case 10: /* tipo_especificador: VOID  */
-#line 120 "./parser/parser.y"
+#line 119 "./parser/parser.y"
            { (yyval.type) = Void; }
-#line 1291 "./build/parser.tab.c"
+#line 1290 "./build/parser.tab.c"
     break;
 
   case 11: /* fun_declaracao: tipo_especificador ID LPAREN params RPAREN composto_decl  */
-#line 124 "./parser/parser.y"
+#line 123 "./parser/parser.y"
                                                              {
         TreeNode* t = newNode(StatementK);
 
@@ -1303,27 +1302,27 @@ yyreduce:
         free((yyvsp[-4].node));  // Free the ID node since we copied its data
         (yyval.node) = t;
     }
-#line 1307 "./build/parser.tab.c"
+#line 1306 "./build/parser.tab.c"
     break;
 
   case 12: /* params: param_lista  */
-#line 138 "./parser/parser.y"
+#line 137 "./parser/parser.y"
                 { (yyval.node) = (yyvsp[0].node); }
-#line 1313 "./build/parser.tab.c"
+#line 1312 "./build/parser.tab.c"
     break;
 
   case 13: /* params: VOID  */
-#line 140 "./parser/parser.y"
+#line 139 "./parser/parser.y"
     {
         TreeNode* t = newNode(StatementK);
         t->kind.stmt = ParamVoid;
         (yyval.node) = t;
     }
-#line 1323 "./build/parser.tab.c"
+#line 1322 "./build/parser.tab.c"
     break;
 
   case 14: /* param_lista: param_lista COMMA param  */
-#line 149 "./parser/parser.y"
+#line 148 "./parser/parser.y"
     {
         TreeNode* t = (yyvsp[-2].node);
         if (t != NULL) {
@@ -1333,114 +1332,54 @@ yyreduce:
         }
         else (yyval.node) = (yyvsp[0].node);
     }
-#line 1337 "./build/parser.tab.c"
+#line 1336 "./build/parser.tab.c"
     break;
 
   case 15: /* param_lista: param  */
-#line 158 "./parser/parser.y"
+#line 157 "./parser/parser.y"
             { (yyval.node) = (yyvsp[0].node); }
-#line 1343 "./build/parser.tab.c"
+#line 1342 "./build/parser.tab.c"
     break;
 
   case 16: /* param: tipo_especificador ID  */
-#line 163 "./parser/parser.y"
+#line 162 "./parser/parser.y"
     {
-        debug_print("\n=== Starting param processing ===");
-        debug_print("Creating new parameter node...");
-        
-        // Debug tipo_especificador
-        printf("DEBUG: tipo_especificador value: %d (0=Void, 1=Integer)\n", (yyvsp[-1].type));
-        fflush(stdout);
-
-        // Create node
         TreeNode* t = newNode(StatementK);
-        if (t == NULL) {
-            debug_print("ERROR: Failed to create new node!");
-        } else {
-            debug_print("Node created successfully");
-        }
-
-        // Set statement kind
         t->kind.stmt = VarParamK;
-        printf("DEBUG: Set node kind to VarParamK (%d)\n", VarParamK);
-        fflush(stdout);
 
-        printf("DEBUG: Checking ID node ($2) address: %p\n", (void*)(yyvsp[0].node));
-        fflush(stdout);
-
-        // Debug ID node
-        if ((yyvsp[0].node) == NULL) {
-            debug_print("ERROR: ID node is NULL!");
-        } else {
-            printf("DEBUG: ID node found - Name: %s\n", 
-                ((yyvsp[0].node)->attr.name != NULL ? (yyvsp[0].node)->attr.name : "NULL"));
-            fflush(stdout);
-        }
-
-        // Copy name
         if ((yyvsp[0].node) && (yyvsp[0].node)->attr.name) {
             t->attr.name = strdup((yyvsp[0].node)->attr.name);
-            printf("DEBUG: Copied parameter name: %s\n", t->attr.name);
-        } else {
-            debug_print("WARNING: No name to copy!");
         }
 
-        // Set type
         t->type = (yyvsp[-1].type);
-        printf("DEBUG: Set parameter type to: %s\n", 
-            (t->type == Integer ? "Integer" : "Void"));
         
-        // Free ID node
-        debug_print("Freeing ID node...");
         free((yyvsp[0].node));
-        debug_print("ID node freed");
-
-        // Set result
+        
         (yyval.node) = t;
-        printf("DEBUG: Parameter node creation complete. Address: %p\n", (void*)t);
-        
-        // Debug final node
-        printf("DEBUG: Final node details:\n");
-        printf("  - Kind: StatementK (%d)\n", t->nodekind);
-        printf("  - Statement type: VarParamK (%d)\n", t->kind.stmt);
-        printf("  - Name: %s\n", t->attr.name);
-        printf("  - Type: %s\n", (t->type == Integer ? "Integer" : "Void"));
-        printf("  - Line number: %d\n", t->lineno);
-        
-        debug_print("=== Param processing complete ===\n");
-        fflush(stdout);
     }
-#line 1414 "./build/parser.tab.c"
+#line 1361 "./build/parser.tab.c"
     break;
 
   case 17: /* param: tipo_especificador ID LBRACKET RBRACKET  */
-#line 230 "./parser/parser.y"
+#line 177 "./parser/parser.y"
     {
-        debug_print("\n=== Starting array param processing ===");
         TreeNode* t = newNode(StatementK);
         t->kind.stmt = VetParamK;
         
         if ((yyvsp[-2].node) && (yyvsp[-2].node)->attr.name) {
             t->attr.name = strdup((yyvsp[-2].node)->attr.name);
-            printf("DEBUG: Array parameter name: %s\n", t->attr.name);
-        } else {
-            debug_print("WARNING: No array name to copy!");
-        }
+        } 
         
         t->type = (yyvsp[-3].type);
-        printf("DEBUG: Array parameter type: %s\n", 
-            (t->type == Integer ? "Integer" : "Void"));
         
         free((yyvsp[-2].node));
         (yyval.node) = t;
-        debug_print("=== Array param processing complete ===\n");
-        fflush(stdout);
     }
-#line 1440 "./build/parser.tab.c"
+#line 1379 "./build/parser.tab.c"
     break;
 
   case 18: /* composto_decl: LBRACE local_declaracoes statement_lista RBRACE  */
-#line 255 "./parser/parser.y"
+#line 194 "./parser/parser.y"
     {
         TreeNode* t = newNode(StatementK);
         t->kind.stmt = NuloDecl;
@@ -1448,11 +1387,11 @@ yyreduce:
         t->child[1] = (yyvsp[-1].node);  // statements
         (yyval.node) = t;
     }
-#line 1452 "./build/parser.tab.c"
+#line 1391 "./build/parser.tab.c"
     break;
 
   case 19: /* local_declaracoes: local_declaracoes var_declaracao  */
-#line 266 "./parser/parser.y"
+#line 205 "./parser/parser.y"
     {
         TreeNode* t = (yyvsp[-1].node);
         if (t != NULL) {
@@ -1462,17 +1401,17 @@ yyreduce:
         }
         else (yyval.node) = (yyvsp[0].node);
     }
-#line 1466 "./build/parser.tab.c"
+#line 1405 "./build/parser.tab.c"
     break;
 
   case 20: /* local_declaracoes: %empty  */
-#line 275 "./parser/parser.y"
+#line 214 "./parser/parser.y"
                   { (yyval.node) = NULL; }
-#line 1472 "./build/parser.tab.c"
+#line 1411 "./build/parser.tab.c"
     break;
 
   case 21: /* statement_lista: statement_lista statement  */
-#line 280 "./parser/parser.y"
+#line 219 "./parser/parser.y"
     {
         TreeNode* t = (yyvsp[-1].node);
         if (t != NULL) {
@@ -1482,69 +1421,128 @@ yyreduce:
         }
         else (yyval.node) = (yyvsp[0].node);
     }
-#line 1486 "./build/parser.tab.c"
+#line 1425 "./build/parser.tab.c"
     break;
 
   case 22: /* statement_lista: %empty  */
-#line 289 "./parser/parser.y"
+#line 228 "./parser/parser.y"
                   { (yyval.node) = NULL; }
-#line 1492 "./build/parser.tab.c"
+#line 1431 "./build/parser.tab.c"
     break;
 
   case 23: /* statement_lista: error SEMICOL  */
-#line 291 "./parser/parser.y"
+#line 230 "./parser/parser.y"
         {
             yyerrok;
             printf("Erro recuperado. Continuando...\n");
             (yyval.node) = NULL;
         }
-#line 1502 "./build/parser.tab.c"
+#line 1441 "./build/parser.tab.c"
     break;
 
   case 24: /* statement: expressao_decl  */
-#line 299 "./parser/parser.y"
+#line 238 "./parser/parser.y"
                    { (yyval.node) = (yyvsp[0].node); }
-#line 1508 "./build/parser.tab.c"
+#line 1447 "./build/parser.tab.c"
     break;
 
   case 25: /* statement: composto_decl  */
-#line 300 "./parser/parser.y"
+#line 239 "./parser/parser.y"
                     { (yyval.node) = (yyvsp[0].node); }
-#line 1514 "./build/parser.tab.c"
+#line 1453 "./build/parser.tab.c"
     break;
 
   case 26: /* statement: selecao_decl  */
-#line 301 "./parser/parser.y"
+#line 240 "./parser/parser.y"
                    { (yyval.node) = (yyvsp[0].node); }
-#line 1520 "./build/parser.tab.c"
+#line 1459 "./build/parser.tab.c"
     break;
 
   case 27: /* statement: iteracao_decl  */
-#line 302 "./parser/parser.y"
+#line 241 "./parser/parser.y"
                     { (yyval.node) = (yyvsp[0].node); }
-#line 1526 "./build/parser.tab.c"
+#line 1465 "./build/parser.tab.c"
     break;
 
   case 28: /* statement: retorno_decl  */
-#line 303 "./parser/parser.y"
+#line 242 "./parser/parser.y"
                    { (yyval.node) = (yyvsp[0].node); }
-#line 1532 "./build/parser.tab.c"
+#line 1471 "./build/parser.tab.c"
     break;
 
   case 29: /* expressao_decl: expressao SEMICOL  */
-#line 307 "./parser/parser.y"
+#line 246 "./parser/parser.y"
                       { (yyval.node) = (yyvsp[-1].node); }
-#line 1538 "./build/parser.tab.c"
+#line 1477 "./build/parser.tab.c"
     break;
 
   case 30: /* expressao_decl: SEMICOL  */
-#line 308 "./parser/parser.y"
+#line 247 "./parser/parser.y"
               { (yyval.node) = NULL; }
-#line 1544 "./build/parser.tab.c"
+#line 1483 "./build/parser.tab.c"
+    break;
+
+  case 31: /* selecao_decl: IF LPAREN expressao RPAREN statement  */
+#line 252 "./parser/parser.y"
+    {
+        TreeNode* t = newNode(StatementK);
+        t->kind.stmt = IfK;
+        t->child[0] = (yyvsp[-2].node);  /* condition */
+        t->child[1] = (yyvsp[0].node);  /* if-part */
+        t->child[2] = NULL; /* else-part is null */
+        (yyval.node) = t;
+    }
+#line 1496 "./build/parser.tab.c"
+    break;
+
+  case 32: /* selecao_decl: IF LPAREN expressao RPAREN statement ELSE statement  */
+#line 261 "./parser/parser.y"
+    {
+        TreeNode* t = newNode(StatementK);
+        t->kind.stmt = IfK;
+        t->child[0] = (yyvsp[-4].node);  /* condition */
+        t->child[1] = (yyvsp[-2].node);  /* if-part */
+        t->child[2] = (yyvsp[0].node);  /* else-part */
+        (yyval.node) = t;
+    }
+#line 1509 "./build/parser.tab.c"
+    break;
+
+  case 33: /* iteracao_decl: WHILE LPAREN expressao RPAREN statement  */
+#line 273 "./parser/parser.y"
+    {
+        TreeNode* t = newNode(StatementK);
+        t->kind.stmt = WhileK;
+        t->child[0] = (yyvsp[-2].node);  /* condition */
+        t->child[1] = (yyvsp[0].node);  /* body */
+        (yyval.node) = t;
+    }
+#line 1521 "./build/parser.tab.c"
+    break;
+
+  case 34: /* retorno_decl: RETURN SEMICOL  */
+#line 284 "./parser/parser.y"
+    {
+        TreeNode* t = newNode(StatementK);
+        t->kind.stmt = ReturnVOID;
+        (yyval.node) = t;
+    }
+#line 1531 "./build/parser.tab.c"
+    break;
+
+  case 35: /* retorno_decl: RETURN expressao SEMICOL  */
+#line 290 "./parser/parser.y"
+    {
+        TreeNode* t = newNode(StatementK);
+        t->kind.stmt = ReturnINT;
+        t->child[0] = (yyvsp[-1].node);  /* return value */
+        (yyval.node) = t;
+    }
+#line 1542 "./build/parser.tab.c"
     break;
 
   case 36: /* expressao: var ASSIGN expressao  */
-#line 327 "./parser/parser.y"
+#line 300 "./parser/parser.y"
     {
         TreeNode* t = newNode(ExpressionK);
         t->kind.exp = AssignK;
@@ -1552,23 +1550,23 @@ yyreduce:
         t->child[1] = (yyvsp[0].node);
         (yyval.node) = t;
     }
-#line 1556 "./build/parser.tab.c"
+#line 1554 "./build/parser.tab.c"
     break;
 
   case 37: /* expressao: simples_expressao  */
-#line 334 "./parser/parser.y"
+#line 307 "./parser/parser.y"
                         { (yyval.node) = (yyvsp[0].node); }
-#line 1562 "./build/parser.tab.c"
+#line 1560 "./build/parser.tab.c"
     break;
 
   case 38: /* var: ID  */
-#line 338 "./parser/parser.y"
+#line 311 "./parser/parser.y"
        { (yyval.node) = (yyvsp[0].node); }
-#line 1568 "./build/parser.tab.c"
+#line 1566 "./build/parser.tab.c"
     break;
 
   case 39: /* var: ID LBRACKET expressao RBRACKET  */
-#line 340 "./parser/parser.y"
+#line 313 "./parser/parser.y"
     {
         TreeNode* t = newNode(ExpressionK);
         t->kind.exp = VetorK;
@@ -1577,157 +1575,157 @@ yyreduce:
         free((yyvsp[-3].node));
         (yyval.node) = t;
     }
-#line 1581 "./build/parser.tab.c"
+#line 1579 "./build/parser.tab.c"
     break;
 
   case 40: /* simples_expressao: soma_expressao relacional soma_expressao  */
-#line 352 "./parser/parser.y"
+#line 325 "./parser/parser.y"
     {
         TreeNode* t = (yyvsp[-1].node);  // reuse relational operator node
         t->child[0] = (yyvsp[-2].node);
         t->child[1] = (yyvsp[0].node);
         (yyval.node) = t;
     }
-#line 1592 "./build/parser.tab.c"
+#line 1590 "./build/parser.tab.c"
     break;
 
   case 41: /* simples_expressao: soma_expressao  */
-#line 358 "./parser/parser.y"
+#line 331 "./parser/parser.y"
                      { (yyval.node) = (yyvsp[0].node); }
-#line 1598 "./build/parser.tab.c"
+#line 1596 "./build/parser.tab.c"
     break;
 
   case 42: /* relacional: SMAL  */
-#line 362 "./parser/parser.y"
+#line 335 "./parser/parser.y"
          { (yyval.node) = (yyvsp[0].node); }
-#line 1604 "./build/parser.tab.c"
+#line 1602 "./build/parser.tab.c"
     break;
 
   case 43: /* relacional: SMALEQ  */
-#line 364 "./parser/parser.y"
+#line 337 "./parser/parser.y"
            { (yyval.node) = (yyvsp[0].node); }
-#line 1610 "./build/parser.tab.c"
+#line 1608 "./build/parser.tab.c"
     break;
 
   case 44: /* relacional: GREAT  */
-#line 366 "./parser/parser.y"
+#line 339 "./parser/parser.y"
           { (yyval.node) = (yyvsp[0].node); }
-#line 1616 "./build/parser.tab.c"
+#line 1614 "./build/parser.tab.c"
     break;
 
   case 45: /* relacional: GREATEQ  */
-#line 368 "./parser/parser.y"
+#line 341 "./parser/parser.y"
             { (yyval.node) = (yyvsp[0].node); }
-#line 1622 "./build/parser.tab.c"
+#line 1620 "./build/parser.tab.c"
     break;
 
   case 46: /* relacional: EQ  */
-#line 370 "./parser/parser.y"
+#line 343 "./parser/parser.y"
        { (yyval.node) = (yyvsp[0].node); }
-#line 1628 "./build/parser.tab.c"
+#line 1626 "./build/parser.tab.c"
     break;
 
   case 47: /* relacional: DIFF  */
-#line 372 "./parser/parser.y"
+#line 345 "./parser/parser.y"
          { (yyval.node) = (yyvsp[0].node); }
-#line 1634 "./build/parser.tab.c"
+#line 1632 "./build/parser.tab.c"
     break;
 
   case 48: /* soma_expressao: soma_expressao soma termo  */
-#line 377 "./parser/parser.y"
+#line 350 "./parser/parser.y"
     {
         TreeNode* t = (yyvsp[-1].node);  // reuse operator node
         t->child[0] = (yyvsp[-2].node);
         t->child[1] = (yyvsp[0].node);
         (yyval.node) = t;
     }
-#line 1645 "./build/parser.tab.c"
+#line 1643 "./build/parser.tab.c"
     break;
 
   case 49: /* soma_expressao: termo  */
-#line 383 "./parser/parser.y"
+#line 356 "./parser/parser.y"
             { (yyval.node) = (yyvsp[0].node); }
-#line 1651 "./build/parser.tab.c"
+#line 1649 "./build/parser.tab.c"
     break;
 
   case 50: /* soma: PLUS  */
-#line 387 "./parser/parser.y"
+#line 360 "./parser/parser.y"
          { (yyval.node) = (yyvsp[0].node); }
-#line 1657 "./build/parser.tab.c"
+#line 1655 "./build/parser.tab.c"
     break;
 
   case 51: /* soma: MINUS  */
-#line 389 "./parser/parser.y"
+#line 362 "./parser/parser.y"
           { (yyval.node) = (yyvsp[0].node); }
-#line 1663 "./build/parser.tab.c"
+#line 1661 "./build/parser.tab.c"
     break;
 
   case 52: /* termo: termo mult fator  */
-#line 394 "./parser/parser.y"
+#line 367 "./parser/parser.y"
     {
         TreeNode* t = (yyvsp[-1].node);
         t->child[0] = (yyvsp[-2].node);
         t->child[1] = (yyvsp[0].node);
         (yyval.node) = t;
     }
-#line 1674 "./build/parser.tab.c"
+#line 1672 "./build/parser.tab.c"
     break;
 
   case 53: /* termo: fator  */
-#line 400 "./parser/parser.y"
+#line 373 "./parser/parser.y"
             { (yyval.node) = (yyvsp[0].node); }
-#line 1680 "./build/parser.tab.c"
+#line 1678 "./build/parser.tab.c"
     break;
 
   case 54: /* mult: MULT  */
-#line 404 "./parser/parser.y"
+#line 377 "./parser/parser.y"
          { (yyval.node) = (yyvsp[0].node); }
-#line 1686 "./build/parser.tab.c"
+#line 1684 "./build/parser.tab.c"
     break;
 
   case 55: /* mult: DIV  */
-#line 406 "./parser/parser.y"
+#line 379 "./parser/parser.y"
         { (yyval.node) = (yyvsp[0].node); }
-#line 1692 "./build/parser.tab.c"
+#line 1690 "./build/parser.tab.c"
     break;
 
   case 56: /* fator: LPAREN expressao RPAREN  */
-#line 410 "./parser/parser.y"
+#line 383 "./parser/parser.y"
                             { (yyval.node) = (yyvsp[-1].node); }
-#line 1698 "./build/parser.tab.c"
+#line 1696 "./build/parser.tab.c"
     break;
 
   case 57: /* fator: var  */
-#line 411 "./parser/parser.y"
+#line 384 "./parser/parser.y"
           { (yyval.node) = (yyvsp[0].node); }
-#line 1704 "./build/parser.tab.c"
+#line 1702 "./build/parser.tab.c"
     break;
 
   case 58: /* fator: ativacao  */
-#line 412 "./parser/parser.y"
+#line 385 "./parser/parser.y"
                { (yyval.node) = (yyvsp[0].node); }
-#line 1710 "./build/parser.tab.c"
+#line 1708 "./build/parser.tab.c"
     break;
 
   case 59: /* fator: NUM  */
-#line 413 "./parser/parser.y"
+#line 386 "./parser/parser.y"
           { (yyval.node) = (yyvsp[0].node); }
-#line 1716 "./build/parser.tab.c"
+#line 1714 "./build/parser.tab.c"
     break;
 
   case 60: /* fator: MINUS fator  */
-#line 415 "./parser/parser.y"
+#line 388 "./parser/parser.y"
     {
         TreeNode* t = newNode(ExpressionK);
         t->kind.exp = OpK;
         t->child[0] = (yyvsp[0].node);
         (yyval.node) = t;
     }
-#line 1727 "./build/parser.tab.c"
+#line 1725 "./build/parser.tab.c"
     break;
 
   case 61: /* ativacao: ID LPAREN args RPAREN  */
-#line 425 "./parser/parser.y"
+#line 398 "./parser/parser.y"
     {
         TreeNode* t = newNode(ExpressionK);
         t->kind.exp = AtivK;
@@ -1736,23 +1734,23 @@ yyreduce:
         free((yyvsp[-3].node));
         (yyval.node) = t;
     }
-#line 1740 "./build/parser.tab.c"
+#line 1738 "./build/parser.tab.c"
     break;
 
   case 62: /* args: arg_lista  */
-#line 436 "./parser/parser.y"
+#line 409 "./parser/parser.y"
               { (yyval.node) = (yyvsp[0].node); }
-#line 1746 "./build/parser.tab.c"
+#line 1744 "./build/parser.tab.c"
     break;
 
   case 63: /* args: %empty  */
-#line 437 "./parser/parser.y"
+#line 410 "./parser/parser.y"
                   { (yyval.node) = NULL; }
-#line 1752 "./build/parser.tab.c"
+#line 1750 "./build/parser.tab.c"
     break;
 
   case 64: /* arg_lista: arg_lista COMMA expressao  */
-#line 442 "./parser/parser.y"
+#line 415 "./parser/parser.y"
     {
         TreeNode* t = (yyvsp[-2].node);
         if (t != NULL) {
@@ -1762,17 +1760,17 @@ yyreduce:
         }
         else (yyval.node) = (yyvsp[0].node);
     }
-#line 1766 "./build/parser.tab.c"
+#line 1764 "./build/parser.tab.c"
     break;
 
   case 65: /* arg_lista: expressao  */
-#line 451 "./parser/parser.y"
+#line 424 "./parser/parser.y"
                 { (yyval.node) = (yyvsp[0].node); }
-#line 1772 "./build/parser.tab.c"
+#line 1770 "./build/parser.tab.c"
     break;
 
 
-#line 1776 "./build/parser.tab.c"
+#line 1774 "./build/parser.tab.c"
 
       default: break;
     }
@@ -1965,7 +1963,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 454 "./parser/parser.y"
+#line 427 "./parser/parser.y"
 
 
 void yyerror(const char *s) {
@@ -2048,11 +2046,17 @@ int main(int argc, char **argv) {
     printf("Checking syntax tree...\n");
     fflush(stdout);
 
-    if (savedTree != NULL) {
+    if (savedTree != NULL) {        
+        printf("\nBuilding symbol table...\n");
+        buildSymTabFromTree(savedTree);
+        
+        printf("\nSymbol Table Contents:\n");
+        mostraTabelaSimbolos(symbolTable);
+        
+        deleteSymTab();
+
         printf("\nSyntax tree created successfully!\n");
         printTree(savedTree);
-        
-        // Your semantic analysis code here...
         
         /* freeTree(savedTree); */
     } else {

@@ -36,10 +36,19 @@ LETRA     [a-zA-Z]
 IDENT     {LETRA}({LETRA}|{DIGITO})*
 NEWLINE   \n
 WHITESPACE [ \t]+
-COMMENT    "/*"(.|\n)*"*/"
 
 %%
 
+"/*"            {
+                  char c, prev = 0;
+                  while ((c = input())) {
+                      if (c == '/' && prev == '*')
+                          break;
+                      if (c == '\n')
+                          lineNum++;
+                      prev = c;
+                  }
+                }
 "else"            { return ELSE; }
 "if"              { 
                     TreeNode* node = newNode(StatementK);
@@ -139,14 +148,13 @@ COMMENT    "/*"(.|\n)*"*/"
                     return ASSIGN; 
                   }
 ";"               { return SEMICOL; }
-","               { printf("virgula \n"); fflush(stdout);  return COMMA; }
+","               { return COMMA; }
 "("               { return LPAREN; }
 ")"               { return RPAREN; }
 "["               { return LBRACKET; }
 "]"               { return RBRACKET; }
 "{"               { return LBRACE; }
 "}"               { return RBRACE; }
-{COMMENT}         { /* Ignorar */ }
 {NUMBER}          { 
                     TreeNode* node = newNode(ExpressionK);
                     node->kind.exp = ConstK;

@@ -36,6 +36,7 @@ typedef enum {
 typedef enum {Void,Integer} ExpType;
 
 #define MAXCHILDREN 3
+#define MAXNOLIN 10
 
 typedef struct treeNode
    {
@@ -60,7 +61,25 @@ typedef enum {
 
 TreeNode* newNode(NodeKind nodekind);
 
+typedef struct noIdentificador{
+        char nomeIdentificador[MAXNOLIN];
+        StatementKind tipoIdentificador;
+        char escopo[MAXNOLIN];
+        ExpType tipoDado;
+        int linhas[MAXNOLIN];
+        struct noIdentificador *prox, *ant;
+    } noIdentificador;
+    
+typedef noIdentificador *PnoIdentificador;
+
+extern PnoIdentificador* symbolTable;
+
 void printTree(TreeNode* tree);
 void printSpaces(void);
+
+void deleteSymTab(void);
+void buildSymTabFromTree(TreeNode* tree);
+extern char currentScope[MAXNOLIN];
+void mostraTabelaSimbolos(PnoIdentificador *tabelaHash);
 
 #endif

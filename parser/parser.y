@@ -71,30 +71,29 @@ programa: declaracao_lista { savedTree = $1;} ;
 
 declaracao_lista: 
     declaracao_lista declaracao 
-                { 
-                    TreeNode* t = $1;
-                    if (t != NULL)
-                    { 
-                        while (t->sibling != NULL) {
-                            t = t->sibling;
-                        }
-                        t->sibling = $2;
-                        $$ = $1;
-                    }
-                    else $$ = $2;
+        { 
+            TreeNode* t = $1;
+            if (t != NULL)
+            { 
+                while (t->sibling != NULL) {
+                    t = t->sibling;
                 }
+                t->sibling = $2;
+                $$ = $1;
+            }
+            else $$ = $2;
+        }
     | declaracao { $$ = $1; }
 ;
 
 declaracao: 
     var_declaracao { $$ = $1;}
-    | fun_declaracao { debug_print("Entrei na fun_decl\n"); $$ = $1;}
+    | fun_declaracao { $$ = $1;}
 ;
 
 var_declaracao: 
     tipo_especificador ID SEMICOL
     {
-        debug_print("Estou no var_decl\n");
         TreeNode* t = newNode(StatementK);
         t->kind.stmt = VarDeclK;
         t->attr.name = $2->attr.name;  // Copy the ID name
@@ -161,92 +160,32 @@ param_lista:
 param: 
     tipo_especificador ID 
     {
-        debug_print("\n=== Starting param processing ===");
-        debug_print("Creating new parameter node...");
-        
-        // Debug tipo_especificador
-        printf("DEBUG: tipo_especificador value: %d (0=Void, 1=Integer)\n", $1);
-        fflush(stdout);
-
-        // Create node
         TreeNode* t = newNode(StatementK);
-        if (t == NULL) {
-            debug_print("ERROR: Failed to create new node!");
-        } else {
-            debug_print("Node created successfully");
-        }
-
-        // Set statement kind
         t->kind.stmt = VarParamK;
-        printf("DEBUG: Set node kind to VarParamK (%d)\n", VarParamK);
-        fflush(stdout);
 
-        printf("DEBUG: Checking ID node ($2) address: %p\n", (void*)$2);
-        fflush(stdout);
-
-        // Debug ID node
-        if ($2 == NULL) {
-            debug_print("ERROR: ID node is NULL!");
-        } else {
-            printf("DEBUG: ID node found - Name: %s\n", 
-                ($2->attr.name != NULL ? $2->attr.name : "NULL"));
-            fflush(stdout);
-        }
-
-        // Copy name
         if ($2 && $2->attr.name) {
             t->attr.name = strdup($2->attr.name);
-            printf("DEBUG: Copied parameter name: %s\n", t->attr.name);
-        } else {
-            debug_print("WARNING: No name to copy!");
         }
 
-        // Set type
         t->type = $1;
-        printf("DEBUG: Set parameter type to: %s\n", 
-            (t->type == Integer ? "Integer" : "Void"));
         
-        // Free ID node
-        debug_print("Freeing ID node...");
         free($2);
-        debug_print("ID node freed");
-
-        // Set result
+        
         $$ = t;
-        printf("DEBUG: Parameter node creation complete. Address: %p\n", (void*)t);
-        
-        // Debug final node
-        printf("DEBUG: Final node details:\n");
-        printf("  - Kind: StatementK (%d)\n", t->nodekind);
-        printf("  - Statement type: VarParamK (%d)\n", t->kind.stmt);
-        printf("  - Name: %s\n", t->attr.name);
-        printf("  - Type: %s\n", (t->type == Integer ? "Integer" : "Void"));
-        printf("  - Line number: %d\n", t->lineno);
-        
-        debug_print("=== Param processing complete ===\n");
-        fflush(stdout);
     }
     | tipo_especificador ID LBRACKET RBRACKET 
     {
-        debug_print("\n=== Starting array param processing ===");
         TreeNode* t = newNode(StatementK);
         t->kind.stmt = VetParamK;
         
         if ($2 && $2->attr.name) {
             t->attr.name = strdup($2->attr.name);
-            printf("DEBUG: Array parameter name: %s\n", t->attr.name);
-        } else {
-            debug_print("WARNING: No array name to copy!");
-        }
+        } 
         
         t->type = $1;
-        printf("DEBUG: Array parameter type: %s\n", 
-            (t->type == Integer ? "Integer" : "Void"));
         
         free($2);
         $$ = t;
-        debug_print("=== Array param processing complete ===\n");
-        fflush(stdout);
     }
 ;
 
@@ -310,16 +249,50 @@ expressao_decl:
 
 selecao_decl: 
     IF LPAREN expressao RPAREN statement %prec LOWER_THAN_ELSE 
+    {
+        TreeNode* t = newNode(StatementK);
+        t->kind.stmt = IfK;
+        t->child[0] = $3;  /* condition */
+        t->child[1] = $5;  /* if-part */
+        t->child[2] = NULL; /* else-part is null */
+        $$ = t;
+    }
     | IF LPAREN expressao RPAREN statement ELSE statement 
+    {
+        TreeNode* t = newNode(StatementK);
+        t->kind.stmt = IfK;
+        t->child[0] = $3;  /* condition */
+        t->child[1] = $5;  /* if-part */
+        t->child[2] = $7;  /* else-part */
+        $$ = t;
+    }
 ;
 
 iteracao_decl: 
     WHILE LPAREN expressao RPAREN statement 
+    {
+        TreeNode* t = newNode(StatementK);
+        t->kind.stmt = WhileK;
+        t->child[0] = $3;  /* condition */
+        t->child[1] = $5;  /* body */
+        $$ = t;
+    }
 ;
 
 retorno_decl: 
     RETURN SEMICOL 
+    {
+        TreeNode* t = newNode(StatementK);
+        t->kind.stmt = ReturnVOID;
+        $$ = t;
+    }
     | RETURN expressao SEMICOL 
+    {
+        TreeNode* t = newNode(StatementK);
+        t->kind.stmt = ReturnINT;
+        t->child[0] = $2;  /* return value */
+        $$ = t;
+    }
 ;
 
 expressao: 
@@ -533,11 +506,17 @@ int main(int argc, char **argv) {
     printf("Checking syntax tree...\n");
     fflush(stdout);
 
-    if (savedTree != NULL) {
+    if (savedTree != NULL) {        
+        printf("\nBuilding symbol table...\n");
+        buildSymTabFromTree(savedTree);
+        
+        printf("\nSymbol Table Contents:\n");
+        mostraTabelaSimbolos(symbolTable);
+        
+        deleteSymTab();
+
         printf("\nSyntax tree created successfully!\n");
         printTree(savedTree);
-        
-        // Your semantic analysis code here...
         
         /* freeTree(savedTree); */
     } else {
