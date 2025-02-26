@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "globals.h"
-
+#include <stdlib.h>
 static int indentno = 0; /* number of spaces to indent */
 
 /* macros to increase/decrease indentation */
@@ -140,4 +140,16 @@ void printTree(TreeNode* tree) {
         tree = tree->sibling;
     }
     UNINDENT;
+}
+
+void freeTree(TreeNode* tree) {
+    for (int i = 0; i < MAXCHILDREN; i++) {
+        if (tree->child[i] != NULL) {
+            freeTree(tree->child[i]);
+        }
+    }
+    if (tree->sibling != NULL) {
+        freeTree(tree->sibling);
+    }
+    free(tree);
 }

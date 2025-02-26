@@ -2,9 +2,12 @@
 
 int vet[ 10 ];
 
+int A;
+
 int minloc ( int a[], int low, int high )
 {	int i; int x; int k;
 	k = low;
+	A = 1;
 	x = a[low];
 	i = low + 1;
 	while (i < high){

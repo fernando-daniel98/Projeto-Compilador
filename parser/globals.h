@@ -36,7 +36,7 @@ typedef enum {
 typedef enum {Void,Integer} ExpType;
 
 #define MAXCHILDREN 3
-#define MAXNOLIN 10
+#define MAXNOLIN 20
 
 typedef struct treeNode
    {
@@ -76,6 +76,7 @@ extern PnoIdentificador* symbolTable;
 
 void printTree(TreeNode* tree);
 void printSpaces(void);
+void freeTree(TreeNode* tree);
 
 void deleteSymTab(void);
 void buildSymTabFromTree(TreeNode* tree);

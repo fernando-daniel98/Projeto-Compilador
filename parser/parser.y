@@ -122,13 +122,13 @@ tipo_especificador:
 fun_declaracao: 
     tipo_especificador ID LPAREN params RPAREN composto_decl {
         TreeNode* t = newNode(StatementK);
-
         t->kind.stmt = FunDeclK;
-        t->attr.name = $2->attr.name;  // Copy the function name
-        t->type = $1;  // Store the return type (Integer or Void) from tipo_especificador
-        t->child[0] = $4;  // Store the parameters
-        t->child[1] = $6;  // Store the compound statement
-        free($2);  // Free the ID node since we copied its data
+        t->attr.name = $2->attr.name;
+        t->type = $1;
+        t->child[0] = $4;  // params
+        t->child[1] = $6;  // compound statement
+        t->lineno = $2->lineno;  // Set line number from the ID token
+        free($2);
         $$ = t;
     }
 ;
@@ -512,13 +512,10 @@ int main(int argc, char **argv) {
         
         printf("\nSymbol Table Contents:\n");
         mostraTabelaSimbolos(symbolTable);
-        
-        deleteSymTab();
 
         printf("\nSyntax tree created successfully!\n");
         printTree(savedTree);
         
-        /* freeTree(savedTree); */
     } else {
         fprintf(stderr, "Empty syntax tree!\n");
         if (yyin != stdin) fclose(yyin);
@@ -528,6 +525,12 @@ int main(int argc, char **argv) {
 
     printf("Cleaning up...\n");
     fflush(stdout);
+
+    if(savedTree != NULL)
+        freeTree(savedTree);
+        
+    if(symbolTable != NULL)
+        deleteSymTab();
 
     if (yyin != stdin) fclose(yyin);
     if (yyout != stdout) fclose(yyout);

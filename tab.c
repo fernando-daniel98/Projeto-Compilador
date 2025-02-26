@@ -47,7 +47,15 @@ void adicionaLinhaIdentificador(PnoIdentificador item, int linha){
 }
 
 void adicionaIdentificarTabela(PnoIdentificador *tabelaHash, char *nomeIdentificador, StatementKind tipoIdenficador, char *escopo, ExpType tipoDado, int linha){
-    int posicao = hash(nomeIdentificador);
+    
+    char key[MAXNOLIN * 2];
+
+    if (strcmp(escopo, "global") == 0) {
+        snprintf(key, sizeof(key), "%s", nomeIdentificador);
+    } else {
+        snprintf(key, sizeof(key), "%s@%s", nomeIdentificador, escopo);
+    }
+    int posicao = hash(key);
     
     // Caso a posicao da tabela esteja vazia, ou seja o identificador ainda não foi inserido
     if(tabelaHash[posicao] == NULL){
@@ -123,20 +131,26 @@ PnoIdentificador removeIdentificadorTabela(PnoIdentificador *tabelaHash, char *n
     }
 }
 
-PnoIdentificador buscaIdentificadorTabela(PnoIdentificador tabelaHash[], char *nomeIdentificador){
-    int posicao = hash(nomeIdentificador);
-
-    if(tabelaHash[posicao] == NULL){
-        return NULL;
+PnoIdentificador buscaIdentificadorTabela(PnoIdentificador tabelaHash[], char *nomeIdentificador, char *escopo) {
+    char key[MAXNOLIN * 2];
+    if (strcmp(escopo, "global") == 0) {
+        snprintf(key, sizeof(key), "%s", nomeIdentificador);
+    } else {
+        snprintf(key, sizeof(key), "%s@%s", nomeIdentificador, escopo);
     }
-    else{
-        PnoIdentificador aux = tabelaHash[posicao];
+    int posicao = hash(key);
 
-        while(aux != NULL && strcmp(aux->nomeIdentificador, nomeIdentificador) != 0){
+    if (tabelaHash[posicao] == NULL) {
+        return NULL;
+    } else {
+        PnoIdentificador aux = tabelaHash[posicao];
+        while (aux != NULL) {
+            if (strcmp(aux->nomeIdentificador, nomeIdentificador) == 0 && strcmp(aux->escopo, escopo) == 0) {
+                return aux;
+            }
             aux = aux->prox;
         }
-
-        return aux;
+        return NULL;
     }
 }
 
@@ -282,26 +296,43 @@ void insertNode(TreeNode* node) {
             
         case ExpressionK:
             switch (node->kind.exp) {
-                case IdK:
-                    PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, node->attr.name);
+                case IdK: {
+                    PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, node->attr.name, currentScope);
+                    if (existing == NULL) {
+                        // Check global scope if not found in current scope
+                        existing = buscaIdentificadorTabela(symbolTable, node->attr.name, "global");
+                    }
                     if (existing != NULL) {
                         adicionaLinhaIdentificador(existing, node->lineno);
+                    } else {
+                        fprintf(stderr, "Error: Undeclared variable '%s' at line %d\n", node->attr.name, node->lineno);
                     }
                     break;
-                    
-                case VetorK:
-                    existing = buscaIdentificadorTabela(symbolTable, node->attr.name);
+                }
+                
+                case VetorK: {
+                    PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, node->attr.name, currentScope);
+                    if (existing == NULL) {
+                        existing = buscaIdentificadorTabela(symbolTable, node->attr.name, "global");
+                    }
                     if (existing != NULL) {
                         adicionaLinhaIdentificador(existing, node->lineno);
+                    } else {
+                        fprintf(stderr, "Error: Undeclared array '%s' at line %d\n", node->attr.name, node->lineno);
                     }
                     break;
-                    
-                case AtivK:
-                    existing = buscaIdentificadorTabela(symbolTable, node->attr.name);
+                }
+                
+                case AtivK: {
+                    // Function calls are always global
+                    PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, node->attr.name, "global");
                     if (existing != NULL) {
                         adicionaLinhaIdentificador(existing, node->lineno);
+                    } else {
+                        fprintf(stderr, "Error: Undeclared function '%s' at line %d\n", node->attr.name, node->lineno);
                     }
                     break;
+                }
             }
             break;
     }
