@@ -427,8 +427,8 @@ arg_lista:
 %%
 
 void yyerror(const char *s) {
-    fprintf(stderr, ANSI_COLOR_GREEN "ERRO SINTÁTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
-    fprintf(stderr, ANSI_COLOR_GREEN "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET "\n", lineNum);
+    fprintf(stderr, ANSI_COLOR_RED "ERRO LÉXICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
+    fprintf(stderr, ANSI_COLOR_RED "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET "\n", lineNum);
 }
 
 int formaEntrada(int argc, char **argv) {

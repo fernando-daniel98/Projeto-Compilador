@@ -6,8 +6,8 @@
 static int indentno = 0; /* number of spaces to indent */
 
 /* macros to increase/decrease indentation */
-#define INDENT indentno+=2
-#define UNINDENT indentno-=2
+#define INDENT indentno+=1
+#define UNINDENT indentno-=1
 
 /* printSpaces indents by printing spaces */
 void printSpaces(void) {
