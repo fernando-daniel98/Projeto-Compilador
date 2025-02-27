@@ -303,9 +303,10 @@ void insertNode(TreeNode* node) {
                     if (existing != NULL) {
                         adicionaLinhaIdentificador(existing, node->lineno);
                     } else {
-                        // Erro de variável não sendo declarada
+                        // Erro de identificador não declarado
                         fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", node->attr.name);
-                        fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET "\n", node->lineno);
+                        fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
+                        fprintf(stderr, "VARIÁVEL NÃO DECLARADA.\n");                   
                         }
                     break;
                 }
@@ -318,7 +319,9 @@ void insertNode(TreeNode* node) {
                     if (existing != NULL) {
                         adicionaLinhaIdentificador(existing, node->lineno);
                     } else {
-                        fprintf(stderr, "Error: Undeclared array '%s' at line %d\n", node->attr.name, node->lineno);
+                        fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", node->attr.name);
+                        fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
+                        fprintf(stderr, "VETOR NÃO DECLARADO.\n");
                     }
                     break;
                 }
@@ -330,7 +333,9 @@ void insertNode(TreeNode* node) {
                         adicionaLinhaIdentificador(existing, node->lineno);
                     } else {
                         // Erro de identificador não declarado
-                        printf("Error: Undeclared function '%s' at line %d\n", node->attr.name, node->lineno);
+                        fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", node->attr.name);
+                        fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
+                        fprintf(stderr, "FUNÇÃO NÃO DECLARADA.\n");
                     }
                     break;
                 }
