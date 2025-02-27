@@ -3,11 +3,11 @@
 #include <string.h>
 #include "globals.h"
 
-#define MAXTAMTABELA 17
+#define MAXTAMTABELA 29
 #define SHIFT 4
 
 PnoIdentificador* symbolTable = NULL;
-char currentScope[MAXNOLIN];
+char currentScope[MAXTOKENLEN];
 
 int hash(char * key){
     unsigned long int temp = 0;
@@ -256,8 +256,6 @@ void insertNode(TreeNode* node) {
                     // Save old scope
                     char oldScope[MAXNOLIN];
                     strcpy(oldScope, currentScope);
-                    
-                    // Set new scope to function name
                     strcpy(currentScope, node->attr.name);
                     
                     // Process function body (parameters and body)
@@ -305,8 +303,10 @@ void insertNode(TreeNode* node) {
                     if (existing != NULL) {
                         adicionaLinhaIdentificador(existing, node->lineno);
                     } else {
-                        fprintf(stderr, "Error: Undeclared variable '%s' at line %d\n", node->attr.name, node->lineno);
-                    }
+                        // Erro de variável não sendo declarada
+                        fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", node->attr.name);
+                        fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET "\n", node->lineno);
+                        }
                     break;
                 }
                 

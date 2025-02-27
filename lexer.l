@@ -4,14 +4,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define MAXTOKENLEN 40
 
 extern FILE *yyin;
 extern FILE *yyout;
 extern char* yytext;
 
 int lineNum = 1;
-char tokenString[MAXTOKENLEN];
 
 /* Helper function to create new nodes */
 TreeNode* newNode(NodeKind nodekind) {
@@ -173,8 +171,8 @@ WHITESPACE [ \t]+
 {WHITESPACE}      { /* Ignorar */ }
 {NEWLINE}         { lineNum++; }
 .                 {
-                    fprintf(stderr, "ERRO LÉXICO: \"%s\" ", yytext);
-                    fprintf(stderr, "LINHA: %d\n", lineNum);
+                    fprintf(stderr, ANSI_COLOR_RED "ERRO LÉXICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
+                    fprintf(stderr, ANSI_COLOR_RED "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET "\n", lineNum);
                     return -1;
                   }
 <<EOF>>           { return 0; }

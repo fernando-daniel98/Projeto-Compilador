@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include "globals.h"
 #include <stdlib.h>
+#include <string.h>
+
 static int indentno = 0; /* number of spaces to indent */
 
 /* macros to increase/decrease indentation */
@@ -48,86 +50,112 @@ void printTree(TreeNode* tree) {
         if (tree->nodekind == StatementK) {
             switch (tree->kind.stmt) {
                 case IfK:
-                    printf("If\n");
+                    printf("If (line: %d)\n", tree->lineno);
                     break;
                 case WhileK:
-                    printf("While\n");
+                    printf("While (line: %d)\n", tree->lineno);
                     break;
                 case ReturnINT:
-                    printf("Return (int)\n");
+                    printf("Return (type: int, line: %d)\n", tree->lineno);
                     break;
                 case ReturnVOID:
-                    printf("Return (void)\n");
+                    printf("Return (type: void, line: %d)\n", tree->lineno);
                     break;
                 case NuloDecl:
-                    printf("Compound Statement\n");
+                    printf("Compound Statement (line: %d)\n", tree->lineno);
                     break;
                 case VarDeclK:
-                    printf("Var Declaration: %s (type: %s)\n", 
+                    printf("Var Declaration: %s (type: %s, line: %d)\n", 
                         tree->attr.name, 
-                        expTypeToString(tree->type));
+                        expTypeToString(tree->type),
+                        tree->lineno);
                     break;
                 case VetDeclK:
-                    printf("Vector Declaration: %s (type: %s)\n", 
+                    printf("Vector Declaration: %s (type: %s, size: %d, line: %d)\n", 
                         tree->attr.name, 
-                        expTypeToString(tree->type));
+                        expTypeToString(tree->type),
+                        tree->attr.val,
+                        tree->lineno);
                     break;
                 case FunDeclK:
-                    printf("Function Declaration: %s (return type: %s)\n", 
+                    printf("Function Declaration: %s (return type: %s, line: %d)\n", 
                         tree->attr.name, 
-                        expTypeToString(tree->type));
+                        expTypeToString(tree->type),
+                        tree->lineno);
                     break;
                 case VarParamK:
-                    printf("Parameter: %s (type: %s)\n", 
+                    printf("Parameter: %s (type: %s, line: %d)\n", 
                         tree->attr.name, 
-                        expTypeToString(tree->type));
+                        expTypeToString(tree->type),
+                        tree->lineno);
                     break;
                 case VetParamK:
-                    printf("Vector Parameter: %s (type: %s)\n", 
+                    printf("Vector Parameter: %s (type: %s, line: %d)\n", 
                         tree->attr.name, 
-                        expTypeToString(tree->type));
+                        expTypeToString(tree->type),
+                        tree->lineno);
                     break;
                 case ParamVoid:
-                    printf("Void Parameter\n");
+                    printf("Void Parameter (line: %d)\n", tree->lineno);
                     break;
                 default:
-                    printf("Unknown StatementK node kind\n");
+                    printf("Unknown StatementK node kind (line: %d)\n", tree->lineno);
                     break;
             }
         }
         else if (tree->nodekind == ExpressionK) {
             switch (tree->kind.exp) {
                 case OpK:
-                    printf("Operator: %s\n", operatorToString(tree->attr.op));
+                    printf("Operator: %s (type: %s, line: %d)\n", 
+                        operatorToString(tree->attr.op),
+                        expTypeToString(tree->type),
+                        tree->lineno);
                     break;
                 case OpRel:
-                    printf("Relational: %s\n", operatorToString(tree->attr.op));
+                    printf("Relational: %s (type: %s, line: %d)\n", 
+                        operatorToString(tree->attr.op),
+                        expTypeToString(tree->type),
+                        tree->lineno);
                     break;
                 case ConstK:
-                    printf("Const: %d\n", tree->attr.val);
+                    printf("Const: %d (type: %s, line: %d)\n", 
+                        tree->attr.val,
+                        expTypeToString(tree->type),
+                        tree->lineno);
                     break;
                 case IdK:
-                    printf("Id: %s\n", tree->attr.name);
+                    printf("Id: %s (type: %s, line: %d)\n", 
+                        tree->attr.name,
+                        expTypeToString(tree->type),
+                        tree->lineno);
                     break;
                 case AtivK:
-                    printf("Function Call: %s\n", tree->attr.name);
+                    printf("Function Call: %s (type: %s, line: %d)\n", 
+                        tree->attr.name,
+                        expTypeToString(tree->type),
+                        tree->lineno);
                     break;
                 case VetorK:
-                    printf("Vector: %s\n", tree->attr.name);
+                    printf("Vector: %s (type: %s, line: %d)\n", 
+                        tree->attr.name,
+                        expTypeToString(tree->type),
+                        tree->lineno);
                     break;
                 case AssignK:
-                    printf("Assign\n");
+                    printf("Assign (type: %s, line: %d)\n",
+                        expTypeToString(tree->type),
+                        tree->lineno);
                     break;
                 case NuloExp:
-                    printf("Null Expression\n");
+                    printf("Null Expression (line: %d)\n", tree->lineno);
                     break;
                 default:
-                    printf("Unknown ExpressionK node kind\n");
+                    printf("Unknown ExpressionK node kind (line: %d)\n", tree->lineno);
                     break;
             }
         }
         else {
-            printf("Unknown node kind\n");
+            printf("Unknown node kind (line: %d)\n", tree->lineno);
         }
 
         /* Print children */

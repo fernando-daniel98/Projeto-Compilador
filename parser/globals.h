@@ -36,7 +36,9 @@ typedef enum {
 typedef enum {Void,Integer} ExpType;
 
 #define MAXCHILDREN 3
-#define MAXNOLIN 20
+#define MAXNOLIN 40
+#define MAXTOKENLEN 40
+
 
 typedef struct treeNode
    {
@@ -62,9 +64,9 @@ typedef enum {
 TreeNode* newNode(NodeKind nodekind);
 
 typedef struct noIdentificador{
-        char nomeIdentificador[MAXNOLIN];
+        char nomeIdentificador[MAXTOKENLEN];
         StatementKind tipoIdentificador;
-        char escopo[MAXNOLIN];
+        char escopo[MAXTOKENLEN];
         ExpType tipoDado;
         int linhas[MAXNOLIN];
         struct noIdentificador *prox, *ant;
@@ -80,7 +82,16 @@ void freeTree(TreeNode* tree);
 
 void deleteSymTab(void);
 void buildSymTabFromTree(TreeNode* tree);
-extern char currentScope[MAXNOLIN];
+extern char currentScope[MAXTOKENLEN];
 void mostraTabelaSimbolos(PnoIdentificador *tabelaHash);
+void checkAndSetType(TreeNode *node);
+
+// Coloracoes em ANSI
+#define ANSI_COLOR_RED      "\x1b[31m" // Erro léxico
+#define ANSI_COLOR_GRAY     "\e[0;37m"
+#define ANSI_COLOR_WHITE    "\e[1;37m" // Num da linha
+#define ANSI_COLOR_RESET    "\e[0m"
+#define ANSI_COLOR_PURPLE   "\e[0;35m" // Erro semântico
+#define ANSI_COLOR_GREEN    "\e[0;32m" // Erro sintático
 
 #endif

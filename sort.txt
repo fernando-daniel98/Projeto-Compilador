@@ -1,13 +1,12 @@
 /* programa para uma matriz com dez elementos. */
+/* Nesse programa as variáveis globais apenas são incluídas na tabela de símbolos se estiverem no escopo do programa. Apenas antes da declaração de qualquer função. */
 
-int vet[ 10 ];
-
-int A;
+int vet[10];
+int B;
 
 int minloc ( int a[], int low, int high )
 {	int i; int x; int k;
 	k = low;
-	A = 1;
 	x = a[low];
 	i = low + 1;
 	while (i < high){
