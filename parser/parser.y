@@ -503,6 +503,9 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // Fazer igual o feito no parser
+    int semanticResult = 0;
+
     printf("Checking syntax tree...\n");
     fflush(stdout);
 
@@ -522,6 +525,8 @@ int main(int argc, char **argv) {
         if (yyout != stdout) fclose(yyout);
         return 1;
     }
+
+    printf("\n");
 
     printf("Cleaning up...\n");
     fflush(stdout);

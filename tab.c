@@ -329,7 +329,8 @@ void insertNode(TreeNode* node) {
                     if (existing != NULL) {
                         adicionaLinhaIdentificador(existing, node->lineno);
                     } else {
-                        fprintf(stderr, "Error: Undeclared function '%s' at line %d\n", node->attr.name, node->lineno);
+                        // Erro de identificador não declarado
+                        printf("Error: Undeclared function '%s' at line %d\n", node->attr.name, node->lineno);
                     }
                     break;
                 }

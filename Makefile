@@ -7,6 +7,7 @@ $(shell mkdir -p $(BUILD_DIR))
 clean:
 	rm -rf $(BUILD_DIR)/*
 	rm -f compilador
+	> output.txt
 
 run:
 	(bison -d -v -t -Wcounterexamples ./parser/parser.y -o $(BUILD_DIR)/parser.tab.c && \

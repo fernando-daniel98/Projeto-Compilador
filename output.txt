@@ -1,0 +1,171 @@
+Starting program...
+Opening file: sort.txt
+File opened successfully
+Starting parse...
+Parse completed with result: 0
+Checking syntax tree...
+
+Building symbol table...
+Error: Undeclared function 'input' at line 40
+Error: Undeclared function 'output' at line 46
+
+Symbol Table Contents:
+
+SYMBOL TABLE
+-------------
+Name: a               | Type: VetParamK    | Scope: minloc     | Data Type: Integer  | Lines: 7 10 13 14 
+Name: high            | Type: VarParamK    | Scope: minloc     | Data Type: Integer  | Lines: 7 12 
+Name: high            | Type: VarParamK    | Scope: sort       | Data Type: Integer  | Lines: 22 25 27 
+Name: B               | Type: VarDeclK     | Scope: global     | Data Type: Integer  | Lines: 5 
+Name: i               | Type: VarDeclK     | Scope: minloc     | Data Type: Integer  | Lines: 8 11 12 13 14 15 17 17 
+Name: main            | Type: FunDeclK     | Scope: global     | Data Type: Void     | Lines: 35 
+Name: low             | Type: VarParamK    | Scope: sort       | Data Type: Integer  | Lines: 22 24 
+Name: vet             | Type: VetDeclK     | Scope: global     | Data Type: Integer  | Lines: 4 40 43 46 
+Name: k               | Type: VarDeclK     | Scope: minloc     | Data Type: Integer  | Lines: 8 9 15 19 
+Name: low             | Type: VarParamK    | Scope: minloc     | Data Type: Integer  | Lines: 7 9 10 11 
+Name: sort            | Type: FunDeclK     | Scope: global     | Data Type: Void     | Lines: 22 43 
+Name: minloc          | Type: FunDeclK     | Scope: global     | Data Type: Integer  | Lines: 7 27 
+Name: k               | Type: VarDeclK     | Scope: sort       | Data Type: Integer  | Lines: 23 27 28 29 
+Name: a               | Type: VetParamK    | Scope: sort       | Data Type: Integer  | Lines: 22 27 28 29 29 30 
+Name: t               | Type: VarDeclK     | Scope: sort       | Data Type: Integer  | Lines: 26 28 30 
+Name: i               | Type: VarDeclK     | Scope: main       | Data Type: Integer  | Lines: 37 38 39 40 41 41 44 45 46 47 47 
+Name: x               | Type: VarDeclK     | Scope: minloc     | Data Type: Integer  | Lines: 8 10 13 14 
+Name: i               | Type: VarDeclK     | Scope: sort       | Data Type: Integer  | Lines: 23 24 25 27 29 30 31 31 
+-------------
+
+
+Syntax tree created successfully!
+		Vector Declaration: vet (type: int)
+				Const: 10
+		Var Declaration: B (type: int)
+		Function Declaration: minloc (return type: int)
+				Vector Parameter: a (type: int)
+				Parameter: low (type: int)
+				Parameter: high (type: int)
+				Compound Statement
+						Var Declaration: i (type: int)
+						Var Declaration: x (type: int)
+						Var Declaration: k (type: int)
+						Assign
+								Id: k
+								Id: low
+						Assign
+								Id: x
+								Vector: a
+										Id: low
+						Assign
+								Id: i
+								Operator: +
+										Id: low
+										Const: 1
+						While
+								Relational: <
+										Id: i
+										Id: high
+								Compound Statement
+										If
+												Relational: <
+														Vector: a
+																Id: i
+														Id: x
+												Compound Statement
+														Assign
+																Id: x
+																Vector: a
+																		Id: i
+														Assign
+																Id: k
+																Id: i
+										Assign
+												Id: i
+												Operator: +
+														Id: i
+														Const: 1
+						Return (int)
+								Id: k
+		Function Declaration: sort (return type: void)
+				Vector Parameter: a (type: int)
+				Parameter: low (type: int)
+				Parameter: high (type: int)
+				Compound Statement
+						Var Declaration: i (type: int)
+						Var Declaration: k (type: int)
+						Assign
+								Id: i
+								Id: low
+						While
+								Relational: <
+										Id: i
+										Operator: -
+												Id: high
+												Const: 1
+								Compound Statement
+										Var Declaration: t (type: int)
+										Assign
+												Id: k
+												Function Call: minloc
+														Id: a
+														Id: i
+														Id: high
+										Assign
+												Id: t
+												Vector: a
+														Id: k
+										Assign
+												Vector: a
+														Id: k
+												Vector: a
+														Id: i
+										Assign
+												Vector: a
+														Id: i
+												Id: t
+										Assign
+												Id: i
+												Operator: +
+														Id: i
+														Const: 1
+		Function Declaration: main (return type: void)
+				Void Parameter
+				Compound Statement
+						Var Declaration: i (type: int)
+						Assign
+								Id: i
+								Const: 0
+						While
+								Relational: <
+										Id: i
+										Const: 10
+								Compound Statement
+										Assign
+												Vector: vet
+														Id: i
+												Function Call: input
+										Assign
+												Id: i
+												Operator: +
+														Id: i
+														Const: 1
+						Function Call: sort
+								Id: vet
+								Const: 0
+								Const: 10
+						Assign
+								Id: i
+								Const: 0
+						While
+								Relational: <
+										Id: i
+										Const: 10
+								Compound Statement
+										Function Call: output
+												Vector: vet
+														Id: i
+										Assign
+												Id: i
+												Operator: +
+														Id: i
+														Const: 1
+
+Cleaning up...
+Program completed successfully
