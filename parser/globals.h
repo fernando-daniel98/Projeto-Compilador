@@ -39,6 +39,9 @@ typedef enum {Void,Integer} ExpType;
 #define MAXNOLIN 40
 #define MAXTOKENLEN 40
 
+extern int lexical_errors;
+extern int syntax_errors;
+extern int semantic_errors;
 
 typedef struct treeNode
    {

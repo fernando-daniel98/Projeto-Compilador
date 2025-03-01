@@ -9,6 +9,8 @@ extern FILE *yyin;
 extern FILE *yyout;
 extern char* yytext;
 
+int lexical_errors = 0;
+
 int lineNum = 1;
 
 /* Helper function to create new nodes */
@@ -173,7 +175,7 @@ WHITESPACE [ \t]+
 .                 {
                     fprintf(stderr, ANSI_COLOR_RED "ERRO LÉXICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
                     fprintf(stderr, ANSI_COLOR_RED "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET "\n", lineNum);
-                    return -1;
+                    lexical_errors++;
                   }
 <<EOF>>           { return 0; }
 %%

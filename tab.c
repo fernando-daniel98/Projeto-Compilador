@@ -6,6 +6,8 @@
 #define MAXTAMTABELA 29
 #define SHIFT 4
 
+extern int semantic_errors;
+
 PnoIdentificador* symbolTable = NULL;
 char currentScope[MAXTOKENLEN];
 
@@ -306,7 +308,10 @@ void insertNode(TreeNode* node) {
                         // Erro de identificador não declarado
                         fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", node->attr.name);
                         fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
-                        fprintf(stderr, "VARIÁVEL NÃO DECLARADA.\n");                   
+                        fprintf(stderr, "VARIÁVEL NÃO DECLARADA.\n");
+
+                        semantic_errors++;
+
                         }
                     break;
                 }
@@ -322,6 +327,8 @@ void insertNode(TreeNode* node) {
                         fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", node->attr.name);
                         fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
                         fprintf(stderr, "VETOR NÃO DECLARADO.\n");
+
+                        semantic_errors++;
                     }
                     break;
                 }
@@ -336,6 +343,8 @@ void insertNode(TreeNode* node) {
                         fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", node->attr.name);
                         fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
                         fprintf(stderr, "FUNÇÃO NÃO DECLARADA.\n");
+
+                        semantic_errors++;
                     }
                     break;
                 }

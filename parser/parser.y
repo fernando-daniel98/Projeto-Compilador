@@ -14,12 +14,11 @@ extern int lineNum;
 extern int yylex(void);
 void yyerror(const char *s);
 
-static TreeNode *savedTree;
+int syntax_errors = 0;
+extern int lexical_errors;
+int semantic_errors = 0;
 
-void debug_print(const char* msg) {
-    printf("DEBUG: %s\n", msg);
-    fflush(stdout);
-}
+static TreeNode *savedTree;
 
 %}
 
@@ -31,6 +30,8 @@ void debug_print(const char* msg) {
     TreeNode *node;
     ExpType type;
 }
+
+%define parse.error verbose // Adicione na seção de definições
 
 /* Declare types for all non-terminals that return a node */
 %type <node> programa
@@ -191,13 +192,13 @@ param:
 
 composto_decl: 
     LBRACE local_declaracoes statement_lista RBRACE
-    {
-        TreeNode* t = newNode(StatementK);
-        t->kind.stmt = NuloDecl;
-        t->child[0] = $2;  // local declarations
-        t->child[1] = $3;  // statements
-        $$ = t;
-    }
+        {
+            TreeNode* t = newNode(StatementK);
+            t->kind.stmt = NuloDecl;
+            t->child[0] = $2;  // local declarations
+            t->child[1] = $3;  // statements
+            $$ = t;
+        }
 ;
 
 local_declaracoes: 
@@ -229,7 +230,7 @@ statement_lista:
     | error SEMICOL
         {
             yyerrok;
-            printf("Erro recuperado. Continuando...\n");
+            fprintf(stderr, "Erro: Ignorando token %s\n", yytext);
             $$ = NULL;
         }
 ;
@@ -427,8 +428,10 @@ arg_lista:
 %%
 
 void yyerror(const char *s) {
-    fprintf(stderr, ANSI_COLOR_RED "ERRO LÉXICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
-    fprintf(stderr, ANSI_COLOR_RED "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET "\n", lineNum);
+    fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SINTÁTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
+    fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET " | %s\n", lineNum, s);
+    
+    syntax_errors++;
 }
 
 int formaEntrada(int argc, char **argv) {
@@ -496,19 +499,6 @@ int main(int argc, char **argv) {
     printf("Parse completed with result: %d\n", parseResult);
     fflush(stdout);
 
-    if (parseResult != 0) {
-        fprintf(stderr, "Parsing failed!\n");
-        if (yyin != stdin) fclose(yyin);
-        if (yyout != stdout) fclose(yyout);
-        return 1;
-    }
-
-    // Fazer igual o feito no parser
-    int semanticResult = 0;
-
-    printf("Checking syntax tree...\n");
-    fflush(stdout);
-
     if (savedTree != NULL) {        
         printf("\nBuilding symbol table...\n");
         buildSymTabFromTree(savedTree);
@@ -526,9 +516,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    printf("\n");
-
-    printf("Cleaning up...\n");
+    printf("\nCleaning up...\n");
     fflush(stdout);
 
     if(savedTree != NULL)
@@ -542,5 +530,9 @@ int main(int argc, char **argv) {
 
     printf("Program completed successfully\n");
     fflush(stdout);
+
+    fprintf(stderr, "Erros léxicos: %d\n", lexical_errors);
+    fprintf(stderr, "Erros sintáticos: %d\n", syntax_errors);
+    fprintf(stderr, "Erros semânticos: %d\n", semantic_errors);
     return 0;
 }
