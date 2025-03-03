@@ -229,7 +229,7 @@ void buildSymTabFromTree(TreeNode* tree) {
     if (symbolTable == NULL) {
         symbolTable = inicializaTabela();
         strcpy(currentScope, "global");
-        inFunctionScope = 0; // Inicializar contador de escopo de função
+        inFunctionScope = 0;
     }
     
     if (tree == NULL) return;
@@ -239,62 +239,104 @@ void buildSymTabFromTree(TreeNode* tree) {
         switch (tree->kind.stmt) {
             case VarDeclK:
             case VetDeclK:
-                // Se não estamos no escopo de uma função, é uma variável global
-                if (inFunctionScope == 0) {
-                    adicionaIdentificarTabela(symbolTable, 
-                                          tree->attr.name,
-                                          tree->kind.stmt,
-                                          "global", // Forçar escopo global
-                                          tree->type,
-                                          tree->lineno);
-                } else {
-                    adicionaIdentificarTabela(symbolTable, 
-                                          tree->attr.name,
-                                          tree->kind.stmt,
-                                          currentScope, // Escopo da função atual
-                                          tree->type,
-                                          tree->lineno);
+                // VERIFICAÇÃO: Variáveis não podem ser do tipo void
+                if (tree->type == Void) {
+                    fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", tree->attr.name);
+                    fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", tree->lineno);
+                    fprintf(stderr, "VARIÁVEIS NÃO PODEM SER DO TIPO VOID.\n");
+                    semantic_errors++;
+                } 
+                else {
+                    // Determinar o escopo apropriado
+                    char* scopeToUse = (inFunctionScope == 0) ? "global" : currentScope;
+                    
+                    // 1. Verificar se já existe uma função com este nome (sempre no escopo global)
+                    PnoIdentificador existingFunc = buscaIdentificadorTabela(symbolTable, tree->attr.name, "global");
+                    if (existingFunc != NULL && existingFunc->tipoIdentificador == FunDeclK) {
+                        fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", tree->attr.name);
+                        fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", tree->lineno);
+                        fprintf(stderr, "NOME JÁ UTILIZADO COMO FUNÇÃO.\n");
+                        semantic_errors++;
+                    }
+                    // 2. Verificar redeclaração no mesmo escopo
+                    else if (verifyRedeclaration(tree->attr.name, scopeToUse)) {
+                        fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", tree->attr.name);
+                        fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", tree->lineno);
+                        fprintf(stderr, "IDENTIFICADOR JÁ DECLARADO NO MESMO ESCOPO.\n");
+                        semantic_errors++;
+                    } 
+                    else {
+                        // Se passou por todas as verificações, adicionar à tabela
+                        adicionaIdentificarTabela(symbolTable, 
+                                              tree->attr.name,
+                                              tree->kind.stmt,
+                                              scopeToUse,
+                                              tree->type,
+                                              tree->lineno);
+                    }
                 }
                 break;
                 
             case FunDeclK:
-                // Funções são sempre globais
-                adicionaIdentificarTabela(symbolTable, 
-                                      tree->attr.name,
-                                      FunDeclK,
-                                      "global",
-                                      tree->type,
-                                      tree->lineno);
+                // 1. Verificar se já existe uma variável global com este nome
+                PnoIdentificador existingVar = buscaIdentificadorTabela(symbolTable, tree->attr.name, "global");
+                if (existingVar != NULL && 
+                    (existingVar->tipoIdentificador == VarDeclK || existingVar->tipoIdentificador == VetDeclK)) {
+                    fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", tree->attr.name);
+                    fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", tree->lineno);
+                    fprintf(stderr, "NOME JÁ UTILIZADO COMO VARIÁVEL GLOBAL.\n");
+                    semantic_errors++;
+                }
+                // 2. Verificar se já existe uma função com este nome
+                else if (verifyRedeclaration(tree->attr.name, "global")) {
+                    fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", tree->attr.name);
+                    fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", tree->lineno);
+                    fprintf(stderr, "FUNÇÃO COM MESMO NOME JÁ DECLARADA.\n");
+                    semantic_errors++;
+                } 
+                else {
+                    // Se passou por todas as verificações, adicionar à tabela
+                    adicionaIdentificarTabela(symbolTable, 
+                                          tree->attr.name,
+                                          FunDeclK,
+                                          "global",
+                                          tree->type,
+                                          tree->lineno);
+                }
                 
-                // Salvar escopo atual
+                // Continuar processando o corpo da função (mesma lógica anterior)
                 char oldScope[MAXTOKENLEN];
                 strcpy(oldScope, currentScope);
-                
-                // Mudar para o escopo da função
                 strcpy(currentScope, tree->attr.name);
-                
-                // Aumentar o contador de escopo de função
                 inFunctionScope++;
                 
-                // Processar parâmetros e corpo da função
                 for (int i = 0; i < MAXCHILDREN; i++) {
                     buildSymTabFromTree(tree->child[i]);
                 }
                 
-                // Restaurar escopo anterior e contador
                 strcpy(currentScope, oldScope);
                 inFunctionScope--;
                 break;
                 
             case VarParamK:
             case VetParamK:
-                // Parâmetros sempre pertencem ao escopo da função atual
-                adicionaIdentificarTabela(symbolTable, 
-                                      tree->attr.name,
-                                      tree->kind.stmt,
-                                      currentScope,
-                                      tree->type,
-                                      tree->lineno);
+                // Aqui também podemos verificar conflito com função, mas normalmente
+                // parâmetros são sempre locais à função e não podem conflitar com funções
+                
+                // Verificar redeclaração no mesmo escopo (mesma função)
+                if (verifyRedeclaration(tree->attr.name, currentScope)) {
+                    fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", tree->attr.name);
+                    fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", tree->lineno);
+                    fprintf(stderr, "PARÂMETRO COM MESMO NOME JÁ DECLARADO.\n");
+                    semantic_errors++;
+                } else {
+                    adicionaIdentificarTabela(symbolTable, 
+                                          tree->attr.name,
+                                          tree->kind.stmt,
+                                          currentScope,
+                                          tree->type,
+                                          tree->lineno);
+                }
                 break;
                 
             default:
@@ -339,15 +381,30 @@ void buildSymTabFromTree(TreeNode* tree) {
                 }
                 break;
             }
+
+            case AssignK:
+                // Adicione aqui a verificação de tipos para atribuições
+                checkAssignmentTypes(tree);
+                break;
             
             case AtivK: {
                 // Funções são sempre globais
                 PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, tree->attr.name, "global");
                 if (existing != NULL) {
+                    // Verificar se a função foi chamada antes de ser declarada
+                    // A primeira linha no array é a linha de declaração da função
+                    int declarationLine = existing->linhas[0];
+                    
+                    if (declarationLine > tree->lineno && existing->tipoIdentificador == FunDeclK) {
+                        fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", tree->attr.name);
+                        fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", tree->lineno);
+                        fprintf(stderr, "FUNÇÃO CHAMADA ANTES DE SER DECLARADA (declarada na linha %d).\n", declarationLine);
+                        semantic_errors++;
+                    }
+                    
                     adicionaLinhaIdentificador(existing, tree->lineno);
                 } else {
-                    // Excepcionalmente as funções input e output não precisam ser declaradas pois foram pré-definidas pela linguagem
-                    // Mas caso a função não seja input ou output, esse é um erro semântico
+                    // Excepcionalmente as funções input e output não precisam ser declaradas
                     if(strcmp(tree->attr.name, "input") != 0 && strcmp(tree->attr.name, "output") != 0) {
                         fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", tree->attr.name);
                         fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", tree->lineno);
@@ -360,17 +417,76 @@ void buildSymTabFromTree(TreeNode* tree) {
         }
     }
     
-    // Processar os irmãos ANTES dos filhos para manter a ordem correta de declarações
+    // Processar os irmãos e filhos (código existente)
     if (tree->sibling != NULL) {
         buildSymTabFromTree(tree->sibling);
     }
     
-    // Processar os filhos apenas para nós que não são FunDeclK
-    // (FunDeclK já processou seus filhos acima)
     if (tree->nodekind != StatementK || tree->kind.stmt != FunDeclK) {
         for (int i = 0; i < MAXCHILDREN; i++) {
             if (tree->child[i] != NULL) {
                 buildSymTabFromTree(tree->child[i]);
+            }
+        }
+    }
+}
+
+void checkAssignmentTypes(TreeNode* node) {
+    if (node == NULL || node->nodekind != ExpressionK || node->kind.exp != AssignK)
+        return;
+    
+    // Nó de atribuição tem child[0] como variável (esquerda) e child[1] como expressão (direita)
+    TreeNode* leftSide = node->child[0];
+    TreeNode* rightSide = node->child[1];
+    
+    if (leftSide == NULL || rightSide == NULL)
+        return;
+    
+    // Obter o tipo da variável do lado esquerdo
+    ExpType leftType = Integer; // Padrão para variáveis em C-
+    
+    // Se o lado esquerdo for um identificador, buscar seu tipo na tabela
+    if (leftSide->nodekind == ExpressionK && 
+        (leftSide->kind.exp == IdK || leftSide->kind.exp == VetorK)) {
+        
+        // Procurar primeiro no escopo atual
+        PnoIdentificador leftVar = buscaIdentificadorTabela(symbolTable, leftSide->attr.name, currentScope);
+        
+        // Se não encontrou, procurar no escopo global
+        if (leftVar == NULL) {
+            leftVar = buscaIdentificadorTabela(symbolTable, leftSide->attr.name, "global");
+        }
+        
+        if (leftVar != NULL) {
+            leftType = leftVar->tipoDado; // Usar o tipo da variável na tabela de símbolos
+        }
+    }
+    
+    // Verificar se o lado direito é uma chamada de função
+    if (rightSide->nodekind == ExpressionK && rightSide->kind.exp == AtivK) {
+        // Procurar a função na tabela de símbolos (funções são sempre globais)
+        PnoIdentificador func = buscaIdentificadorTabela(symbolTable, rightSide->attr.name, "global");
+        
+        // Exceção para as funções built-in
+        if (strcmp(rightSide->attr.name, "input") == 0) {
+            // input() retorna int
+            ExpType rightType = Integer;
+            // Sem verificação necessária, input sempre retorna int
+        } 
+        else if (strcmp(rightSide->attr.name, "output") == 0) {
+            // output() retorna void, então isso é um erro
+            fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", "output");
+            fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
+            fprintf(stderr, "FUNÇÃO VOID NÃO PODE SER ATRIBUÍDA.\n");
+            semantic_errors++;
+        }
+        else if (func != NULL) {
+            // Verificar se a função retorna void
+            if (func->tipoDado == Void && leftType == Integer) {
+                fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", rightSide->attr.name);
+                fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
+                fprintf(stderr, "FUNÇÃO VOID NÃO PODE SER ATRIBUÍDA A VARIÁVEL.\n");
+                semantic_errors++;
             }
         }
     }
@@ -382,4 +498,40 @@ void deleteSymTab(void) {
         liberandoTabelaSimbolos(symbolTable);
         symbolTable = NULL;
     }
+}
+
+// Verificar se a função main foi declarada
+void checkMainFunction() {
+    // A função main deve estar no escopo global
+    PnoIdentificador mainFunc = buscaIdentificadorTabela(symbolTable, "main", "global");
+    
+    if (mainFunc == NULL) {
+        fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET);
+        fprintf(stderr, "FUNÇÃO MAIN NÃO DECLARADA. TODO PROGRAMA C- DEVE TER UMA FUNÇÃO MAIN.\n");
+        semantic_errors++;
+        return;
+    }
+    
+    // Verificar se é realmente uma função e não uma variável
+    if (mainFunc->tipoIdentificador != FunDeclK) {
+        fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET);
+        fprintf(stderr, "MAIN DEVE SER UMA FUNÇÃO, NÃO UMA VARIÁVEL.\n");
+        semantic_errors++;
+        return;
+    }
+    
+    // Verificar se a função main tem tipo de retorno void (opcionalmente)
+    if (mainFunc->tipoDado != Void) {
+        fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET);
+        fprintf(stderr, "FUNÇÃO MAIN DEVE TER TIPO DE RETORNO VOID.\n");
+        semantic_errors++;
+    }
+}
+
+int verifyRedeclaration(char *nome, char *escopo) {
+    PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, nome, escopo);
+    if (existing != NULL) {
+        return 1;
+    }
+    return 0;
 }

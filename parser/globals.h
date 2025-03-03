@@ -88,7 +88,9 @@ void deleteSymTab(void);
 void buildSymTabFromTree(TreeNode* tree);
 extern char currentScope[MAXTOKENLEN];
 void mostraTabelaSimbolos(PnoIdentificador *tabelaHash);
-void checkAndSetType(TreeNode *node);
+void checkAssignmentTypes(TreeNode* node);
+void checkMainFunction(void);
+int verifyRedeclaration(char *nome, char *escopo);
 
 // Coloracoes em ANSI
 #define ANSI_COLOR_RESET    "\e[0m"

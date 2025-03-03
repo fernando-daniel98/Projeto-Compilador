@@ -518,6 +518,9 @@ int main(int argc, char **argv) {
         
         printf("\nBuilding symbol table...\n");
         buildSymTabFromTree(savedTree);
+
+        // Verificar se a função main foi declarada
+        checkMainFunction();
         
         printf("\nSymbol Table Contents:\n");
         mostraTabelaSimbolos(symbolTable);
