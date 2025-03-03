@@ -176,6 +176,7 @@ WHITESPACE [ \t]+
                     fprintf(stderr, ANSI_COLOR_RED "ERRO LÉXICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
                     fprintf(stderr, ANSI_COLOR_RED "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET "\n", lineNum);
                     lexical_errors++;
+                    return ERROR;
                   }
 <<EOF>>           { return 0; }
 %%

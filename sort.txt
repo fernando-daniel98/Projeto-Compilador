@@ -30,6 +30,7 @@ int minloc ( int a[], int low, int high )
 }
 
 int J;
+int vet2[10];
 
 void sort( int a[] ,int low, int high)
 {	int i; int k;
@@ -43,6 +44,9 @@ void sort( int a[] ,int low, int high)
 		i = i + 1;
 	}
 }
+
+int K;
+int vet3[10];
 
 void main(void)
 {

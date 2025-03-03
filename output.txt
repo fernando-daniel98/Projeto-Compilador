@@ -1,0 +1,60 @@
+Starting program...
+Opening file: gcd.txt
+File opened successfully
+Starting parse...
+Parse completed with result: 0
+
+Building symbol table...
+
+Symbol Table Contents:
+
+SYMBOL TABLE
+-------------
+Name: gcd                  | Type: FunDeclK     | Scope: global               | Data Type: Integer  | Lines: 4 7 14 
+Name: main                 | Type: FunDeclK     | Scope: global               | Data Type: Void     | Lines: 11 
+Name: y                    | Type: VarDeclK     | Scope: main                 | Data Type: Integer  | Lines: 12 14 13 
+Name: v                    | Type: VarParamK    | Scope: gcd                  | Data Type: Integer  | Lines: 4 6 7 7 7 
+Name: u                    | Type: VarParamK    | Scope: gcd                  | Data Type: Integer  | Lines: 4 6 7 7 
+Name: x                    | Type: VarDeclK     | Scope: main                 | Data Type: Integer  | Lines: 12 14 13 
+-------------
+
+
+Syntax tree created successfully!
+	Function Declaration: gcd (return type: int)
+		Parameter: u (type: int)
+		Parameter: v (type: int)
+		Compound Statement
+			If
+				Relational: ==
+					Id: v
+					Const: 0
+				Return (int)
+					Id: u
+				Return (int)
+					Function Call: gcd
+						Id: v
+						Operator: -
+							Id: u
+							Operator: *
+								Operator: /
+									Id: u
+									Id: v
+								Id: v
+	Function Declaration: main (return type: void)
+		Void Parameter
+		Compound Statement
+			Var Declaration: x (type: int)
+			Var Declaration: y (type: int)
+			Assign
+				Id: x
+				Function Call: input
+			Assign
+				Id: y
+				Function Call: input
+			Function Call: output
+				Function Call: gcd
+					Id: x
+					Id: y
+
+Cleaning up...
+Program completed successfully

@@ -10,6 +10,7 @@ extern FILE *yyout;
 extern char *yytext;
 
 extern int lineNum;
+extern int inFunctionScope;
 
 extern int yylex(void);
 void yyerror(const char *s);
@@ -54,7 +55,7 @@ static TreeNode *savedTree;
 %token <node> SMAL SMALEQ GREAT GREATEQ EQ DIFF ASSIGN
 
 /* Tokens without values */
-%token INT VOID
+%token INT VOID ERROR
 %token SEMICOL COMMA
 %token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE
 
@@ -92,26 +93,35 @@ declaracao:
     | fun_declaracao { $$ = $1;}
 ;
 
-var_declaracao: 
+var_declaracao:
     tipo_especificador ID SEMICOL
     {
         TreeNode* t = newNode(StatementK);
         t->kind.stmt = VarDeclK;
-        t->attr.name = $2->attr.name;  // Copy the ID name
-        t->type = $1;  // Cast back to ExpType
-        free($2);  // Free the ID node since we copied its data
+        t->attr.name = $2->attr.name;
+        t->type = $1;
+        free($2);
         $$ = t;
     }
-    | 
-    tipo_especificador ID LBRACKET NUM RBRACKET SEMICOL
+    | tipo_especificador error SEMICOL {
+        yyerrok;
+        fprintf(stderr, ANSI_COLOR_GREEN "RECUPERAÇÃO DE ERRO: " ANSI_COLOR_RESET "Ignorando declaração inválida\n");
+        $$ = NULL;
+    }
+    | tipo_especificador ID LBRACKET NUM RBRACKET SEMICOL
     {
         TreeNode* t = newNode(StatementK);
-        t->kind.stmt = VetDeclK;       // Vector declaration
-        t->attr.name = $2->attr.name;  // Copy array name
-        t->type = $1;         // Cast back to ExpType
-        t->child[0] = $4;             // Store size of array (NUM node)
-        free($2);                      // Free the ID node
+        t->kind.stmt = VetDeclK;
+        t->attr.name = $2->attr.name;
+        t->type = $1;
+        t->child[0] = $4;
+        free($2);
         $$ = t;
+    }
+    | tipo_especificador error RBRACKET SEMICOL {
+        yyerrok;
+        fprintf(stderr, ANSI_COLOR_GREEN "RECUPERAÇÃO DE ERRO: " ANSI_COLOR_RESET "Ignorando declaração de vetor inválida\n");
+        $$ = NULL;
     }
 ;
 
@@ -227,12 +237,6 @@ statement_lista:
         else $$ = $2;
     }
     | /* vazio */ { $$ = NULL; }
-    | error SEMICOL
-        {
-            yyerrok;
-            fprintf(stderr, "Erro: Ignorando token %s\n", yytext);
-            $$ = NULL;
-        }
 ;
 
 statement: 
@@ -246,6 +250,11 @@ statement:
 expressao_decl: 
     expressao SEMICOL { $$ = $1; }
     | SEMICOL { $$ = NULL; }
+    | error SEMICOL { 
+        yyerrok; 
+        fprintf(stderr, ANSI_COLOR_GREEN "RECUPERAÇÃO DE ERRO: " ANSI_COLOR_RESET "Sincronizando em ';'\n"); 
+        $$ = NULL; 
+    }
 ;
 
 selecao_decl: 
@@ -428,8 +437,8 @@ arg_lista:
 %%
 
 void yyerror(const char *s) {
-    fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SINTÁTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
-    fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET " | %s\n", lineNum, s);
+    fprintf(stderr, ANSI_COLOR_YELLOW "ERRO SINTÁTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
+    fprintf(stderr, ANSI_COLOR_YELLOW "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET " | %s\n", lineNum, s);
     
     syntax_errors++;
 }
@@ -500,6 +509,13 @@ int main(int argc, char **argv) {
     fflush(stdout);
 
     if (savedTree != NULL) {        
+        // Inicializações para o gerenciamento correto de escopo
+        if (symbolTable == NULL) {
+            symbolTable = inicializaTabela();
+        }
+        strcpy(currentScope, "global");
+        inFunctionScope = 0;
+        
         printf("\nBuilding symbol table...\n");
         buildSymTabFromTree(savedTree);
         

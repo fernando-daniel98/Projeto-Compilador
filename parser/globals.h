@@ -83,6 +83,7 @@ void printTree(TreeNode* tree);
 void printSpaces(void);
 void freeTree(TreeNode* tree);
 
+PnoIdentificador* inicializaTabela(void);
 void deleteSymTab(void);
 void buildSymTabFromTree(TreeNode* tree);
 extern char currentScope[MAXTOKENLEN];
@@ -90,11 +91,11 @@ void mostraTabelaSimbolos(PnoIdentificador *tabelaHash);
 void checkAndSetType(TreeNode *node);
 
 // Coloracoes em ANSI
-#define ANSI_COLOR_RED      "\x1b[31m" // Erro léxico
-#define ANSI_COLOR_GRAY     "\e[0;37m"
-#define ANSI_COLOR_WHITE    "\e[1;37m" // Num da linha
 #define ANSI_COLOR_RESET    "\e[0m"
+#define ANSI_COLOR_RED      "\e[0;31m" // Erro léxico
+#define ANSI_COLOR_YELLOW   "\e[0;33m" // Erro sintático
 #define ANSI_COLOR_PURPLE   "\e[0;35m" // Erro semântico
-#define ANSI_COLOR_GREEN    "\e[0;32m" // Erro sintático
+#define ANSI_COLOR_WHITE    "\e[1;37m" // Num da linha
+#define ANSI_COLOR_GREEN    "\e[1;32m" // Recuperação de erro
 
 #endif

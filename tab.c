@@ -8,6 +8,8 @@
 
 extern int semantic_errors;
 
+int inFunctionScope = 0; // Flag para indicar se estamos dentro de uma função
+
 PnoIdentificador* symbolTable = NULL;
 char currentScope[MAXTOKENLEN];
 
@@ -205,9 +207,9 @@ void mostraTabelaSimbolos(PnoIdentificador *tabelaHash) {
     for(int i = 0; i < MAXTAMTABELA; i++) {
         PnoIdentificador atual = tabelaHash[i];
         while(atual != NULL) {
-            printf("Name: %-15s | ", atual->nomeIdentificador);
+            printf("Name: %-20s | ", atual->nomeIdentificador);
             printf("Type: %-12s | ", getStatementKindName(atual->tipoIdentificador));
-            printf("Scope: %-10s | ", atual->escopo);
+            printf("Scope: %-20s | ", atual->escopo);
             printf("Data Type: %-8s | ", getExpTypeName(atual->tipoDado));
             printf("Lines: ");
             for(int j = 0; j < MAXNOLIN; j++) {
@@ -222,158 +224,156 @@ void mostraTabelaSimbolos(PnoIdentificador *tabelaHash) {
     printf("-------------\n\n");
 }
 
-void insertNode(TreeNode* node) {
-    if (node == NULL) return;
-    
-    switch (node->nodekind) {
-        case StatementK:
-            switch (node->kind.stmt) {
-                case VarDeclK:
-                    adicionaIdentificarTabela(symbolTable, 
-                                            node->attr.name,
-                                            VarDeclK,
-                                            currentScope,
-                                            node->type,
-                                            node->lineno);
-                    break;
-                    
-                case VetDeclK:
-                    adicionaIdentificarTabela(symbolTable, 
-                                            node->attr.name,
-                                            VetDeclK,
-                                            currentScope,
-                                            node->type,
-                                            node->lineno);
-                    break;
-                    
-                case FunDeclK:
-                    // Add function to symbol table
-                    adicionaIdentificarTabela(symbolTable, 
-                                            node->attr.name,
-                                            FunDeclK,
-                                            "global",  // functions are always global
-                                            node->type,
-                                            node->lineno);
-                    
-                    // Save old scope
-                    char oldScope[MAXNOLIN];
-                    strcpy(oldScope, currentScope);
-                    strcpy(currentScope, node->attr.name);
-                    
-                    // Process function body (parameters and body)
-                    for (int i = 0; i < MAXCHILDREN; i++) {
-                        buildSymTabFromTree(node->child[i]);
-                    }
-                    
-                    // Process siblings inside function
-                    if (node->sibling != NULL) {
-                        buildSymTabFromTree(node->sibling);
-                    }
-                    
-                    // Restore old scope
-                    strcpy(currentScope, oldScope);
-                    return;  // Already processed children and siblings
-                    
-                case VarParamK:
-                    adicionaIdentificarTabela(symbolTable, 
-                                            node->attr.name,
-                                            VarParamK,
-                                            currentScope,
-                                            node->type,
-                                            node->lineno);
-                    break;
-                    
-                case VetParamK:
-                    adicionaIdentificarTabela(symbolTable, 
-                                            node->attr.name,
-                                            VetParamK,
-                                            currentScope,
-                                            node->type,
-                                            node->lineno);
-                    break;
-            }
-            break;
-            
-        case ExpressionK:
-            switch (node->kind.exp) {
-                case IdK: {
-                    PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, node->attr.name, currentScope);
-                    if (existing == NULL) {
-                        // Check global scope if not found in current scope
-                        existing = buscaIdentificadorTabela(symbolTable, node->attr.name, "global");
-                    }
-                    if (existing != NULL) {
-                        adicionaLinhaIdentificador(existing, node->lineno);
-                    } else {
-                        // Erro de identificador não declarado
-                        fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", node->attr.name);
-                        fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
-                        fprintf(stderr, "VARIÁVEL NÃO DECLARADA.\n");
-
-                        semantic_errors++;
-
-                        }
-                    break;
-                }
-                
-                case VetorK: {
-                    PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, node->attr.name, currentScope);
-                    if (existing == NULL) {
-                        existing = buscaIdentificadorTabela(symbolTable, node->attr.name, "global");
-                    }
-                    if (existing != NULL) {
-                        adicionaLinhaIdentificador(existing, node->lineno);
-                    } else {
-                        fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", node->attr.name);
-                        fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
-                        fprintf(stderr, "VETOR NÃO DECLARADO.\n");
-
-                        semantic_errors++;
-                    }
-                    break;
-                }
-                
-                case AtivK: {
-                    // Function calls are always global
-                    PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, node->attr.name, "global");
-                    if (existing != NULL) {
-                        adicionaLinhaIdentificador(existing, node->lineno);
-                    } else {
-                        // Erro de identificador não declarado
-                        fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", node->attr.name);
-                        fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
-                        fprintf(stderr, "FUNÇÃO NÃO DECLARADA.\n");
-
-                        semantic_errors++;
-                    }
-                    break;
-                }
-            }
-            break;
-    }
-    
-    // Process children
-    for (int i = 0; i < MAXCHILDREN; i++) {
-        if (node->child[i] != NULL) {
-            buildSymTabFromTree(node->child[i]);
-        }
-    }
-    
-    // Process siblings
-    if (node->sibling != NULL) {
-        buildSymTabFromTree(node->sibling);
-    }
-}
-
 void buildSymTabFromTree(TreeNode* tree) {
     // Initialize symbol table if not already initialized
     if (symbolTable == NULL) {
         symbolTable = inicializaTabela();
         strcpy(currentScope, "global");
+        inFunctionScope = 0; // Inicializar contador de escopo de função
     }
     
-    // Start processing from root
-    insertNode(tree);
+    if (tree == NULL) return;
+    
+    // Processar o nó atual
+    if (tree->nodekind == StatementK) {
+        switch (tree->kind.stmt) {
+            case VarDeclK:
+            case VetDeclK:
+                // Se não estamos no escopo de uma função, é uma variável global
+                if (inFunctionScope == 0) {
+                    adicionaIdentificarTabela(symbolTable, 
+                                          tree->attr.name,
+                                          tree->kind.stmt,
+                                          "global", // Forçar escopo global
+                                          tree->type,
+                                          tree->lineno);
+                } else {
+                    adicionaIdentificarTabela(symbolTable, 
+                                          tree->attr.name,
+                                          tree->kind.stmt,
+                                          currentScope, // Escopo da função atual
+                                          tree->type,
+                                          tree->lineno);
+                }
+                break;
+                
+            case FunDeclK:
+                // Funções são sempre globais
+                adicionaIdentificarTabela(symbolTable, 
+                                      tree->attr.name,
+                                      FunDeclK,
+                                      "global",
+                                      tree->type,
+                                      tree->lineno);
+                
+                // Salvar escopo atual
+                char oldScope[MAXTOKENLEN];
+                strcpy(oldScope, currentScope);
+                
+                // Mudar para o escopo da função
+                strcpy(currentScope, tree->attr.name);
+                
+                // Aumentar o contador de escopo de função
+                inFunctionScope++;
+                
+                // Processar parâmetros e corpo da função
+                for (int i = 0; i < MAXCHILDREN; i++) {
+                    buildSymTabFromTree(tree->child[i]);
+                }
+                
+                // Restaurar escopo anterior e contador
+                strcpy(currentScope, oldScope);
+                inFunctionScope--;
+                break;
+                
+            case VarParamK:
+            case VetParamK:
+                // Parâmetros sempre pertencem ao escopo da função atual
+                adicionaIdentificarTabela(symbolTable, 
+                                      tree->attr.name,
+                                      tree->kind.stmt,
+                                      currentScope,
+                                      tree->type,
+                                      tree->lineno);
+                break;
+                
+            default:
+                // Para outros tipos de declarações, apenas processar os filhos
+                break;
+        }
+    } 
+    else if (tree->nodekind == ExpressionK) {
+        switch (tree->kind.exp) {
+            case IdK: {
+                // Verificar se o identificador existe no escopo atual
+                PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, tree->attr.name, currentScope);
+                if (existing == NULL) {
+                    // Verificar no escopo global se não for encontrado no escopo atual
+                    existing = buscaIdentificadorTabela(symbolTable, tree->attr.name, "global");
+                }
+                if (existing != NULL) {
+                    adicionaLinhaIdentificador(existing, tree->lineno);
+                } else {
+                    // Erro de identificador não declarado
+                    fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", tree->attr.name);
+                    fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", tree->lineno);
+                    fprintf(stderr, "VARIÁVEL NÃO DECLARADA.\n");
+                    semantic_errors++;
+                }
+                break;
+            }
+            
+            case VetorK: {
+                // Verificar se o vetor existe no escopo atual
+                PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, tree->attr.name, currentScope);
+                if (existing == NULL) {
+                    existing = buscaIdentificadorTabela(symbolTable, tree->attr.name, "global");
+                }
+                if (existing != NULL) {
+                    adicionaLinhaIdentificador(existing, tree->lineno);
+                } else {
+                    fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", tree->attr.name);
+                    fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", tree->lineno);
+                    fprintf(stderr, "VETOR NÃO DECLARADO.\n");
+                    semantic_errors++;
+                }
+                break;
+            }
+            
+            case AtivK: {
+                // Funções são sempre globais
+                PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, tree->attr.name, "global");
+                if (existing != NULL) {
+                    adicionaLinhaIdentificador(existing, tree->lineno);
+                } else {
+                    // Excepcionalmente as funções input e output não precisam ser declaradas pois foram pré-definidas pela linguagem
+                    // Mas caso a função não seja input ou output, esse é um erro semântico
+                    if(strcmp(tree->attr.name, "input") != 0 && strcmp(tree->attr.name, "output") != 0) {
+                        fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", tree->attr.name);
+                        fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", tree->lineno);
+                        fprintf(stderr, "FUNÇÃO NÃO DECLARADA.\n");
+                        semantic_errors++;
+                    }
+                }
+                break;
+            }
+        }
+    }
+    
+    // Processar os irmãos ANTES dos filhos para manter a ordem correta de declarações
+    if (tree->sibling != NULL) {
+        buildSymTabFromTree(tree->sibling);
+    }
+    
+    // Processar os filhos apenas para nós que não são FunDeclK
+    // (FunDeclK já processou seus filhos acima)
+    if (tree->nodekind != StatementK || tree->kind.stmt != FunDeclK) {
+        for (int i = 0; i < MAXCHILDREN; i++) {
+            if (tree->child[i] != NULL) {
+                buildSymTabFromTree(tree->child[i]);
+            }
+        }
+    }
 }
 
 // Function to clean up

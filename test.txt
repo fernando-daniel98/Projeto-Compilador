@@ -1,0 +1,334 @@
+/* testeCompilador.c - Arquivo com casos de teste para o compilador C- */
+
+/* PAREI NA LINHA 122 */
+
+
+
+/* Função correta - cálculo de fatorial */
+int fatorial(int n)
+{
+    if (n <= 1)
+        return 1;
+    else
+        return n * fatorial(n-1);
+}
+
+/* Função correta - cálculo fibonacci */
+int fibonacci(int n)
+{
+    if (n <= 1)
+        return n;
+    
+    return fibonacci(n-1) + fibonacci(n-2);
+}
+
+/* Declarando variável inteira correta */
+int varGlobal;
+
+/* Declarando vetor inteiro correta */
+int vetGlobal[99];
+
+/* Erro léxico: caractere não permitido # */
+void testeLexico(void)
+{
+    int #valor;
+    int valor$;
+    
+    #valor = 10;
+    valor$ = 20;
+    return;
+}
+
+/* Tentando recuperar do erro 1. Função simples */
+int testeRecuperacao1(void)
+{
+    int x;
+    
+    x = 1;
+    return x;
+}
+
+/* Erro sintático: falta ponto e vírgula */
+int testeSintatico1(void)
+{
+    int x;
+    
+    x = 10
+    return x;
+}
+
+/* Tentando recuperar do erro 2. Função simples */
+int testeRecuperacao2(void)
+{
+    int x;
+    
+    x = 2;
+    return x;
+}
+
+/* ERRO AINDA NÃO RECUPERADO. PENSAR FUTURAMENTE */
+/* Erro sintático: parênteses não balanceados */
+/*
+int testeSintatico2(int a, int b
+{
+    return a + b;
+}
+*/
+
+/* Tentando recuperar do erro 3. Função simples */
+int testeRecuperacao3(void)
+{
+    int x;
+    
+    x = 3;
+    return x;
+}
+
+/* ERRO AINDA NÃO RECUPERADO. PENSAR FUTURAMENTE.
+ESSE ERRO ATÉ INSERE O QUE FOI ENCONTRADO ANTES DO PROBLEMA NA ÁRVORE E NA TABELA, MAS NÃO DÁ CONTINUIDADE NO RESTANTE DAS OUTRAS FUNÇÕES DEDIVOD AO } QUE PROCEDEU APÓS O ; */
+/* Erro sintático: estrutura de controle malformada */
+/*
+void testeSintatico3(void)
+{
+    if 5 > 3 {
+        return;
+    }
+}
+*/
+
+/* Tentando recuperar do erro 4. Função simples */
+int testeRecuperacao4(void)
+{
+    int x;
+    
+    x = 4;
+    return x;
+}
+
+/* IDENTIFICAÇÃO DE ERRO CORRETA. ESTÁ SENDO FEITA APÓS A INSERÇÃO NA TABELA DE SÍMBOLOS */
+/* Erro semântico: variável não declarada */
+int testeSemantico1(void)
+{
+    valor = 10;
+    return valor;
+}
+
+/* Tentando recuperar do erro 5. Função simples */
+int testeRecuperacao5(void)
+{
+    int x;
+    
+    x = 5;
+    return x;
+}
+
+/* Erro semântico: tipo incompatível */
+int testeSemantico2(void)
+{
+    int x;
+    
+    x = testeVoid();
+    return x;
+}
+
+/* Tentando recuperar do erro 6. Função simples */
+int testeRecuperacao6(void)
+{
+    int x;
+    
+    x = 6;
+    return x;
+}
+
+/* Erro semântico: retorno inválido */
+void testeSemantico3(void)
+{
+    return 42; /* Função void retornando valor */
+}
+
+/* Tentando recuperar do erro 7. Função simples */
+int testeRecuperacao7(void)
+{
+    int x;
+    
+    x = 7;
+    return x;
+}
+
+/* ESSE NÃO É UM ERRO */
+/* Erro semântico: parâmetros incorretos */
+int soma(int a, int b)
+{
+    return a + b;
+}
+
+/* Tentando recuperar do erro 8. Função simples */
+int testeRecuperacao8(void)
+{
+    int x;
+    
+    x = 8;
+    return x;
+}
+
+/* Erro semântico: parâmetros incorretos */
+void testeSemantico4(void)
+{
+    int resultado;
+    
+    resultado = soma(1); /* Faltando parâmetro */
+    resultado = soma(1, 2, 3); /* Parâmetros em excesso */
+}
+
+/* Tentando recuperar do erro 9. Função simples */
+int testeRecuperacao9(void)
+{
+    int x;
+    
+    x = 9;
+    return x;
+}
+
+/* Função com vetor */
+void testeVetor(void)
+{
+    int vetor[10];
+    int i;
+    
+    i = 0;
+    while (i < 10)
+    {
+        vetor[i] = i * 2;
+        i = i + 1;
+    }
+    
+    /* Erro semântico: índice fora dos limites */
+    vetor[15] = 100;
+    
+    /* Erro semântico: indexação não-numérica */
+    vetor[i+i] = 200;
+}
+
+/* Tentando recuperar do erro 10. Função simples */
+int testeRecuperacao10(void)
+{
+    int x;
+    
+    x = 10;
+    return x;
+}
+
+/* NÃO É UM TESTE EM C-, POIS & E | NÃO SÃO OPERADORES LÓGICOS */
+/* CONTUDO, INVERTER UM NÚMERO, COMO O 5 DESSE EXEMPLO NA ATRIBUIÇÃO À C, NÃO ESTÁ SENDO POSSÍVEL */
+/* Função com expressões complexas */
+int testeExpressoes(int a, int b)
+{
+    int c;
+    
+    c = a * b + (a - b) * (a / b) + -5;
+    
+    if ((a > b) && (b >= 0) || (a == 10))
+        c = c + 1;
+    
+    return c;
+}
+
+/* Tentando recuperar do erro 11. Função simples */
+int testeRecuperacao11(void)
+{
+    int x;
+    
+    x = 11;
+    return x;
+}
+
+/* AO INSERIR NA TABELA DE SÍMBOLOS, AINDA ESTÁ COM O PROBLEMA DE MUDANÇA DE ESCOPO APÓS O FECHAMENTO DE UMA FUNÇÃO */
+/* Declarações com mesmo nome em escopos diferentes */
+int x;
+
+/* Tentando recuperar do erro 12. Função simples */
+int testeRecuperacao12(void)
+{
+    int x;
+    
+    x = 12;
+    return x;
+}
+
+void testeEscopo(void)
+{
+    int x; /* Variável local com mesmo nome da global */
+    
+    x = 10; /* Deve usar a variável local */
+    
+    {
+        int x; /* Variável em sub-escopo */
+        
+        x = 20;
+    }
+    
+    x = 30; /* Deve usar a variável do escopo da função */
+}
+
+/* Tentando recuperar do erro 13. Função simples */
+int testeRecuperacao13(void)
+{
+    int x;
+    
+    x = 13;
+    return x;
+}
+
+/* Função void correta */
+void testeVoid(void)
+{
+    int a;
+    
+    a = 10;
+    return;
+}
+
+/* Tentando recuperar do erro 14. Função simples */
+int testeRecuperacao14(void)
+{
+    int x;
+    
+    x = 14;
+    return x;
+}
+
+/* Função principal */
+void main(void)
+{
+    int n;
+    int resultado;
+    
+    n = 5;
+    resultado = fatorial(n);
+    
+    if (resultado == 120)
+    {
+        resultado = fibonacci(10);
+    }
+    else
+    {
+        resultado = 0;
+    }
+    
+    /* Teste de operadores */
+    resultado = n + 3 * 4 / 2 - 1;
+    
+    while (n > 0)
+    {
+        n = n - 1;
+    }
+}
+
+/* Tentando recuperar do erro 15. Função simples */
+int testeRecuperacao15(void)
+{
+    int x;
+    
+    x = 15;
+    return x;
+}
