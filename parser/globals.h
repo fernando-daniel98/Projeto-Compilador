@@ -100,4 +100,6 @@ int verifyRedeclaration(char *nome, char *escopo);
 #define ANSI_COLOR_WHITE    "\e[1;37m" // Num da linha
 #define ANSI_COLOR_GREEN    "\e[1;32m" // Recuperação de erro
 
+void generateDotFile(TreeNode* tree, const char* filename);
+
 #endif

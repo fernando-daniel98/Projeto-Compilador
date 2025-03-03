@@ -527,6 +527,9 @@ int main(int argc, char **argv) {
 
         printf("\nSyntax tree created successfully!\n");
         printTree(savedTree);
+
+        // Gerar árvore em formato DOT Graphviz
+        generateDotFile(savedTree, "ast.dot");
         
     } else {
         fprintf(stderr, "Empty syntax tree!\n");
