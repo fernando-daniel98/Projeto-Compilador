@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "globals.h"
+#include "../include/globals.h"
 
 #define MAXTAMTABELA 29
 #define SHIFT 4
@@ -24,6 +24,15 @@ int hash(char * key){
     }
 
     return temp;
+}
+
+// Adicione esta função ao arquivo tab.c
+void initSymbolTable(void) {
+    if (symbolTable == NULL) {
+        symbolTable = inicializaTabela();
+    }
+    strcpy(currentScope, "global");
+    inFunctionScope = 0;
 }
 
 PnoIdentificador* inicializaTabela(){
@@ -202,26 +211,26 @@ const char* getExpTypeName(ExpType type) {
 
 /* Modify mostraTabelaSimbolos function */
 void mostraTabelaSimbolos(PnoIdentificador *tabelaHash) {
-    printf("\nSYMBOL TABLE\n");
-    printf("-------------\n");
+    fprintf(yyout, "\nSYMBOL TABLE\n");
+    fprintf(yyout, "-------------\n");
     for(int i = 0; i < MAXTAMTABELA; i++) {
         PnoIdentificador atual = tabelaHash[i];
         while(atual != NULL) {
-            printf("Name: %-20s | ", atual->nomeIdentificador);
-            printf("Type: %-12s | ", getStatementKindName(atual->tipoIdentificador));
-            printf("Scope: %-20s | ", atual->escopo);
-            printf("Data Type: %-8s | ", getExpTypeName(atual->tipoDado));
-            printf("Lines: ");
+            fprintf(yyout, "Name: %-20s | ", atual->nomeIdentificador);
+            fprintf(yyout, "Type: %-12s | ", getStatementKindName(atual->tipoIdentificador));
+            fprintf(yyout, "Scope: %-20s | ", atual->escopo);
+            fprintf(yyout, "Data Type: %-8s | ", getExpTypeName(atual->tipoDado));
+            fprintf(yyout, "Lines: ");
             for(int j = 0; j < MAXNOLIN; j++) {
                 if(atual->linhas[j] != 0) {
-                    printf("%d ", atual->linhas[j]);
+                    fprintf(yyout, "%d ", atual->linhas[j]);
                 }
             }
-            printf("\n");
+            fprintf(yyout, "\n");
             atual = atual->prox;
         }
     }
-    printf("-------------\n\n");
+    fprintf(yyout, "-------------\n\n");
 }
 
 void buildSymTabFromTree(TreeNode* tree) {

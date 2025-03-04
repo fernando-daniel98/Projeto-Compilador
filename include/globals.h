@@ -39,6 +39,8 @@ typedef enum {Void,Integer} ExpType;
 #define MAXNOLIN 40
 #define MAXTOKENLEN 40
 
+extern FILE *yyin;
+extern FILE *yyout;
 extern int lexical_errors;
 extern int syntax_errors;
 extern int semantic_errors;

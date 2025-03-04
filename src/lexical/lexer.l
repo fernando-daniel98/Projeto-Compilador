@@ -1,12 +1,10 @@
 %{
-#include "parser.tab.h"
-#include "globals.h"
+#include "../build/parser.tab.h"
+#include "../include/globals.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-extern FILE *yyin;
-extern FILE *yyout;
 extern char* yytext;
 
 int lexical_errors = 0;

@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "globals.h"
+#include "../include/globals.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -12,7 +12,7 @@ static int indentno = 0; /* number of spaces to indent */
 /* printSpaces indents by printing spaces */
 void printSpaces(void) {
     for (int i = 0; i < indentno; i++)
-        printf("\t");
+        fprintf(yyout, "\t");
 }
 
 /* Function to convert ExpType to string */
@@ -50,86 +50,86 @@ void printTree(TreeNode* tree) {
         if (tree->nodekind == StatementK) {
             switch (tree->kind.stmt) {
                 case IfK:
-                    printf("If\n");
+                    fprintf(yyout, "If\n");
                     break;
                 case WhileK:
-                    printf("While\n");
+                    fprintf(yyout, "While\n");
                     break;
                 case ReturnINT:
-                    printf("Return (int)\n");
+                    fprintf(yyout, "Return (int)\n");
                     break;
                 case ReturnVOID:
-                    printf("Return (void)\n");
+                    fprintf(yyout, "Return (void)\n");
                     break;
                 case NuloDecl:
-                    printf("Compound Statement\n");
+                    fprintf(yyout, "Compound Statement\n");
                     break;
                 case VarDeclK:
-                    printf("Var Declaration: %s (type: %s)\n", 
+                    fprintf(yyout, "Var Declaration: %s (type: %s)\n", 
                         tree->attr.name, 
                         expTypeToString(tree->type));
                     break;
                 case VetDeclK:
-                    printf("Vector Declaration: %s (type: %s)\n", 
+                    fprintf(yyout, "Vector Declaration: %s (type: %s)\n", 
                         tree->attr.name, 
                         expTypeToString(tree->type));
                     break;
                 case FunDeclK:
-                    printf("Function Declaration: %s (return type: %s)\n", 
+                    fprintf(yyout, "Function Declaration: %s (return type: %s)\n", 
                         tree->attr.name, 
                         expTypeToString(tree->type));
                     break;
                 case VarParamK:
-                    printf("Parameter: %s (type: %s)\n", 
+                    fprintf(yyout, "Parameter: %s (type: %s)\n", 
                         tree->attr.name, 
                         expTypeToString(tree->type));
                     break;
                 case VetParamK:
-                    printf("Vector Parameter: %s (type: %s)\n", 
+                    fprintf(yyout, "Vector Parameter: %s (type: %s)\n", 
                         tree->attr.name, 
                         expTypeToString(tree->type));
                     break;
                 case ParamVoid:
-                    printf("Void Parameter\n");
+                    fprintf(yyout, "Void Parameter\n");
                     break;
                 default:
-                    printf("Unknown StatementK node kind\n");
+                    fprintf(yyout, "Unknown StatementK node kind\n");
                     break;
             }
         }
         else if (tree->nodekind == ExpressionK) {
             switch (tree->kind.exp) {
                 case OpK:
-                    printf("Operator: %s\n", operatorToString(tree->attr.op));
+                    fprintf(yyout, "Operator: %s\n", operatorToString(tree->attr.op));
                     break;
                 case OpRel:
-                    printf("Relational: %s\n", operatorToString(tree->attr.op));
+                    fprintf(yyout, "Relational: %s\n", operatorToString(tree->attr.op));
                     break;
                 case ConstK:
-                    printf("Const: %d\n", tree->attr.val);
+                    fprintf(yyout, "Const: %d\n", tree->attr.val);
                     break;
                 case IdK:
-                    printf("Id: %s\n", tree->attr.name);
+                    fprintf(yyout, "Id: %s\n", tree->attr.name);
                     break;
                 case AtivK:
-                    printf("Function Call: %s\n", tree->attr.name);
+                    fprintf(yyout, "Function Call: %s\n", tree->attr.name);
                     break;
                 case VetorK:
-                    printf("Vector: %s\n", tree->attr.name);
+                    fprintf(yyout, "Vector: %s\n", tree->attr.name);
                     break;
                 case AssignK:
-                    printf("Assign\n");
+                    fprintf(yyout, "Assign\n");
                     break;
                 case NuloExp:
-                    printf("Null Expression\n");
+                    fprintf(yyout, "Null Expression\n");
                     break;
                 default:
-                    printf("Unknown ExpressionK node kind\n");
+                    fprintf(yyout, "Unknown ExpressionK node kind\n");
                     break;
             }
         }
         else {
-            printf("Unknown node kind\n");
+            fprintf(yyout, "Unknown node kind\n");
         }
 
         /* Print children */
@@ -144,16 +144,37 @@ void printTree(TreeNode* tree) {
     UNINDENT;
 }
 
-void freeTree(TreeNode* tree) {
+void freeTree(TreeNode *tree) {
+    if (tree == NULL) return;
+    
+    // Primeiro salvar os ponteiros para os nós irmãos e filhos
+    TreeNode *sibling = tree->sibling;
+    TreeNode *children[MAXCHILDREN];
     for (int i = 0; i < MAXCHILDREN; i++) {
-        if (tree->child[i] != NULL) {
-            freeTree(tree->child[i]);
+        children[i] = tree->child[i];
+    }
+    
+    // Liberar dados específicos do nó atual dependendo do tipo
+    if (tree->nodekind == ExpressionK && 
+        (tree->kind.exp == IdK || tree->kind.exp == VetorK || tree->kind.exp == AtivK)) {
+        // Não libere o name, pois pode estar sendo referenciado na tabela de símbolos
+        // Se necessário, faça uma cópia do nome ao criar o nó
+    }
+    
+    // Liberar o nó atual
+    free(tree);
+    
+    // Liberar os nós filhos primeiro (profundidade)
+    for (int i = 0; i < MAXCHILDREN; i++) {
+        if (children[i] != NULL) {
+            freeTree(children[i]);
         }
     }
-    if (tree->sibling != NULL) {
-        freeTree(tree->sibling);
+    
+    // Liberar os nós irmãos depois (largura)
+    if (sibling != NULL) {
+        freeTree(sibling);
     }
-    free(tree);
 }
 
 // Variável para rastrear os IDs dos nós na representação DOT
@@ -333,8 +354,7 @@ int generateDotTree(FILE* dotFile, TreeNode* tree, int parentId) {
 void generateDotFile(TreeNode* tree, const char* filename) {
     FILE* dotFile = fopen(filename, "w");
     if (dotFile == NULL) {
-        fprintf(stderr, "Erro: Não foi possível abrir o arquivo %s para escrita.\n", filename);
-        return;
+        fprintf(stderr, "Error: Could not open file %s for writing\n", filename);
     }
     
     // Resetar contador de nós
@@ -353,6 +373,4 @@ void generateDotFile(TreeNode* tree, const char* filename) {
     // Finalizar o arquivo DOT
     fprintf(dotFile, "}\n");
     fclose(dotFile);
-    
-    printf("\nSyntax tree DOT file generated: %s\n", filename);
 }

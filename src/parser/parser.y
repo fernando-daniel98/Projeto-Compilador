@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "globals.h"
+#include "../include/globals.h"
 
 extern FILE *yyin;
 extern FILE *yyout;
@@ -24,7 +24,7 @@ static TreeNode *savedTree;
 %}
 
 %code requires {
-    #include "globals.h"    /* Add this include here as well */
+    #include "../include/globals.h"
 }
 
 %union {
@@ -436,6 +436,7 @@ arg_lista:
 
 %%
 
+// No final do arquivo, após %%
 void yyerror(const char *s) {
     fprintf(stderr, ANSI_COLOR_YELLOW "ERRO SINTÁTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
     fprintf(stderr, ANSI_COLOR_YELLOW "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET " | %s\n", lineNum, s);
@@ -443,118 +444,16 @@ void yyerror(const char *s) {
     syntax_errors++;
 }
 
-int formaEntrada(int argc, char **argv) {
-    if (argc == 1) {
-        yyin = stdin;
-        yyout = stdout;
-    } else if (argc == 2) {
-        yyin = fopen(argv[1], "r");
-        if (yyin == NULL) {
-            fprintf(stderr, "Error: Cannot open input file %s\n", argv[1]);
-            return 1;
-        }
-        yyout = stdout;
-    } else if (argc == 3) {
-        yyin = fopen(argv[1], "r");
-        if (yyin == NULL) {
-            fprintf(stderr, "Error: Cannot open input file %s\n", argv[1]);
-            return 1;
-        }
-        yyout = fopen(argv[2], "w");
-        if (yyout == NULL) {
-            fprintf(stderr, "Error: Cannot open output file %s\n", argv[2]);
-            fclose(yyin);
-            return 1;
-        }
-    } else {
-        fprintf(stderr, "Usage: %s [input_file] [output_file]\n", argv[0]);
-        return 1;
-    }
-    return 0;
-}
-
-int main(int argc, char **argv) {
-    printf("Starting program...\n");
-    fflush(stdout);  // Force print
-
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
-        return 1;
-    }
-
-    printf("Opening file: %s\n", argv[1]);
-    fflush(stdout);
-
-    // Check if formaEntrada is successful
-    if (formaEntrada(argc, argv) != 0) {
-        fprintf(stderr, "Error opening files\n");
-        return 1;
-    }
-
-    // Verify file was opened successfully
-    if (yyin == NULL) {
-        fprintf(stderr, "Failed to open input file\n");
-        return 1;
-    }
-
-    printf("File opened successfully\n");
-    fflush(stdout);
+// Nova função parse() que retorna a árvore sintática
+TreeNode *parse(void) {
+    // Reset para nova análise
+    savedTree = NULL;
     
-    printf("Starting parse...\n");
-    fflush(stdout);
-
+    // Executar o parser
     int parseResult = yyparse();
     
-    printf("Parse completed with result: %d\n", parseResult);
-    fflush(stdout);
-
-    if (savedTree != NULL) {        
-        // Inicializações para o gerenciamento correto de escopo
-        if (symbolTable == NULL) {
-            symbolTable = inicializaTabela();
-        }
-        strcpy(currentScope, "global");
-        inFunctionScope = 0;
-        
-        printf("\nBuilding symbol table...\n");
-        buildSymTabFromTree(savedTree);
-
-        // Verificar se a função main foi declarada
-        checkMainFunction();
-        
-        printf("\nSymbol Table Contents:\n");
-        mostraTabelaSimbolos(symbolTable);
-
-        printf("\nSyntax tree created successfully!\n");
-        printTree(savedTree);
-
-        // Gerar árvore em formato DOT Graphviz
-        generateDotFile(savedTree, "ast.dot");
-        
-    } else {
-        fprintf(stderr, "Empty syntax tree!\n");
-        if (yyin != stdin) fclose(yyin);
-        if (yyout != stdout) fclose(yyout);
-        return 1;
-    }
-
-    printf("\nCleaning up...\n");
-    fflush(stdout);
-
-    if(savedTree != NULL)
-        freeTree(savedTree);
-        
-    if(symbolTable != NULL)
-        deleteSymTab();
-
-    if (yyin != stdin) fclose(yyin);
-    if (yyout != stdout) fclose(yyout);
-
-    printf("Program completed successfully\n");
-    fflush(stdout);
-
-    fprintf(stderr, "Erros léxicos: %d\n", lexical_errors);
-    fprintf(stderr, "Erros sintáticos: %d\n", syntax_errors);
-    fprintf(stderr, "Erros semânticos: %d\n", semantic_errors);
-    return 0;
+    fprintf(yyout, "Parse completed with result: %d\n", parseResult);
+    fflush(yyout);
+    
+    return savedTree; // Agora retorna a variável global preenchida pelo Bison
 }
