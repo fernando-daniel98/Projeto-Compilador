@@ -233,6 +233,55 @@ void mostraTabelaSimbolos(PnoIdentificador *tabelaHash) {
     fprintf(yyout, "-------------\n\n");
 }
 
+// Função para verificar se existe pelo menos um comando return em uma função
+int hasReturnStatement(TreeNode* funcBody) {
+    if (funcBody == NULL) return 0;
+    
+    // Se este nó é um return
+    if (funcBody->nodekind == StatementK && 
+        (funcBody->kind.stmt == ReturnINT || funcBody->kind.stmt == ReturnVOID)) {
+        return 1;
+    }
+    
+    // Verificar nos filhos
+    for (int i = 0; i < MAXCHILDREN; i++) {
+        if (funcBody->child[i] != NULL && hasReturnStatement(funcBody->child[i])) {
+            return 1;
+        }
+    }
+    
+    // Verificar nos irmãos
+    if (funcBody->sibling != NULL && hasReturnStatement(funcBody->sibling)) {
+        return 1;
+    }
+    
+    return 0;
+}
+
+// Verifica se uma função tem return do tipo correto
+void checkFunctionReturnType(TreeNode* functionNode) {
+    if (functionNode == NULL || functionNode->nodekind != StatementK || functionNode->kind.stmt != FunDeclK) 
+        return;
+    
+    // Pular a verificação para a função main, que é tratada separadamente
+    if (functionNode->attr.name != NULL && strcmp(functionNode->attr.name, "main") == 0) 
+        return;
+    
+    // O corpo da função está em child[1]
+    TreeNode* funcBody = functionNode->child[1];
+    
+    // Se a função deve retornar um valor (tipo não void)
+    if (functionNode->type == Integer) {
+        // Verificar se existe pelo menos um return na função
+        if (!hasReturnStatement(funcBody)) {
+            fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", functionNode->attr.name);
+            fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", functionNode->lineno);
+            fprintf(stderr, "FUNÇÃO COM TIPO DE RETORNO INT NÃO TEM COMANDO RETURN.\n");
+            semantic_errors++;
+        }
+    }
+}
+
 void buildSymTabFromTree(TreeNode* tree) {
     // Initialize symbol table if not already initialized
     if (symbolTable == NULL) {
@@ -322,6 +371,9 @@ void buildSymTabFromTree(TreeNode* tree) {
                 for (int i = 0; i < MAXCHILDREN; i++) {
                     buildSymTabFromTree(tree->child[i]);
                 }
+                
+                // Verificar se a função tem return adequado depois de processar todo o corpo
+                checkFunctionReturnType(tree);
                 
                 strcpy(currentScope, oldScope);
                 inFunctionScope--;

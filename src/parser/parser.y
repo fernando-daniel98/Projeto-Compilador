@@ -452,8 +452,15 @@ TreeNode *parse(void) {
     // Executar o parser
     int parseResult = yyparse();
     
-    fprintf(yyout, "Parse completed with result: %d\n", parseResult);
-    fflush(yyout);
+    if(parseResult == 0){
+        fprintf(yyout, "\nSyntax tree generation completed successfully\n");
+        fflush(yyout);
+    }
+    else{
+        fprintf(yyout, "\nUnable to generate syntax tree due to errors in the source program\n");
+        fflush(yyout);
+    }
+
     
     return savedTree; // Agora retorna a variável global preenchida pelo Bison
 }

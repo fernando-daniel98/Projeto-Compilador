@@ -5,7 +5,7 @@
 /***********   Syntax tree for parsing ************/
 /**************************************************/
 
-typedef enum {StatementK,ExpressionK} NodeKind;
+typedef enum {StatementK, ExpressionK, TypeK} NodeKind;
 
 typedef enum {
         IfK,

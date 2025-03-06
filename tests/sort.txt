@@ -50,12 +50,13 @@ int vet3[10];
 
 void main(void)
 {
-	int i;
+	int i; int neg;
 	i = 0;
 	while (i < 10){
 		vet[i] = input();
 		i = i + 1;
 	}
+	neg = 5 * (2 + 4) / -2;
 	sort(vet,0,10);
 	i = 0;
 	while (i < 10){

@@ -7,6 +7,7 @@
 #include "../include/globals.h"
 #include "../include/parser.h"
 #include "../include/semantic.h"
+#include "../include/codeGen.h"
 
 // Variáveis externas necessárias
 extern FILE *yyin;
@@ -17,6 +18,7 @@ extern int syntax_errors;
 extern int semantic_errors;
 
 int dotFileFlag = 0;
+int tacFlag = 1; // Flag para habilitar a geração de código TAC (ativada por padrão)
 
 void generateFileName(char *buffer, size_t bufferSize, const char *directory, 
                         const char *baseName, const char *extension) {
@@ -80,23 +82,23 @@ int formaEntrada(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
-    TreeNode *syntaxTree = NULL;
-    
+
     fprintf(stderr, "Starting program...\n");
     fflush(stderr);
 
     // Verificar número de argumentos
-    if (argc < 2 || argc > 3) {
-        fprintf(stderr, "Usage: %s [dot_flag] <input_file>\n", argv[0]);
+    if (argc < 2 || argc > 4) {
+        fprintf(stderr, "Usage: %s [dot_flag] [tac_flag] <input_file>\n", argv[0]);
         fprintf(stderr, "dot_flag: 1 to generate DOT file, 0 to skip (optional)\n");
+        fprintf(stderr, "tac_flag: 1 to generate TAC code, 0 to skip (optional)\n");
         return 1;
     }
 
     char *inputFile;
     
     // Processar os argumentos
-    if (argc == 3) {
-        // Se temos 3 argumentos, o segundo é a flag e o terceiro é o arquivo
+    if (argc == 4) {
+        // Se temos 4 argumentos, o segundo é a flag DOT, o terceiro é a flag TAC, e o quarto é o arquivo
         if (strcmp(argv[1], "0") == 0) {
             dotFileFlag = 0;
         } else if (strcmp(argv[1], "1") == 0) {
@@ -105,19 +107,49 @@ int main(int argc, char **argv) {
             fprintf(stderr, "Error: Invalid DOT flag. Use 0 or 1.\n");
             return 1;
         }
+        
+        if (strcmp(argv[2], "0") == 0) {
+            tacFlag = 0;
+        } else if (strcmp(argv[2], "1") == 0) {
+            tacFlag = 1;
+        } else {
+            fprintf(stderr, "Error: Invalid TAC flag. Use 0 or 1.\n");
+            return 1;
+        }
+        
+        inputFile = argv[3];
+    } else if (argc == 3) {
+        // Se temos 3 argumentos, o segundo é a flag DOT e o terceiro é o arquivo
+        if (strcmp(argv[1], "0") == 0) {
+            dotFileFlag = 0;
+        } else if (strcmp(argv[1], "1") == 0) {
+            dotFileFlag = 1;
+        } else {
+            fprintf(stderr, "Error: Invalid DOT flag. Use 0 or 1.\n");
+            return 1;
+        }
+        tacFlag = 1; // Valor padrão
         inputFile = argv[2];
     } else {
-        // Se temos 2 argumentos, o segundo é o arquivo (sem flag especificada)
+        // Se temos 2 argumentos, o segundo é o arquivo (sem flags especificadas)
         dotFileFlag = 0; // Valor padrão
+        tacFlag = 1; // Valor padrão
         inputFile = argv[1];
     }
 
-    fprintf(stderr, "Opening file: %s\n", inputFile);
+    fprintf(stderr, "Opening file: %s in tests path\n\n", inputFile);
     if (dotFileFlag) {
         fprintf(stderr, "DOT file generation: enabled\n");
     } else {
         fprintf(stderr, "DOT file generation: disabled\n");
     }
+    
+    if (tacFlag) {
+        fprintf(stderr, "TAC code generation: enabled\n");
+    } else {
+        fprintf(stderr, "TAC code generation: disabled\n");
+    }
+    
     fflush(stderr);
 
     // Modificar a chamada para formaEntrada para usar inputFile
@@ -132,22 +164,24 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Failed to open input file\n");
         return 1;
     }
-
-    fprintf(stderr, "File opened successfully\n");
-    fflush(stderr);
+    else {
+        fprintf(stderr, "Input file opened successfully\n");
+    }
     
-    fprintf(stderr, "Starting parse...\n");
+    fprintf(stderr, "Starting syntax analysis...\n");
     fflush(stderr);
+
+    TreeNode *syntaxTree = NULL;
 
     // Fase 1: Análise sintática
     syntaxTree = parse();
 
-    fprintf(stderr, "\nSyntax tree created successfully!\n");
-    fflush(stderr);
-    
     if (syntaxTree != NULL) {
+        fprintf(stderr, "\nSyntax analysis completed successfully\n");
+        fflush(stderr);
+        
         // Fase 2: Análise semântica
-        fprintf(stderr, "\nBuilding symbol table...\n");
+        fprintf(stderr, "\nStarting semantic analysis...\n");
         fflush(stderr);
         
         // Apenas ilustrativo
@@ -155,39 +189,70 @@ int main(int argc, char **argv) {
 
         initSymbolTable();
         buildSymTabFromTree(syntaxTree);
-        fprintf(stderr, "\nSymbol table built successfully!\n");
+        
+        // Verificar se houve erros semânticos
+        if (semantic_errors == 0) {
+            fprintf(stderr, "\nSemantic analysis completed successfully\n");
+            
+            // Fase 3: Geração de código intermediário
+            if (tacFlag) {
+                fprintf(stderr, "\nStarting intermediate code generation...\n");
+                fflush(stderr);
+                
+                sleep(1); // Pausa ilustrativa
+                
+                generateTAC(syntaxTree);
+                printTAC(yyout);  // Imprimir código TAC no arquivo de saída
+                
+                fprintf(stderr, "Intermediate code generation complete\n");
+            }
+            
+        } else {
+            fprintf(stderr, "\nSemantic analysis completed with %d errors\n", semantic_errors);
+        }
         
         // Verificar função main
         checkMainFunction();
         
         // Mostrar tabela de símbolos
+        fprintf(stderr, "\nGenerating symbol table...\n");
         mostraTabelaSimbolos(symbolTable);
+        fprintf(stderr, "Symbol table generation complete\n");
 
         // Mostrando a árvore sintática
+        fprintf(stderr, "\nGenerating syntax tree output...\n");
         fprintf(yyout, "\nSYNTAX TREE\n");
         fprintf(yyout, "-------------\n");
         printTree(syntaxTree);
         fprintf(yyout, "-------------\n\n");
+        fprintf(stderr, "Syntax tree output complete\n");
 
         
         if (dotFileFlag) {
+            fprintf(stderr, "\nGenerating DOT file for AST visualization...\n");
             char dotFilePath[256];
             generateFileName(dotFilePath, sizeof(dotFilePath), "output/ast", inputFile, ".dot");
             generateDotFile(syntaxTree, dotFilePath);
-            fprintf(stderr, "\nAST in .dot format saved to %s\n", dotFilePath);
+            fprintf(stderr, "AST in DOT format saved to %s\n", dotFilePath);
         } else {
-            fprintf(stderr, "\nDOT file generation skipped as requested.\n");
+            fprintf(stderr, "\nDOT file generation skipped as requested\n");
         }
         
+        // Limpar recursos TAC
+        // if (tacFlag) {
+        //     finalizeTAC();
+        // }
+        
     } else {
-        fprintf(stderr, "Empty syntax tree!\n");
+        fprintf(stderr, "\nSyntax analysis failed to produce valid syntax tree\n");
+        fprintf(stderr, "This may be due to syntax errors in the input file\n");
         if (yyin != stdin) fclose(yyin);
         if (yyout != stdout) fclose(yyout);
         return 1;
     }
 
-    fprintf(stderr, "\nCleaning up...\n");
-
+    fprintf(stderr, "\nCleaning up resources...\n");
+    
     // Liberar memória
     if (syntaxTree != NULL)
         freeTree(syntaxTree);
@@ -199,13 +264,19 @@ int main(int argc, char **argv) {
     if (yyin != stdin) fclose(yyin);
     if (yyout != stdout) fclose(yyout);
 
-    fprintf(yyout, "Program completed successfully\n");
+    fprintf(yyout, "Compilation process completed\n");
     fflush(yyout);
 
-    // Exibir erros no terminal, pois não mudei o padrão do stderr
-    fprintf(stderr, "Lexical errors: %d\n", lexical_errors);
-    fprintf(stderr, "Syntax errors: %d\n", syntax_errors);
-    fprintf(stderr, "Semantic errors: %d\n", semantic_errors);
+    if (lexical_errors > 0 || syntax_errors > 0 || semantic_errors > 0) {
+        fprintf(stderr, "\nCompilation completed with errors:\n");
+        fprintf(stderr, "- Lexical errors: %d\n", lexical_errors);
+        fprintf(stderr, "- Syntax errors: %d\n", syntax_errors);
+        fprintf(stderr, "- Semantic errors: %d\n", semantic_errors);
+        return 1;
+    }
+    else {
+        fprintf(stderr, "\nCompilation completed successfully with no errors\n");
+    }
 
     return 0;
 }

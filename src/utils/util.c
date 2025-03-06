@@ -42,6 +42,14 @@ const char* operatorToString(int op) {
     }
 }
 
+/* Função para verificar se um nó é um operador unário negativo */
+int isUnaryNegative(TreeNode* tree) {
+    return (tree != NULL && 
+            tree->nodekind == ExpressionK && 
+            tree->kind.exp == OpK && 
+            tree->attr.op == MINUS_OP &&
+            tree->child[1] == NULL);
+}
 /* printTree recursively prints the syntax tree */
 void printTree(TreeNode* tree) {
     INDENT;
@@ -100,7 +108,11 @@ void printTree(TreeNode* tree) {
         else if (tree->nodekind == ExpressionK) {
             switch (tree->kind.exp) {
                 case OpK:
-                    fprintf(yyout, "Operator: %s\n", operatorToString(tree->attr.op));
+                    if (isUnaryNegative(tree)) {
+                        fprintf(yyout, "Operator: unary %s\n", operatorToString(tree->attr.op));
+                    } else {
+                        fprintf(yyout, "Operator: %s\n", operatorToString(tree->attr.op));
+                    }
                     break;
                 case OpRel:
                     fprintf(yyout, "Relational: %s\n", operatorToString(tree->attr.op));
@@ -147,34 +159,22 @@ void printTree(TreeNode* tree) {
 void freeTree(TreeNode *tree) {
     if (tree == NULL) return;
     
-    // Primeiro salvar os ponteiros para os nós irmãos e filhos
-    TreeNode *sibling = tree->sibling;
-    TreeNode *children[MAXCHILDREN];
+    // Primeiro liberar os filhos (profundidade)
     for (int i = 0; i < MAXCHILDREN; i++) {
-        children[i] = tree->child[i];
-    }
-    
-    // Liberar dados específicos do nó atual dependendo do tipo
-    if (tree->nodekind == ExpressionK && 
-        (tree->kind.exp == IdK || tree->kind.exp == VetorK || tree->kind.exp == AtivK)) {
-        // Não libere o name, pois pode estar sendo referenciado na tabela de símbolos
-        // Se necessário, faça uma cópia do nome ao criar o nó
-    }
-    
-    // Liberar o nó atual
-    free(tree);
-    
-    // Liberar os nós filhos primeiro (profundidade)
-    for (int i = 0; i < MAXCHILDREN; i++) {
-        if (children[i] != NULL) {
-            freeTree(children[i]);
+        if (tree->child[i] != NULL) {
+            freeTree(tree->child[i]);
+            tree->child[i] = NULL; // Evitar uso após liberação
         }
     }
     
-    // Liberar os nós irmãos depois (largura)
-    if (sibling != NULL) {
-        freeTree(sibling);
+    // Em seguida, liberar os irmãos (largura)
+    if (tree->sibling != NULL) {
+        freeTree(tree->sibling);
+        tree->sibling = NULL; // Evitar uso após liberação
     }
+    
+    // Por fim, liberar o nó atual
+    free(tree);
 }
 
 // Variável para rastrear os IDs dos nós na representação DOT
@@ -219,7 +219,11 @@ void generateDotNode(FILE* dotFile, TreeNode* tree, int nodeId) {
     } else if (tree->nodekind == ExpressionK) {
         switch (tree->kind.exp) {
             case OpK:
-                fillcolor = "lightcoral";
+                if (isUnaryNegative(tree)) {
+                    fillcolor = "salmon";
+                } else {
+                    fillcolor = "lightcoral";
+                }
                 break;
             case ConstK:
                 fillcolor = "lightsalmon";
@@ -291,7 +295,11 @@ void generateDotNode(FILE* dotFile, TreeNode* tree, int nodeId) {
     } else if (tree->nodekind == ExpressionK) {
         switch (tree->kind.exp) {
             case OpK:
-                fprintf(dotFile, "Op: %s", operatorToString(tree->attr.op));
+                if (isUnaryNegative(tree)) {
+                    fprintf(dotFile, "Op: unary %s", operatorToString(tree->attr.op));
+                } else {
+                    fprintf(dotFile, "Op: %s", operatorToString(tree->attr.op));
+                }
                 break;
             case OpRel:
                 fprintf(dotFile, "Rel: %s", operatorToString(tree->attr.op));

@@ -57,7 +57,7 @@ WHITESPACE [ \t]+
 "int"             { return INT; }
 "return"          { 
                     TreeNode* node = newNode(StatementK);
-                    node->kind.stmt = ReturnINT;  // or ReturnVOID based on context
+                    node->kind.stmt = ReturnINT;
                     yylval.node = node;
                     return RETURN; 
                   }

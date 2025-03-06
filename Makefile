@@ -18,7 +18,7 @@ clean_output:
 	rm -f $(OUTPUT_DIR)/ast/*.dot
 
 
-compiler: $(BUILD_DIR)/lex.yy.o $(BUILD_DIR)/parser.tab.o $(BUILD_DIR)/tab.o $(BUILD_DIR)/util.o $(BUILD_DIR)/main.o
+compiler: $(BUILD_DIR)/lex.yy.o $(BUILD_DIR)/parser.tab.o $(BUILD_DIR)/tab.o $(BUILD_DIR)/util.o $(BUILD_DIR)/codeGen.o $(BUILD_DIR)/main.o
 	$(CC) $(CFLAGS) -o $@ $^ -lfl
 
 $(BUILD_DIR)/main.o: $(SRC_DIR)/main.c
@@ -34,6 +34,9 @@ $(BUILD_DIR)/tab.o: $(SRC_DIR)/semantic/tab.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/util.o: $(SRC_DIR)/utils/util.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/codeGen.o: $(SRC_DIR)/code-gen/codeGen.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/lex.yy.c: $(SRC_DIR)/lexical/lexer.l $(BUILD_DIR)/parser.tab.h
