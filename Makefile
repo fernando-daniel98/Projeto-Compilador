@@ -30,19 +30,19 @@ $(BUILD_DIR)/lex.yy.o: $(BUILD_DIR)/lex.yy.c
 $(BUILD_DIR)/parser.tab.o: $(BUILD_DIR)/parser.tab.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/tab.o: $(SRC_DIR)/semantic/tab.c
+$(BUILD_DIR)/tab.o: $(SRC_DIR)/tab.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/util.o: $(SRC_DIR)/utils/util.c
+$(BUILD_DIR)/util.o: $(SRC_DIR)/util.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/codeGen.o: $(SRC_DIR)/code-gen/codeGen.c
+$(BUILD_DIR)/codeGen.o: $(SRC_DIR)/codeGen.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/lex.yy.c: $(SRC_DIR)/lexical/lexer.l $(BUILD_DIR)/parser.tab.h
+$(BUILD_DIR)/lex.yy.c: $(SRC_DIR)/lexer.l $(BUILD_DIR)/parser.tab.h
 	flex -o $@ $<
 
-$(BUILD_DIR)/parser.tab.c $(BUILD_DIR)/parser.tab.h: $(SRC_DIR)/parser/parser.y
+$(BUILD_DIR)/parser.tab.c $(BUILD_DIR)/parser.tab.h: $(SRC_DIR)/parser.y
 	bison -d -v -t -Wcounterexamples $< -o $(BUILD_DIR)/parser.tab.c
 
 

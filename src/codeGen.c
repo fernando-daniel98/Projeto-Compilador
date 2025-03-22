@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../../include/codeGen.h"
-#include "../../include/globals.h"
-#include "../../include/util.h"
+#include "../include/codeGen.h"
+#include "../include/globals.h"
+#include "../include/util.h"
 
 // Gerador global de código TAC
 static TACGenerator tacGen;

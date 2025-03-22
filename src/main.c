@@ -238,11 +238,6 @@ int main(int argc, char **argv) {
             fprintf(stderr, "\nDOT file generation skipped as requested\n");
         }
         
-        // Limpar recursos TAC
-        // if (tacFlag) {
-        //     finalizeTAC();
-        // }
-        
     } else {
         fprintf(stderr, "\nSyntax analysis failed to produce valid syntax tree\n");
         fprintf(stderr, "This may be due to syntax errors in the input file\n");
@@ -254,9 +249,12 @@ int main(int argc, char **argv) {
     fprintf(stderr, "\nCleaning up resources...\n");
     
     // Liberar memória
+    if (tacFlag)
+    finalizeTAC();
+
     if (syntaxTree != NULL)
         freeTree(syntaxTree);
-        
+
     if (symbolTable != NULL)
         deleteSymTab();
 
