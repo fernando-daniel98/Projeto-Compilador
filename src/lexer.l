@@ -51,6 +51,7 @@ WHITESPACE [ \t]+
 "if"              { 
                     TreeNode* node = newNode(StatementK);
                     node->kind.stmt = IfK;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return IF; 
                   }
@@ -58,6 +59,7 @@ WHITESPACE [ \t]+
 "return"          { 
                     TreeNode* node = newNode(StatementK);
                     node->kind.stmt = ReturnINT;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return RETURN; 
                   }
@@ -65,6 +67,7 @@ WHITESPACE [ \t]+
 "while"           { 
                     TreeNode* node = newNode(StatementK);
                     node->kind.stmt = WhileK;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return WHILE; 
                   }
@@ -72,6 +75,7 @@ WHITESPACE [ \t]+
                     TreeNode* node = newNode(ExpressionK);
                     node->kind.exp = OpK;
                     node->attr.op = PLUS_OP;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return PLUS; 
                   }
@@ -79,6 +83,7 @@ WHITESPACE [ \t]+
                     TreeNode* node = newNode(ExpressionK);
                     node->kind.exp = OpK;
                     node->attr.op = MINUS_OP;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return MINUS; 
                   }
@@ -86,6 +91,7 @@ WHITESPACE [ \t]+
                     TreeNode* node = newNode(ExpressionK);
                     node->kind.exp = OpK;
                     node->attr.op = MULT_OP;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return MULT; 
                   }
@@ -93,6 +99,7 @@ WHITESPACE [ \t]+
                     TreeNode* node = newNode(ExpressionK);
                     node->kind.exp = OpK;
                     node->attr.op = DIV_OP;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return DIV; 
                   }
@@ -100,6 +107,7 @@ WHITESPACE [ \t]+
                     TreeNode* node = newNode(ExpressionK);
                     node->kind.exp = OpRel;
                     node->attr.op = LT_OP;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return SMAL; 
                   }
@@ -107,6 +115,7 @@ WHITESPACE [ \t]+
                     TreeNode* node = newNode(ExpressionK);
                     node->kind.exp = OpRel;
                     node->attr.op = LTE_OP;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return SMALEQ; 
                   }
@@ -114,6 +123,7 @@ WHITESPACE [ \t]+
                     TreeNode* node = newNode(ExpressionK);
                     node->kind.exp = OpRel;
                     node->attr.op = GT_OP;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return GREAT; 
                   }
@@ -121,6 +131,7 @@ WHITESPACE [ \t]+
                     TreeNode* node = newNode(ExpressionK);
                     node->kind.exp = OpRel;
                     node->attr.op = GTE_OP;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return GREATEQ; 
                   }
@@ -128,6 +139,7 @@ WHITESPACE [ \t]+
                     TreeNode* node = newNode(ExpressionK);
                     node->kind.exp = OpRel;
                     node->attr.op = EQ_OP;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return EQ; 
                   }
@@ -135,6 +147,7 @@ WHITESPACE [ \t]+
                     TreeNode* node = newNode(ExpressionK);
                     node->kind.exp = OpRel;
                     node->attr.op = NEQ_OP;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return DIFF; 
                   }
@@ -142,6 +155,7 @@ WHITESPACE [ \t]+
                     TreeNode* node = newNode(ExpressionK);
                     node->kind.exp = AssignK;
                     node->attr.op = ASSIGN_OP;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return ASSIGN; 
                   }
@@ -158,6 +172,7 @@ WHITESPACE [ \t]+
                     node->kind.exp = ConstK;
                     node->attr.val = atoi(yytext);
                     node->type = Integer;
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return NUM;
                   }
@@ -165,6 +180,7 @@ WHITESPACE [ \t]+
                     TreeNode* node = newNode(ExpressionK);
                     node->kind.exp = IdK;
                     node->attr.name = strdup(yytext);
+                    node->lineno = lineNum;
                     yylval.node = node;
                     return ID;  
                   }

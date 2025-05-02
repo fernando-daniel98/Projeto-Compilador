@@ -382,3 +382,106 @@ void generateDotFile(TreeNode* tree, const char* filename) {
     fprintf(dotFile, "}\n");
     fclose(dotFile);
 }
+
+/* coisas novas */
+
+/* Função para imprimir informações básicas do nó */
+void printNodeInfo(FILE* output, TreeNode* node) {
+    if (node == NULL) {
+        fprintf(output, "NULL");
+        return;
+    }
+    
+    // Imprimir tipo do nó
+    if (node->nodekind == StatementK) {
+        switch (node->kind.stmt) {
+            case IfK: fprintf(output, "If"); break;
+            case WhileK: fprintf(output, "While"); break;
+            case ReturnINT: fprintf(output, "Return(int)"); break;
+            case ReturnVOID: fprintf(output, "Return(void)"); break;
+            case NuloDecl: fprintf(output, "CompoundStmt"); break;
+            case VarDeclK: fprintf(output, "VarDecl: %s", node->attr.name); break;
+            case VetDeclK: fprintf(output, "ArrayDecl: %s", node->attr.name); break;
+            case FunDeclK: fprintf(output, "FunDecl: %s", node->attr.name); break;
+            case VarParamK: fprintf(output, "Param: %s", node->attr.name); break;
+            case VetParamK: fprintf(output, "ArrayParam: %s", node->attr.name); break;
+            case ParamVoid: fprintf(output, "VoidParam"); break;
+            default: fprintf(output, "UnknownStmt"); break;
+        }
+    } else if (node->nodekind == ExpressionK) {
+        switch (node->kind.exp) {
+            case OpK:
+                if (isUnaryNegative(node))
+                    fprintf(output, "UnaryOp: %s", operatorToString(node->attr.op));
+                else
+                    fprintf(output, "Op: %s", operatorToString(node->attr.op));
+                break;
+            case OpRel: fprintf(output, "RelOp: %s", operatorToString(node->attr.op)); break;
+            case ConstK: fprintf(output, "Const: %d", node->attr.val); break;
+            case IdK: fprintf(output, "Id: %s", node->attr.name); break;
+            case AtivK: fprintf(output, "Call: %s", node->attr.name); break;
+            case VetorK: fprintf(output, "Array: %s", node->attr.name); break;
+            case AssignK: fprintf(output, "Assign"); break;
+            default: fprintf(output, "UnknownExp"); break;
+        }
+    } else {
+        fprintf(output, "Unknown");
+    }
+    
+    fprintf(output, " (linha %d)", node->lineno);
+}
+
+/* Função que mostra a hierarquia da árvore sintática */
+void printTreeHierarchy(FILE* output, TreeNode* tree, int level, const char* prefix) {
+    static int nodeCounter = 0;
+    
+    if (tree == NULL) return;
+    
+    // Atribuir ID ao nó atual
+    int currentNodeId = ++nodeCounter;
+    
+    // Imprimir informações do nó atual com indentação
+    fprintf(output, "%s[Nó %d] ", prefix, currentNodeId);
+    printNodeInfo(output, tree);
+    fprintf(output, "\n");
+    
+    // Preparar prefixo para filhos
+    char childPrefix[256];
+    snprintf(childPrefix, sizeof(childPrefix), "%s│   ", prefix);
+    
+    // Listar todos os filhos
+    for (int i = 0; i < MAXCHILDREN; i++) {
+        if (tree->child[i] != NULL) {
+            fprintf(output, "%s├── Filho %d: ", prefix, i);
+            printNodeInfo(output, tree->child[i]);
+            fprintf(output, "\n");
+            
+            // Recursivamente processar cada filho
+            printTreeHierarchy(output, tree->child[i], level + 1, childPrefix);
+        }
+    }
+    
+    // Listar irmão, se houver
+    if (tree->sibling != NULL) {
+        fprintf(output, "%s└── Irmão: ", prefix);
+        printNodeInfo(output, tree->sibling);
+        fprintf(output, "\n");
+        
+        // Preparar prefixo para irmãos
+        char siblingPrefix[256];
+        snprintf(siblingPrefix, sizeof(siblingPrefix), "%s    ", prefix);
+        
+        // Recursivamente processar o irmão
+        printTreeHierarchy(output, tree->sibling, level, siblingPrefix);
+    }
+}
+
+/* Função wrapper para imprimir a hierarquia completa */
+void displayTreeHierarchy(TreeNode* tree, FILE* output) {
+    // Se output for NULL, usa stdout como padrão
+    if (output == NULL) {
+        output = stdout;
+    }
+    
+    printTreeHierarchy(output, tree, 0, ""); // nível inicial é 0
+}

@@ -154,7 +154,8 @@ params:
     }
 ;
 
-param_lista: 
+/* A nova implementação (abaixo) está mais clara. */
+/* param_lista: 
     param_lista COMMA param 
     {
         TreeNode* t = $1;
@@ -166,6 +167,28 @@ param_lista:
         else $$ = $3;
     }
     | param { $$ = $1; }
+; */
+
+param_lista: 
+    param_lista COMMA param 
+    {
+        // Não queremos uma lista de irmãos, mas sim que o primeiro parâmetro
+        // seja filho da função e os demais sejam irmãos deste primeiro
+        TreeNode* first_param = $1;
+        
+        // Encontra o último parâmetro na cadeia de irmãos
+        TreeNode* t = first_param;
+        while (t->sibling != NULL) {
+            t = t->sibling;
+        }
+        
+        // Adiciona o novo parâmetro como irmão do último
+        t->sibling = $3;
+        
+        // Retorna o primeiro parâmetro
+        $$ = first_param;
+    }
+    | param { $$ = $1; }  // Este é o primeiro parâmetro, filho diretamente da função
 ;
 
 param: 

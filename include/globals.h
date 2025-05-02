@@ -58,7 +58,7 @@ typedef struct treeNode
             char *name; } attr;
     ExpType type; /* for type checking of exps */
 
-   } TreeNode;
+} TreeNode;
 
 typedef enum {
         PLUS_OP, MINUS_OP, MULT_OP, DIV_OP,
@@ -84,6 +84,10 @@ extern PnoIdentificador* symbolTable;
 void printTree(TreeNode* tree);
 void printSpaces(void);
 void freeTree(TreeNode* tree);
+
+void printNodeInfo(FILE* output, TreeNode* node);
+void printTreeHierarchy(FILE* output, TreeNode* tree, int level, const char* prefix);
+void displayTreeHierarchy(TreeNode* tree, FILE* output);
 
 PnoIdentificador* inicializaTabela(void);
 void deleteSymTab(void);

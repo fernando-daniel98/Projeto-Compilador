@@ -48,8 +48,8 @@ $(BUILD_DIR)/parser.tab.c $(BUILD_DIR)/parser.tab.h: $(SRC_DIR)/parser.y
 
 test: compiler
 	@if [ -z "$(file)" ]; then \
-		echo "Error: No test file specified. Usage: make test file=<test_file>"; \
+		echo "Error: No test file specified. Usage: make test file=<file_path>"; \
 		exit 1; \
 	fi
-	./compiler $(TEST_DIR)/$(file) > $(OUTPUT_DIR)/logs/$(file)
-	@echo "Test output saved to $(OUTPUT_DIR)/logs/$(file).txt"
+	./compiler $(file) > $(OUTPUT_DIR)/logs/$(notdir $(file)).log
+	@echo "Test output saved to $(OUTPUT_DIR)/logs/$(notdir $(file)).log"
