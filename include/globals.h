@@ -1,102 +1,12 @@
 #ifndef _GLOBALS_H_
 #define _GLOBALS_H_
 
-/**************************************************/
-/***********   Syntax tree for parsing ************/
-/**************************************************/
+#include <stdio.h>
 
-typedef enum {StatementK, ExpressionK, TypeK} NodeKind;
-
-typedef enum {
-        IfK,
-        WhileK,
-        ReturnINT,
-        ReturnVOID,
-        NuloDecl,
-        VarDeclK,
-        VetDeclK,
-        FunDeclK,
-        VarParamK,
-        VetParamK,
-        ParamVoid
-} StatementKind;
-
-typedef enum {
-        OpK, 
-        OpRel, 
-        ConstK, 
-        IdK, 
-        AtivK, 
-        VetorK, 
-        AssignK,
-        NuloExp
-} ExpressionKind;
-
-/* ExpType is used for type checking */
-typedef enum {Void,Integer} ExpType;
-
+// Constantes globais
 #define MAXCHILDREN 3
 #define MAXNOLIN 40
 #define MAXTOKENLEN 40
-
-extern FILE *yyin;
-extern FILE *yyout;
-extern int lexical_errors;
-extern int syntax_errors;
-extern int semantic_errors;
-
-typedef struct treeNode
-   {
-
-    struct treeNode * child[MAXCHILDREN];
-    struct treeNode * sibling;
-    int lineno;
-    NodeKind nodekind;
-    union { StatementKind stmt; ExpressionKind exp;} kind;
-    union { int op;
-            int val;
-            char *name; } attr;
-    ExpType type; /* for type checking of exps */
-
-} TreeNode;
-
-typedef enum {
-        PLUS_OP, MINUS_OP, MULT_OP, DIV_OP,
-        LT_OP, LTE_OP, GT_OP, GTE_OP,
-        EQ_OP, NEQ_OP, ASSIGN_OP
-} OperatorType;
-
-TreeNode* newNode(NodeKind nodekind);
-
-typedef struct noIdentificador{
-        char nomeIdentificador[MAXTOKENLEN];
-        StatementKind tipoIdentificador;
-        char escopo[MAXTOKENLEN];
-        ExpType tipoDado;
-        int linhas[MAXNOLIN];
-        struct noIdentificador *prox, *ant;
-    } noIdentificador;
-    
-typedef noIdentificador *PnoIdentificador;
-
-extern PnoIdentificador* symbolTable;
-
-void printTree(TreeNode* tree);
-void printSpaces(void);
-void freeTree(TreeNode* tree);
-
-void printNodeInfo(FILE* output, TreeNode* node);
-void printTreeHierarchy(FILE* output, TreeNode* tree, int level, const char* prefix);
-void displayTreeHierarchy(TreeNode* tree, FILE* output);
-
-PnoIdentificador* inicializaTabela(void);
-void deleteSymTab(void);
-void buildSymTabFromTree(TreeNode* tree);
-extern char currentScope[MAXTOKENLEN];
-void mostraTabelaSimbolos(PnoIdentificador *tabelaHash);
-void checkAssignmentTypes(TreeNode* node);
-void checkMainFunction(void);
-int verifyRedeclaration(char *nome, char *escopo);
 
 // Coloracoes em ANSI
 #define ANSI_COLOR_RESET    "\e[0m"
@@ -106,6 +16,14 @@ int verifyRedeclaration(char *nome, char *escopo);
 #define ANSI_COLOR_WHITE    "\e[1;37m" // Num da linha
 #define ANSI_COLOR_GREEN    "\e[1;32m" // Recuperação de erro
 
-void generateDotFile(TreeNode* tree, const char* filename);
+// Variáveis externas do compilador
+extern FILE *yyin;
+extern FILE *yyout;
+extern int lexical_errors;
+extern int syntax_errors;
+extern int semantic_errors;
+
+// ExpType é usado para verificação de tipos
+typedef enum {Void, Integer} ExpType;
 
 #endif

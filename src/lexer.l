@@ -1,6 +1,7 @@
 %{
 #include "../build/parser.tab.h"
 #include "../include/globals.h"
+#include "../include/syntax_tree.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

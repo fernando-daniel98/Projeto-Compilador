@@ -5,7 +5,9 @@
 #include <unistd.h>
 #include <libgen.h>
 #include "../include/globals.h"
+#include "../include/syntax_tree.h"
 #include "../include/parser.h"
+#include "../include/symbol_table.h"
 #include "../include/semantic.h"
 #include "../include/codeGen.h"
 
@@ -16,8 +18,6 @@ extern int lineNum;
 extern int lexical_errors;
 extern int syntax_errors;
 extern int semantic_errors;
-
-int dotFileFlag = 0;
 
 void generateFileName(char *buffer, size_t bufferSize, const char *directory, 
                         const char *baseName, const char *extension) {
@@ -83,39 +83,14 @@ int main(int argc, char **argv) {
     fflush(stderr);
 
     // Verificar número de argumentos
-    if (argc < 2 || argc > 3) {
-        fprintf(stderr, "Usage: %s [dot_flag] [tac_flag] <input_file>\n", argv[0]);
-        fprintf(stderr, "dot_flag: 1 to generate DOT file, 0 to skip (optional)\n");
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
         return 1;
     }
 
-    char *inputFile;
-    
-    // Processar os argumentos
-    if (argc == 3) {
-        // Se temos 3 argumentos, o segundo é a flag DOT e o terceiro é o arquivo
-        if (strcmp(argv[1], "0") == 0) {
-            dotFileFlag = 0;
-        } else if (strcmp(argv[1], "1") == 0) {
-            dotFileFlag = 1;
-        } else {
-            fprintf(stderr, "Error: Invalid DOT flag. Use 0 or 1.\n");
-            return 1;
-        }
-        inputFile = argv[2];
-    } else {
-        // Se temos 2 argumentos, o segundo é o arquivo (sem flags especificadas)
-        dotFileFlag = 0; // Valor padrão
-        inputFile = argv[1];
-    }
+    char *inputFile = argv[1];
 
-    fprintf(stderr, "Opening file: %s in tests path\n\n", inputFile);
-    if (dotFileFlag) {
-        fprintf(stderr, "DOT file generation: enabled\n");
-    } else {
-        fprintf(stderr, "DOT file generation: disabled\n");
-    }
-    
+    fprintf(stderr, "Opening file: %s\n\n", inputFile);
     fflush(stderr);
 
     // Modificar a chamada para formaEntrada para usar inputFile
@@ -172,27 +147,12 @@ int main(int argc, char **argv) {
         // Mostrando a árvore sintática
         fprintf(stderr, "\nGenerating syntax tree output...\n");
 
-        fprintf(yyout, "\nSYNTAX TREE 1\n");
+        fprintf(yyout, "\nSYNTAX TREE\n");
         fprintf(yyout, "-------------\n");
         printTree(syntaxTree);
         fprintf(yyout, "-------------\n\n");
 
-        // fprintf(yyout, "\nSYNTAX TREE 2\n");
-        // fprintf(yyout, "-------------\n");
-        // displayTreeHierarchy(syntaxTree, yyout);
-        // fprintf(yyout, "-------------\n\n");
         fprintf(stderr, "Syntax tree output complete\n");
-
-        
-        if (dotFileFlag) {
-            fprintf(stderr, "\nGenerating DOT file for AST visualization...\n");
-            char dotFilePath[256];
-            generateFileName(dotFilePath, sizeof(dotFilePath), "output/ast", inputFile, ".dot");
-            generateDotFile(syntaxTree, dotFilePath);
-            fprintf(stderr, "AST in DOT format saved to %s\n", dotFilePath);
-        } else {
-            fprintf(stderr, "\nDOT file generation skipped as requested\n");
-        }
         
     } else {
         fprintf(stderr, "\nSyntax analysis failed to produce valid syntax tree\n");
@@ -206,15 +166,54 @@ int main(int argc, char **argv) {
     fprintf(stderr, "\nStarting intermediate code generation...\n");
     fflush(stderr);
 
-    percorreAAS(syntaxTree);
+    fprintf(yyout, "\nINTERMEDIATE CODE\n");
+    fprintf(yyout, "-------------\n");
+    
+    // Chamar o gerador de código intermediário
+    int icStatus = createIntermediateCode(syntaxTree, symbolTable);
+    
+    // Verificar o resultado da geração de código
+    if (icStatus == 0) {
+        fprintf(stderr, "\nIntermediate code generation completed successfully\n");
+        
+        // Imprimir as quadruplas geradas no arquivo de saída
+        imprimeCodigoIntermediario();
+        
+        // Após a geração do código intermediário com os logs de debug,
+        // também chamamos a função percorreAAS que gerará 
+        // uma representação mais limpa no arquivo de log
+        fprintf(yyout, "\n\nINTERMEDIATE CODE (CLEAN OUTPUT)\n");
+        fprintf(yyout, "-------------\n");
+        percorreAAS(syntaxTree);
+    } else if (icStatus == -1) {
+        fprintf(stderr, "\nIntermediate code generation failed: Memory allocation error\n");
+    } else if (icStatus == -2) {
+        fprintf(stderr, "\nIntermediate code generation failed: Invalid syntax tree or symbol table\n");
+    } else {
+        fprintf(stderr, "\nIntermediate code generation failed with unknown error: %d\n", icStatus);
+    }
+    
+    fprintf(yyout, "-------------\n\n");
 
     fprintf(stderr, "\nCleaning up resources...\n");
 
-    if (syntaxTree != NULL)
+    if (syntaxTree != NULL){
         freeTree(syntaxTree);
 
-    if (symbolTable != NULL)
+        fprintf(stderr, "Syntax tree memory freed\n");
+    }
+
+    if (symbolTable != NULL){
         deleteSymTab();
+        
+        fprintf(stderr, "Symbol table memory freed\n");
+    }
+
+    if (intermediateCode != NULL){
+        freeIntermediateCode(intermediateCode);
+        
+        fprintf(stderr, "Intermediate code memory freed\n");
+    }
 
     // Fechar arquivos
     if (yyin != stdin) fclose(yyin);

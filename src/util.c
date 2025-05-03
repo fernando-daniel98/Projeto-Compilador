@@ -1,7 +1,8 @@
 #include <stdio.h>
-#include "../include/globals.h"
 #include <stdlib.h>
 #include <string.h>
+#include "../include/globals.h"
+#include "../include/syntax_tree.h"
 
 static int indentno = 0; /* number of spaces to indent */
 
@@ -159,19 +160,10 @@ void printTree(TreeNode* tree) {
 void freeTree(TreeNode *tree) {
     if (tree == NULL) return;
     
-    // Primeiro liberar os filhos (profundidade)
-    for (int i = 0; i < MAXCHILDREN; i++) {
-        if (tree->child[i] != NULL) {
-            freeTree(tree->child[i]);
-            tree->child[i] = NULL; // Evitar uso após liberação
-        }
+    for(int i = 0; i < MAXCHILDREN; i++) {
+        freeTree(tree->child[i]); // Liberar os filhos
     }
-    
-    // Em seguida, liberar os irmãos (largura)
-    if (tree->sibling != NULL) {
-        freeTree(tree->sibling);
-        tree->sibling = NULL; // Evitar uso após liberação
-    }
+    freeTree(tree->sibling); // Liberar o irmão
     
     // Por fim, liberar o nó atual
     free(tree);

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../include/globals.h"
+#include "../include/syntax_tree.h"
 
 extern FILE *yyin;
 extern FILE *yyout;
@@ -25,6 +26,7 @@ static TreeNode *savedTree;
 
 %code requires {
     #include "../include/globals.h"
+    #include "../include/syntax_tree.h"
 }
 
 %union {

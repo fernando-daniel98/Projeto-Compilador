@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include "../include/globals.h"
+#include "../include/syntax_tree.h"
+#include "../include/symbol_table.h"
+#include "../include/semantic.h"
 
 #define MAXTAMTABELA 29
 #define SHIFT 4
@@ -282,6 +285,67 @@ void checkFunctionReturnType(TreeNode* functionNode) {
     }
 }
 
+void checkAssignmentTypes(TreeNode* node) {
+    if (node == NULL || node->nodekind != ExpressionK || node->kind.exp != AssignK)
+        return;
+    
+    // Nó de atribuição tem child[0] como variável (esquerda) e child[1] como expressão (direita)
+    TreeNode* leftSide = node->child[0];
+    TreeNode* rightSide = node->child[1];
+    
+    if (leftSide == NULL || rightSide == NULL)
+        return;
+    
+    // Obter o tipo da variável do lado esquerdo
+    ExpType leftType = Integer; // Padrão para variáveis em C-
+    
+    // Se o lado esquerdo for um identificador, buscar seu tipo na tabela
+    if (leftSide->nodekind == ExpressionK && 
+        (leftSide->kind.exp == IdK || leftSide->kind.exp == VetorK)) {
+        
+        // Procurar primeiro no escopo atual
+        PnoIdentificador leftVar = buscaIdentificadorTabela(symbolTable, leftSide->attr.name, currentScope);
+        
+        // Se não encontrou, procurar no escopo global
+        if (leftVar == NULL) {
+            leftVar = buscaIdentificadorTabela(symbolTable, leftSide->attr.name, "global");
+        }
+        
+        if (leftVar != NULL) {
+            leftType = leftVar->tipoDado; // Usar o tipo da variável na tabela de símbolos
+        }
+    }
+    
+    // Verificar se o lado direito é uma chamada de função
+    if (rightSide->nodekind == ExpressionK && rightSide->kind.exp == AtivK) {
+        // Procurar a função na tabela de símbolos (funções são sempre globais)
+        PnoIdentificador func = buscaIdentificadorTabela(symbolTable, rightSide->attr.name, "global");
+        
+        // Exceção para as funções built-in
+        if (strcmp(rightSide->attr.name, "input") == 0) {
+            // input() retorna int
+            ExpType rightType = Integer;
+            // Sem verificação necessária, input sempre retorna int
+        } 
+        else if (strcmp(rightSide->attr.name, "output") == 0) {
+            // output() retorna void, então isso é um erro
+            fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", "output");
+            fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
+            fprintf(stderr, "FUNÇÃO VOID NÃO PODE SER ATRIBUÍDA.\n");
+            semantic_errors++;
+        }
+        else if (func != NULL) {
+            // Verificar se a função retorna void
+            if (func->tipoDado == Void && leftType == Integer) {
+                fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", rightSide->attr.name);
+                fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
+                fprintf(stderr, "FUNÇÃO VOID NÃO PODE SER ATRIBUÍDA A VARIÁVEL.\n");
+                semantic_errors++;
+            }
+        }
+    }
+}
+
 void buildSymTabFromTree(TreeNode* tree) {
     // Initialize symbol table if not already initialized
     if (symbolTable == NULL) {
@@ -487,67 +551,6 @@ void buildSymTabFromTree(TreeNode* tree) {
         for (int i = 0; i < MAXCHILDREN; i++) {
             if (tree->child[i] != NULL) {
                 buildSymTabFromTree(tree->child[i]);
-            }
-        }
-    }
-}
-
-void checkAssignmentTypes(TreeNode* node) {
-    if (node == NULL || node->nodekind != ExpressionK || node->kind.exp != AssignK)
-        return;
-    
-    // Nó de atribuição tem child[0] como variável (esquerda) e child[1] como expressão (direita)
-    TreeNode* leftSide = node->child[0];
-    TreeNode* rightSide = node->child[1];
-    
-    if (leftSide == NULL || rightSide == NULL)
-        return;
-    
-    // Obter o tipo da variável do lado esquerdo
-    ExpType leftType = Integer; // Padrão para variáveis em C-
-    
-    // Se o lado esquerdo for um identificador, buscar seu tipo na tabela
-    if (leftSide->nodekind == ExpressionK && 
-        (leftSide->kind.exp == IdK || leftSide->kind.exp == VetorK)) {
-        
-        // Procurar primeiro no escopo atual
-        PnoIdentificador leftVar = buscaIdentificadorTabela(symbolTable, leftSide->attr.name, currentScope);
-        
-        // Se não encontrou, procurar no escopo global
-        if (leftVar == NULL) {
-            leftVar = buscaIdentificadorTabela(symbolTable, leftSide->attr.name, "global");
-        }
-        
-        if (leftVar != NULL) {
-            leftType = leftVar->tipoDado; // Usar o tipo da variável na tabela de símbolos
-        }
-    }
-    
-    // Verificar se o lado direito é uma chamada de função
-    if (rightSide->nodekind == ExpressionK && rightSide->kind.exp == AtivK) {
-        // Procurar a função na tabela de símbolos (funções são sempre globais)
-        PnoIdentificador func = buscaIdentificadorTabela(symbolTable, rightSide->attr.name, "global");
-        
-        // Exceção para as funções built-in
-        if (strcmp(rightSide->attr.name, "input") == 0) {
-            // input() retorna int
-            ExpType rightType = Integer;
-            // Sem verificação necessária, input sempre retorna int
-        } 
-        else if (strcmp(rightSide->attr.name, "output") == 0) {
-            // output() retorna void, então isso é um erro
-            fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", "output");
-            fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
-            fprintf(stderr, "FUNÇÃO VOID NÃO PODE SER ATRIBUÍDA.\n");
-            semantic_errors++;
-        }
-        else if (func != NULL) {
-            // Verificar se a função retorna void
-            if (func->tipoDado == Void && leftType == Integer) {
-                fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", rightSide->attr.name);
-                fprintf(stderr, ANSI_COLOR_PURPLE "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET ". ", node->lineno);
-                fprintf(stderr, "FUNÇÃO VOID NÃO PODE SER ATRIBUÍDA A VARIÁVEL.\n");
-                semantic_errors++;
             }
         }
     }
