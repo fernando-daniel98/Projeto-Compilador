@@ -423,7 +423,9 @@ fator:
     {
         TreeNode* t = newNode(ExpressionK);
         t->kind.exp = OpK;
-        t->child[0] = $2;
+        t->attr.op = MINUS_OP; // Especifica que é o operador unário MINUS
+        t->child[0] = $2;    // O fator negado é o primeiro filho
+        t->child[1] = NULL;  // O segundo filho é NULL para indicar unário
         $$ = t;
     }
 ;

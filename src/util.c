@@ -4,7 +4,7 @@
 #include "../include/globals.h"
 #include "../include/syntax_tree.h"
 
-static int indentno = 0; /* number of spaces to indent */
+static int indentno = -1; /* number of spaces to indent */
 
 /* macros to increase/decrease indentation */
 #define INDENT indentno+=1
@@ -134,7 +134,7 @@ void printTree(TreeNode* tree) {
                     fprintf(yyout, "Assign\n");
                     break;
                 case NuloExp:
-                    fprintf(yyout, "Null Expression\n");
+                    // fprintf(yyout, "Null Expression\n"); // Comentado ou removido
                     break;
                 default:
                     fprintf(yyout, "Unknown ExpressionK node kind\n");
@@ -268,6 +268,5 @@ void displayTreeHierarchy(TreeNode* tree, FILE* output) {
     if (output == NULL) {
         output = stdout;
     }
-    
     printTreeHierarchy(output, tree, 0, ""); // nível inicial é 0
 }

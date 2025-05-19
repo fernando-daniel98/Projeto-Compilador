@@ -1,0 +1,33 @@
+int A;
+int B[10];
+
+
+int minloc(int a, int b){
+    int c; int e;
+
+    c = a + b;
+
+    if (a < b) {
+        e = a;
+    } else {
+        e = b;
+    }
+
+    
+    while(c > 0) {
+        c = c - 1;
+    }
+    
+    return e; 
+}
+
+int AA;
+int BB[10];
+
+int random(void){
+    int rand;
+
+    rand = 42;
+
+    return rand;
+}

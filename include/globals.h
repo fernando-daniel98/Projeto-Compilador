@@ -5,7 +5,7 @@
 
 // Constantes globais
 #define MAXCHILDREN 3
-#define MAXNOLIN 40
+#define MAXNOLIN 100
 #define MAXTOKENLEN 40
 
 // Coloracoes em ANSI

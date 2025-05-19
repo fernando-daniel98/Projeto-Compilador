@@ -45,18 +45,12 @@ int formaEntrada(int argc, char **argv) {
             return 1;
         }
         
-        // Configura saída para o log
-        char logPath[256];
-        generateFileName(logPath, sizeof(logPath), "output/logs", argv[1], ".log");
-        yyout = fopen(logPath, "w");
+        // Saída principal vai para stdout, para ser redirecionada pelo Makefile
+        yyout = stdout;
 
-        if (yyout == NULL) {
-            fprintf(stderr, "Alert: Could not create log file. Using stdout.\n");
-            yyout = stdout;
-        } else {
-            fprintf(yyout, "File found: %s\n", argv[1]);
-            fprintf(yyout, "Log will be saved to: %s\n", logPath);
-        }
+        // Mensagem informativa para o log (via stdout redirecionado)
+        fprintf(yyout, "Processing input file: %s\n", argv[1]);
+        // A mensagem sobre onde o log será salvo é agora tratada pelo Makefile.
 
     } else if (argc == 3) {
         yyin = fopen(argv[1], "r");
@@ -70,8 +64,11 @@ int formaEntrada(int argc, char **argv) {
             fclose(yyin);
             return 1;
         }
+        fprintf(yyout, "Processing input file: %s\n", argv[1]);
+        fprintf(yyout, "Output directed to: %s\n", argv[2]);
     } else {
         fprintf(stderr, "Usage: %s [input_file] [output_file]\n", argv[0]);
+        fprintf(stderr, "If [output_file] is omitted, output goes to stdout.\n");
         return 1;
     }
     return 0;
@@ -79,158 +76,123 @@ int formaEntrada(int argc, char **argv) {
 
 int main(int argc, char **argv) {
 
-    fprintf(stderr, "Starting program...\n");
-    fflush(stderr);
-
     // Verificar número de argumentos
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <input_file> [output_file]\n", argv[0]);
+        fprintf(stderr, "If [output_file] is omitted, output goes to stdout.\n");
         return 1;
     }
 
-    char *inputFile = argv[1];
-
-    fprintf(stderr, "Opening file: %s\n\n", inputFile);
-    fflush(stderr);
-
-    // Modificar a chamada para formaEntrada para usar inputFile
-    char *args[2] = {argv[0], inputFile};
-    if (formaEntrada(2, args) != 0) {
-        fprintf(stderr, "Error opening files\n");
+    // Passar argc e argv diretamente para formaEntrada
+    if (formaEntrada(argc, argv) != 0) {
+        fprintf(stderr, "Error: Could not open or configure files.\n");
         return 1;
     }
 
-    // Verificar arquivo
+    // Verificar arquivo de entrada (yyin é configurado em formaEntrada)
     if (yyin == NULL) {
-        fprintf(stderr, "Failed to open input file\n");
+        // A mensagem de erro já é impressa por formaEntrada ou fopen
         return 1;
-    }
-    else {
-        fprintf(stderr, "Input file opened successfully\n");
     }
     
     fprintf(stderr, "Starting syntax analysis...\n");
-    fflush(stderr);
 
     TreeNode *syntaxTree = NULL;
 
-    // Fase 1: Análise sintática
+    // Análises léxica e sintática
     syntaxTree = parse();
 
     if (syntaxTree != NULL) {
-        fprintf(stderr, "\nSyntax analysis completed successfully\n");
-        fflush(stderr);
+        fprintf(stderr, "Syntax analysis completed.\n\n");
         
-        // Fase 2: Análise semântica
-        fprintf(stderr, "\nStarting semantic analysis...\n");
-        fflush(stderr);
+        // Análise semântica
+        fprintf(stderr, "Starting semantic analysis...\n");
 
         initSymbolTable();
         buildSymTabFromTree(syntaxTree);
         
-        // Verificar se houve erros semânticos
-        if (semantic_errors == 0) {
-            fprintf(stderr, "\nSemantic analysis completed successfully\n");
-            
-        } else {
-            fprintf(stderr, "\nSemantic analysis completed with %d errors\n", semantic_errors);
-        }
-        
-        // Verificar função main
+        // Verificar se a função main está presente no arquivo de entrada
         checkMainFunction();
-        
+
+        fprintf(stderr, "Semantic analysis completed.\n\n");
+
         // Mostrar tabela de símbolos
-        fprintf(stderr, "\nGenerating symbol table...\n");
         mostraTabelaSimbolos(symbolTable);
-        fprintf(stderr, "Symbol table generation complete\n");
 
         // Mostrando a árvore sintática
-        fprintf(stderr, "\nGenerating syntax tree output...\n");
-
-        fprintf(yyout, "\nSYNTAX TREE\n");
+        fprintf(yyout, "SYNTAX TREE\n");
         fprintf(yyout, "-------------\n");
-        printTree(syntaxTree);
+        // printNodeInfo(yyout, syntaxTree); // Chamada anterior
+        displayTreeHierarchy(syntaxTree, yyout); // Nova chamada para a árvore hierárquica
         fprintf(yyout, "-------------\n\n");
-
-        fprintf(stderr, "Syntax tree output complete\n");
         
     } else {
-        fprintf(stderr, "\nSyntax analysis failed to produce valid syntax tree\n");
-        fprintf(stderr, "This may be due to syntax errors in the input file\n");
-        if (yyin != stdin) fclose(yyin);
-        if (yyout != stdout) fclose(yyout);
-        return 1;
+        fprintf(stderr, "Syntax analysis failed. See previous errors.\n\n");
+        // Se não há árvore sintática, não há como prosseguir para semântica ou geração de código.
+        // Os erros léxicos e sintáticos já devem ter sido reportados.
+        // A limpeza e fechamento de arquivos ocorrerão no final.
     }
 
-    // Fase 3: Geração de código intermediário
-    fprintf(stderr, "\nStarting intermediate code generation...\n");
-    fflush(stderr);
+    fprintf(stderr, "\n");
 
-    fprintf(yyout, "\nINTERMEDIATE CODE\n");
-    fprintf(yyout, "-------------\n");
-    
-    // Chamar o gerador de código intermediário
-    int icStatus = createIntermediateCode(syntaxTree, symbolTable);
-    
-    // Verificar o resultado da geração de código
-    if (icStatus == 0) {
-        fprintf(stderr, "\nIntermediate code generation completed successfully\n");
-        
-        // Imprimir as quadruplas geradas no arquivo de saída
-        imprimeCodigoIntermediario();
-        
-        // Após a geração do código intermediário com os logs de debug,
-        // também chamamos a função percorreAAS que gerará 
-        // uma representação mais limpa no arquivo de log
-        fprintf(yyout, "\n\nINTERMEDIATE CODE (CLEAN OUTPUT)\n");
+    // Verificar se houve erros antes de prosseguir para a geração de código
+    if (lexical_errors > 0 || syntax_errors > 0 || semantic_errors > 0 || syntaxTree == NULL) {
+        fprintf(stderr, "Skipping intermediate code generation due to errors or missing syntax tree.\n\n");
+    } else {
+        // Geração de código intermediário
+        fprintf(stderr, "Starting intermediate code generation...\n");
+
+        fprintf(yyout, "INTERMEDIATE CODE\n");
         fprintf(yyout, "-------------\n");
-        percorreAAS(syntaxTree);
-    } else if (icStatus == -1) {
-        fprintf(stderr, "\nIntermediate code generation failed: Memory allocation error\n");
-    } else if (icStatus == -2) {
-        fprintf(stderr, "\nIntermediate code generation failed: Invalid syntax tree or symbol table\n");
-    } else {
-        fprintf(stderr, "\nIntermediate code generation failed with unknown error: %d\n", icStatus);
+        
+        // Chamar o gerador de código intermediário
+        int icStatus = createIntermediateCode(syntaxTree, symbolTable);
+        
+        // Verificar o resultado da geração de código
+        if (icStatus == 0) {
+            fprintf(stderr, "Intermediate code generation completed.\n\n");
+            
+            // Imprimir as quadruplas geradas no arquivo de saída
+            imprimeCodigoIntermediario();
+            
+        } else if (icStatus == -1) {
+            fprintf(stderr, "Intermediate code generation failed: Memory allocation error.\n");
+        } else if (icStatus == -2) {
+            fprintf(stderr, "Intermediate code generation failed: Invalid syntax tree or symbol table.\n");
+        } else {
+            fprintf(stderr, "Intermediate code generation failed with unknown error code: %d.\n", icStatus);
+        }
+        
+        fprintf(yyout, "-------------\n\n");
     }
-    
-    fprintf(yyout, "-------------\n\n");
-
-    fprintf(stderr, "\nCleaning up resources...\n");
 
     if (syntaxTree != NULL){
         freeTree(syntaxTree);
-
-        fprintf(stderr, "Syntax tree memory freed\n");
     }
 
     if (symbolTable != NULL){
         deleteSymTab();
-        
-        fprintf(stderr, "Symbol table memory freed\n");
     }
 
     if (intermediateCode != NULL){
-        freeIntermediateCode(intermediateCode);
-        
-        fprintf(stderr, "Intermediate code memory freed\n");
+        freeIntermediateCode();
     }
 
-    // Fechar arquivos
+    // Fechando os arquivos
     if (yyin != stdin) fclose(yyin);
-    if (yyout != stdout) fclose(yyout);
+    if (yyout != stdout && yyout != NULL) fclose(yyout);
 
-    fprintf(yyout, "Compilation process completed\n");
-    fflush(yyout);
+    fprintf(yyout, "Compilation process completed and files closed.\n\n");
 
     if (lexical_errors > 0 || syntax_errors > 0 || semantic_errors > 0) {
-        fprintf(stderr, "\nCompilation completed with errors:\n");
-        fprintf(stderr, "- Lexical errors: %d\n", lexical_errors);
-        fprintf(stderr, "- Syntax errors: %d\n", syntax_errors);
-        fprintf(stderr, "- Semantic errors: %d\n", semantic_errors);
+        fprintf(stderr, "Compilation finished with errors:\n");
+        if (lexical_errors > 0) fprintf(stderr, "- Lexical errors: %d\n", lexical_errors);
+        if (syntax_errors > 0) fprintf(stderr, "- Syntax errors: %d\n", syntax_errors);
+        if (semantic_errors > 0) fprintf(stderr, "- Semantic errors: %d\n\n", semantic_errors);
         return 1;
     }
     else {
-        fprintf(stderr, "\nCompilation completed successfully with no errors\n");
+        fprintf(stderr, "Compilation finished successfully.\n");
     }
 
     return 0;

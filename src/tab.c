@@ -29,24 +29,6 @@ int hash(char * key){
     return temp;
 }
 
-// Adicione esta função ao arquivo tab.c
-void initSymbolTable(void) {
-    if (symbolTable == NULL) {
-        symbolTable = inicializaTabela();
-    }
-    strcpy(currentScope, "global");
-    inFunctionScope = 0;
-}
-
-PnoIdentificador* inicializaTabela(){
-    PnoIdentificador* init = (PnoIdentificador *) malloc(sizeof(PnoIdentificador *)*MAXTAMTABELA);
-
-    for(int i =0; i < MAXTAMTABELA; i++){
-        init[i] = NULL;}
-
-    return init;
-}
-
 void adicionaLinhaIdentificador(PnoIdentificador item, int linha){
     if (item == NULL) return;
     
@@ -61,6 +43,34 @@ void adicionaLinhaIdentificador(PnoIdentificador item, int linha){
         item->linhas[i] = linha;
     }
 }
+
+// Adicione esta função ao arquivo tab.c
+void initSymbolTable(void) {
+
+    if (symbolTable == NULL) {
+        symbolTable = inicializaTabela();
+    }
+
+    strcpy(currentScope, "global");
+    inFunctionScope = 0;
+
+    // Funções predefinidas
+    adicionaIdentificarTabela(symbolTable, "input", FunDeclK, "global", Integer, 1);
+    adicionaIdentificarTabela(symbolTable, "output", FunDeclK, "global", Void, 1);
+}
+
+PnoIdentificador* inicializaTabela(){
+    PnoIdentificador* init = (PnoIdentificador *) malloc(sizeof(PnoIdentificador *)*MAXTAMTABELA);
+
+    for(int i =0; i < MAXTAMTABELA; i++){
+        init[i] = NULL;
+        // bzero(init[i]->linhas, MAXNOLIN);
+    }
+
+    return init;
+}
+
+
 
 void adicionaIdentificarTabela(PnoIdentificador *tabelaHash, char *nomeIdentificador, StatementKind tipoIdenficador, char *escopo, ExpType tipoDado, int linha){
     
@@ -78,7 +88,7 @@ void adicionaIdentificarTabela(PnoIdentificador *tabelaHash, char *nomeIdentific
         tabelaHash[posicao] = (PnoIdentificador) malloc(sizeof(struct noIdentificador));
         tabelaHash[posicao]->prox = NULL;
         tabelaHash[posicao]->ant = NULL;
-        tabelaHash[posicao]->tipoIdentificador = tipoIdenficador;
+        tabelaHash[posicao]->tipoIdentificador = tipoIdenficador; // tipoIdenficador usado aqui
         tabelaHash[posicao]->tipoDado = tipoDado;
         adicionaLinhaIdentificador(tabelaHash[posicao], linha);
         strcpy(tabelaHash[posicao]->nomeIdentificador, nomeIdentificador);
@@ -108,7 +118,7 @@ void adicionaIdentificarTabela(PnoIdentificador *tabelaHash, char *nomeIdentific
         aux->prox = (PnoIdentificador) malloc(sizeof(struct noIdentificador));
         aux->prox->ant = aux;
         aux->prox->prox = NULL;
-        aux->prox->tipoIdentificador = tipoIdenficador;
+        aux->prox->tipoIdentificador = tipoIdenficador; // tipoIdenficador usado aqui
         aux->prox->tipoDado = tipoDado;
         adicionaLinhaIdentificador(aux->prox, linha);
         strcpy(aux->prox->nomeIdentificador, nomeIdentificador);

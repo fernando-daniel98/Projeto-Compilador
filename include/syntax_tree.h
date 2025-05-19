@@ -4,7 +4,7 @@
 #include "globals.h"
 
 // Definições de tipos para a árvore sintática
-typedef enum {StatementK, ExpressionK, TypeK} NodeKind;
+typedef enum {StatementK, ExpressionK} NodeKind;
 
 typedef enum {
     IfK,

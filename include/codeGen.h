@@ -5,7 +5,7 @@
 #include "syntax_tree.h"
 #include "symbol_table.h"
 
-#define MAX_LEN_CODE_INTERMEDIATE 100
+#define MAX_LEN_CODE_INTERMEDIATE 1000
 
 // Tipos de operação TAC (Three Address Code)
 typedef enum {
@@ -33,6 +33,10 @@ typedef enum {
     END,            // fim de função
     ARRAY_INDEX,    // acesso a elemento de array a[i]
     ARRAY_ASSIGN,   // atribuição para elemento de array a[i] = x
+    ALLOC,          // Para "ALLOC"
+    LOADI,          // Para "LOADI" (Load Immediate)
+    LOAD,           // Para "LOAD"
+    STORE,          // Para "STORE"
 } typeOperations;
 
 // Tipos de enderecos
@@ -55,25 +59,21 @@ typedef struct instruction {
     ENDERECO * oper3;           // resultado
 } quadruple;
 
-extern quadruple ** intermediateCode; // vetor de código intermediário
-extern int adressCounter; // contador de endereços
-extern int numReg; // número do registrador
-extern int numLabel; // número do label
-extern char funcName[MAXTOKENLEN]; // nome da função
+
+extern quadruple ** intermediateCode;
+extern int adressCounter;
+extern int numReg;
+extern int numLabel;
+extern char funcName[MAXTOKENLEN];
 
 // Funções criadas
-void percorreAAS(TreeNode* node);
 int createIntermediateCode(TreeNode *tree, PnoIdentificador* symbolTable);
-void freeIntermediateCode(quadruple **codeIntermediate);
-void insertQuadruple(TreeNode *tree, PnoIdentificador* symbtable, int flagCall);
-void insertExpression(TreeNode *tree, PnoIdentificador* symbtable);
-void insertStatement(TreeNode *tree, PnoIdentificador* symbtable);
+void freeIntermediateCode(); // Removido parâmetro, operará em globais
 
 // Funções para inicialização e manipulação de estruturas
-quadruple **alocateIntermediateCode();
+void alocateIntermediateCode();
 int initIntermediateCode();
-quadruple* criaInstrucao(char* operation);
-int verificacaoRegistradores(void* param1, void* param2, int increment);
+quadruple* criaInstrucao(typeOperations operation);
 
 // Funções para manipulação de declarações
 void insertDeclarationIf(TreeNode *tree, PnoIdentificador* symbtable);
@@ -86,19 +86,24 @@ void criarCodigoIntermediario(TreeNode *tree, PnoIdentificador* symbtable, int f
 // Funções para manipulação de expressões
 void insertExpressionOp(TreeNode *tree, PnoIdentificador* symbtable);
 void insertExpressionRel(TreeNode *tree, PnoIdentificador* symbtable);
-void insertExpressionConst(TreeNode *tree, PnoIdentificador* symbtable);
-void inserExpressionConst(TreeNode *tree, PnoIdentificador* symbtable);
+void insertExpressionConst(TreeNode *tree, PnoIdentificador* symbtable); // Corrigido typo aqui (removida a duplicata "inserExpressionConst")
 void insertExpressionId(TreeNode *tree, PnoIdentificador* symbtable);
 void insertExpressionCall(TreeNode *tree, PnoIdentificador* symbtable);
 
 // Funções para geração do código intermediário
 ENDERECO* criaEndereco(tipoEndereco tipo, int val, char* nome, int boolReg);
 void adicionaQuadrupla(typeOperations op, ENDERECO* oper1, ENDERECO* oper2, ENDERECO* oper3);
-void codIntConstExpression(TreeNode *tree);
-void codIntIdExpression(TreeNode *tree);
-void codIntCallExpression(TreeNode *tree, PnoIdentificador* symbtable);
-void codIntAssignExpression(TreeNode *tree, PnoIdentificador* symbtable);
 
+// Funções para registradores
+void inicializaReg();
+int adicionarVarReg(char* nomeVar, char* escopo);
+int adicionaTempReg();
+int buscarVarReg(char* nomeVar, char* escopo);
+void mostrarReg();
+int descartarReg();
+int verificacaoRegistradores(char *lexema, char* escopo, int boolTemp);
+
+// Funções auxiliares para impressão
 void imprimeCodigoIntermediario();
 const char* getTACOperationName(typeOperations op);
 typeOperations mapOperatorToTAC(int op);

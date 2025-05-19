@@ -6,4 +6,7 @@
 
 int isUnaryNegative(TreeNode *tree);
 
-#endif
+/* Function to convert operator to string */
+const char* operatorToString(int op);
+
+#endif // UTIL_H
