@@ -12,7 +12,7 @@ int lexical_errors = 0;
 
 int lineNum = 1;
 
-/* Helper function to create new nodes */
+/* Função para criar novos nós */
 TreeNode* newNode(NodeKind nodekind) {
     TreeNode* t = (TreeNode*)malloc(sizeof(TreeNode));
     if (t == NULL) {
@@ -25,6 +25,7 @@ TreeNode* newNode(NodeKind nodekind) {
     t->lineno = lineNum;
     return t;
 }
+
 %}
 
 %option noyywrap

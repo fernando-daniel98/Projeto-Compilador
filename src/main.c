@@ -19,20 +19,6 @@ extern int lexical_errors;
 extern int syntax_errors;
 extern int semantic_errors;
 
-void generateFileName(char *buffer, size_t bufferSize, const char *directory, 
-                        const char *baseName, const char *extension) {
-    time_t now = time(NULL);
-    struct tm *t = localtime(&now);
-    char timestr[20];
-
-    // Formato do timestamp: dd-mm-HHhMMmin
-    strftime(timestr, sizeof(timestr), "%d-%m-%Hh%Mmin", t);
-
-    // Criar nome do arquivo: diretório/timestamp_nomearquivo.extensão
-    snprintf(buffer, bufferSize, "%s/%s_%s%s", 
-                directory, timestr, basename((char*)baseName), extension);
-}
-
 int formaEntrada(int argc, char **argv) {
     if (argc == 1) {
         yyin = stdin;
@@ -83,7 +69,6 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Passar argc e argv diretamente para formaEntrada
     if (formaEntrada(argc, argv) != 0) {
         fprintf(stderr, "Error: Could not open or configure files.\n");
         return 1;
@@ -114,16 +99,18 @@ int main(int argc, char **argv) {
         // Verificar se a função main está presente no arquivo de entrada
         checkMainFunction();
 
+        // Fim da análise semântica
         fprintf(stderr, "Semantic analysis completed.\n\n");
 
-        // Mostrar tabela de símbolos
+        // Mostrando tabela de símbolos
         mostraTabelaSimbolos(symbolTable);
 
         // Mostrando a árvore sintática
         fprintf(yyout, "SYNTAX TREE\n");
         fprintf(yyout, "-------------\n");
+        printTree(syntaxTree);
         // printNodeInfo(yyout, syntaxTree); // Chamada anterior
-        displayTreeHierarchy(syntaxTree, yyout); // Nova chamada para a árvore hierárquica
+        // displayTreeHierarchy(syntaxTree, yyout); // Nova chamada para a árvore hierárquica
         fprintf(yyout, "-------------\n\n");
         
     } else {
@@ -135,7 +122,9 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "\n");
 
-    // Verificar se houve erros antes de prosseguir para a geração de código
+    // Verificar se houve erros antes de prosseguir para a geração de código.
+    // Se houver erros, não faz sentido gerar o código intermediário.
+    // Portanto, a fase de síntese não será iniciada.
     if (lexical_errors > 0 || syntax_errors > 0 || semantic_errors > 0 || syntaxTree == NULL) {
         fprintf(stderr, "Skipping intermediate code generation due to errors or missing syntax tree.\n\n");
     } else {
@@ -147,6 +136,29 @@ int main(int argc, char **argv) {
         
         // Chamar o gerador de código intermediário
         int icStatus = createIntermediateCode(syntaxTree, symbolTable);
+
+        // Inserindo a quadrupla do HALT no final do código intermediário
+        // Somente se não houver erros da geração do código intermediário
+        if(icStatus == 0){
+            quadruple *haltQuad = criaInstrucao(HALT);
+            if (haltQuad == NULL) {
+                fprintf(stderr, "Failed to create HALT instruction.\n");
+
+                // Erro de alocação de memória
+                icStatus = -1;
+            } else {
+                haltQuad->oper1 = criaEndereco(Vazio, 0, NULL, 0);
+                haltQuad->oper2 = criaEndereco(Vazio, 0, NULL, 0);
+                haltQuad->oper3 = criaEndereco(Vazio, 0, NULL, 0);
+                
+                if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
+                    fprintf(stderr, "Intermediate code limit reached while adding HALT instruction.\n");
+                    free(haltQuad);
+                } else {
+                    intermediateCode[adressCounter++] = haltQuad;
+                }
+            }
+        }
         
         // Verificar o resultado da geração de código
         if (icStatus == 0) {
@@ -166,6 +178,7 @@ int main(int argc, char **argv) {
         fprintf(yyout, "-------------\n\n");
     }
 
+    // Liberação das estruturas utilizadas.
     if (syntaxTree != NULL){
         freeTree(syntaxTree);
     }

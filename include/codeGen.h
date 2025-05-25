@@ -37,6 +37,7 @@ typedef enum {
     LOADI,          // Para "LOADI" (Load Immediate)
     LOAD,           // Para "LOAD"
     STORE,          // Para "STORE"
+    HALT            // Para "HALT" (finalização do programa)
 } typeOperations;
 
 // Tipos de enderecos
