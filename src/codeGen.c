@@ -71,35 +71,8 @@ void freeIntermediateCode() {
     free(intermediateCode);
     intermediateCode = NULL; 
 
-    // Resetar contadores globais
+    // Reseta os contadores globais
     adressCounter = 0;
-}
-
-void freeIntermediateCode2(quadruple **intermediateCode) {
-    for (int i = 0; i < MAX_LEN_CODE_INTERMEDIATE && intermediateCode[i] != NULL; i++) {
-        if (intermediateCode[i] != NULL) {
-            if (intermediateCode[i]->oper1 != NULL) {
-                if (intermediateCode[i]->oper1->tipo == String && intermediateCode[i]->oper1->nome != NULL) {
-                    free(intermediateCode[i]->oper1->nome);
-                }
-                free(intermediateCode[i]->oper1);
-            }
-            if (intermediateCode[i]->oper2 != NULL) {
-                if (intermediateCode[i]->oper2->tipo == String && intermediateCode[i]->oper2->nome != NULL) {
-                    free(intermediateCode[i]->oper2->nome);
-                }
-                free(intermediateCode[i]->oper2);
-            }
-            if (intermediateCode[i]->oper3 != NULL) {
-                if (intermediateCode[i]->oper3->tipo == String && intermediateCode[i]->oper3->nome != NULL) {
-                    free(intermediateCode[i]->oper3->nome);
-                }
-                free(intermediateCode[i]->oper3);
-            }
-            free(intermediateCode[i]);
-        }
-    }
-    free(intermediateCode);
 }
 
 // Função que inicia o código intermediário
@@ -954,7 +927,7 @@ void insertExpressionCall(TreeNode *tree, PnoIdentificador* symbTable) {
     intermediateCode[adressCounter++] = instrucaoCall;
 }
 
-void criarCodigoIntermediario(TreeNode *tree, PnoIdentificador* symbTable, int flagCall) {
+void criarCodigoIntermediario(TreeNode *tree, PnoIdentificador* symbTable, int flagSibling) {
 
     if (tree == NULL) {
         return;
@@ -1023,7 +996,7 @@ void criarCodigoIntermediario(TreeNode *tree, PnoIdentificador* symbTable, int f
             break;
     }
 
-    if(!flagCall) {
+    if(!flagSibling) {
         criarCodigoIntermediario(tree->sibling, symbTable, 0); 
     }
 }
