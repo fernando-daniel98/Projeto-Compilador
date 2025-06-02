@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Verificar arquivo de entrada (yyin é configurado em formaEntrada)
+    // Verificar arquivo de entrada
     if (yyin == NULL) {
         // A mensagem de erro já é impressa por formaEntrada ou fopen
         return 1;
@@ -84,40 +84,29 @@ int main(int argc, char **argv) {
 
     TreeNode *syntaxTree = NULL;
 
-    // Análises léxica e sintática
     syntaxTree = parse();
 
     if (syntaxTree != NULL) {
         fprintf(stderr, "Syntax analysis completed.\n\n");
         
-        // Análise semântica
         fprintf(stderr, "Starting semantic analysis...\n");
 
         initSymbolTable();
         buildSymTabFromTree(syntaxTree);
         
-        // Verificar se a função main está presente no arquivo de entrada
         checkMainFunction();
 
-        // Fim da análise semântica
         fprintf(stderr, "Semantic analysis completed.\n\n");
 
-        // Mostrando tabela de símbolos
         mostraTabelaSimbolos(symbolTable);
 
-        // Mostrando a árvore sintática
         fprintf(yyout, "SYNTAX TREE\n");
         fprintf(yyout, "-------------\n");
         printTree(syntaxTree);
-        // printNodeInfo(yyout, syntaxTree); // Chamada anterior
-        // displayTreeHierarchy(syntaxTree, yyout); // Nova chamada para a árvore hierárquica
         fprintf(yyout, "-------------\n\n");
         
     } else {
         fprintf(stderr, "Syntax analysis failed. See previous errors.\n\n");
-        // Se não há árvore sintática, não há como prosseguir para semântica ou geração de código.
-        // Os erros léxicos e sintáticos já devem ter sido reportados.
-        // A limpeza e fechamento de arquivos ocorrerão no final.
     }
 
     fprintf(stderr, "\n");
@@ -125,17 +114,17 @@ int main(int argc, char **argv) {
     // Verificar se houve erros antes de prosseguir para a geração de código.
     // Se houver erros, não faz sentido gerar o código intermediário.
     // Portanto, a fase de síntese não será iniciada.
+    int icStatus;
+
     if (lexical_errors > 0 || syntax_errors > 0 || semantic_errors > 0 || syntaxTree == NULL) {
         fprintf(stderr, "Skipping intermediate code generation due to errors or missing syntax tree.\n\n");
     } else {
-        // Geração de código intermediário
         fprintf(stderr, "Starting intermediate code generation...\n");
 
         fprintf(yyout, "INTERMEDIATE CODE\n");
         fprintf(yyout, "-------------\n");
         
-        // Chamar o gerador de código intermediário
-        int icStatus = createIntermediateCode(syntaxTree, symbolTable);
+        icStatus = createIntermediateCode(syntaxTree, symbolTable);
 
         // Inserindo a quadrupla do HALT no final do código intermediário
         // Somente se não houver erros da geração do código intermediário
@@ -144,7 +133,6 @@ int main(int argc, char **argv) {
             if (haltQuad == NULL) {
                 fprintf(stderr, "Failed to create HALT instruction.\n");
 
-                // Erro de alocação de memória
                 icStatus = -1;
             } else {
                 haltQuad->oper1 = criaEndereco(Vazio, 0, NULL, 0);
@@ -164,7 +152,6 @@ int main(int argc, char **argv) {
         if (icStatus == 0) {
             fprintf(stderr, "Intermediate code generation completed.\n\n");
             
-            // Imprimir as quadruplas geradas no arquivo de saída
             imprimeCodigoIntermediario();
             
         } else if (icStatus == -1) {
@@ -195,7 +182,7 @@ int main(int argc, char **argv) {
     if (yyin != stdin) fclose(yyin);
     if (yyout != stdout && yyout != NULL) fclose(yyout);
 
-    fprintf(yyout, "Compilation process completed and files closed.\n\n");
+    fprintf(stderr, "Files closed.\n");
 
     if (lexical_errors > 0 || syntax_errors > 0 || semantic_errors > 0) {
         fprintf(stderr, "Compilation finished with errors:\n");

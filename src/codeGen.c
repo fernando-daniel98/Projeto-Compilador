@@ -748,6 +748,7 @@ void insertExpressionId(TreeNode *tree, PnoIdentificador* symbTable){
     }
 
     if(tree->kind.exp == VetorK){
+
         if (tree->child[0] == NULL) {
             fprintf(stderr, ANSI_COLOR_RED "ERRO: " ANSI_COLOR_RESET);
             fprintf(stderr, "Acesso a vetor '%s' (linha %d) sem expressão de índice.\n", tree->attr.name, tree->lineno);
@@ -768,6 +769,10 @@ void insertExpressionId(TreeNode *tree, PnoIdentificador* symbTable){
             free(instrucaoId);
             return;
         }
+        // aux = numReg; // A variável global 'aux' parece ser usada para 'vetorIndice' em outros contextos.
+                       // Se for para o LOAD, o índice já está em op3. Se for para um STORE subsequente,
+                       // a função de STORE deve recalcular ou obter o índice.
+                       // Para o LOAD, 'aux' não é diretamente usada aqui.
 
         // Obtém um novo registrador para ser o destino do LOAD.
         // O '1' em verificacaoRegistradores indica que é para um temporário.
@@ -789,7 +794,7 @@ void insertExpressionId(TreeNode *tree, PnoIdentificador* symbTable){
             fprintf(stderr, "Falha ao criar endereços para oper1 ou oper2 para LOAD de vetor '%s', linha %d.\n", tree->attr.name, tree->lineno);
             if(op1) free(op1);
             if(op2 && op2->nome) free(op2->nome); if(op2) free(op2);
-            if(op3) free(op3);
+            if(op3) free(op3); // op3 é IntConst, nome é NULL
             free(instrucaoId);
             return;
         }
@@ -809,7 +814,7 @@ void insertExpressionId(TreeNode *tree, PnoIdentificador* symbTable){
                 escopoParaVerificacao = "global";
             }
         } else {
-            escopoParaVerificacao = varEscopo->escopo;
+            escopoParaVerificacao = varEscopo->escopo; // Usar o escopo encontrado
         }
 
         if(varEscopo == NULL){
@@ -960,8 +965,8 @@ void insertExpressionCall(TreeNode *tree, PnoIdentificador* symbTable) {
              // Libera a instrução CALL e retorna, pois a chamada está incompleta/corrompida
              if(instrucaoCall->oper1 && instrucaoCall->oper1->nome) free(instrucaoCall->oper1->nome); 
              if(instrucaoCall->oper1) free(instrucaoCall->oper1);
-             // oper2 e oper3 de instrucaoCall ainda não foram alocados neste ponto do loop,
-             // mas é bom verificar se a lógica mudar no futuro.
+            // oper2 e oper3 de instrucaoCall ainda não foram alocados neste ponto do loop,
+            // mas é bom verificar se a lógica mudar no futuro.
              if(instrucaoCall->oper2) free(instrucaoCall->oper2);
              if(instrucaoCall->oper3) free(instrucaoCall->oper3);
              free(instrucaoCall);

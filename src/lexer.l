@@ -12,7 +12,6 @@ int lexical_errors = 0;
 
 int lineNum = 1;
 
-/* Função para criar novos nós */
 TreeNode* newNode(NodeKind nodekind) {
     TreeNode* t = (TreeNode*)malloc(sizeof(TreeNode));
     if (t == NULL) {

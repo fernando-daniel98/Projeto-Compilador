@@ -22,8 +22,6 @@ int hash(char * key){
 
     while (key[i] != '\0'){
         temp = ((temp << SHIFT) + key[i++]) % MAXTAMTABELA;
-            // O operador << faz deslocamentos de bits para a esquerda no valor de temp (4 bits).
-            // Este recurso está sendo usado para evitar sobrecarga em temp.
     }
 
     return temp;
@@ -32,19 +30,16 @@ int hash(char * key){
 void adicionaLinhaIdentificador(PnoIdentificador item, int linha){
     if (item == NULL) return;
     
-    // Procura a primeira posição vazia no vetor de linhas
     int i = 0;
     while(i < MAXNOLIN && item->linhas[i] != 0){
         i++;
     }
     
-    // Se ainda houver espaço, adiciona a linha
     if(i < MAXNOLIN){
         item->linhas[i] = linha;
     }
 }
 
-// Adicione esta função ao arquivo tab.c
 void initSymbolTable(void) {
 
     if (symbolTable == NULL) {
@@ -54,7 +49,6 @@ void initSymbolTable(void) {
     strcpy(currentScope, "global");
     inFunctionScope = 0;
 
-    // Funções predefinidas
     adicionaIdentificarTabela(symbolTable, "input", FunDeclK, "global", Integer, 1);
     adicionaIdentificarTabela(symbolTable, "output", FunDeclK, "global", Void, 1);
 }
@@ -64,7 +58,6 @@ PnoIdentificador* inicializaTabela(){
 
     for(int i =0; i < MAXTAMTABELA; i++){
         init[i] = NULL;
-        // bzero(init[i]->linhas, MAXNOLIN);
     }
 
     return init;
@@ -88,7 +81,7 @@ void adicionaIdentificarTabela(PnoIdentificador *tabelaHash, char *nomeIdentific
         tabelaHash[posicao] = (PnoIdentificador) malloc(sizeof(struct noIdentificador));
         tabelaHash[posicao]->prox = NULL;
         tabelaHash[posicao]->ant = NULL;
-        tabelaHash[posicao]->tipoIdentificador = tipoIdenficador; // tipoIdenficador usado aqui
+        tabelaHash[posicao]->tipoIdentificador = tipoIdenficador;
         tabelaHash[posicao]->tipoDado = tipoDado;
         adicionaLinhaIdentificador(tabelaHash[posicao], linha);
         strcpy(tabelaHash[posicao]->nomeIdentificador, nomeIdentificador);
@@ -102,7 +95,7 @@ void adicionaIdentificarTabela(PnoIdentificador *tabelaHash, char *nomeIdentific
         while(aux != NULL) {
             if(strcmp(aux->nomeIdentificador, nomeIdentificador) == 0 && 
                strcmp(aux->escopo, escopo) == 0) {
-                // Se encontrou, apenas adiciona a nova linha
+                // Se encontrou, adiciona a nova linha
                 adicionaLinhaIdentificador(aux, linha);
                 return;
             }
@@ -118,7 +111,7 @@ void adicionaIdentificarTabela(PnoIdentificador *tabelaHash, char *nomeIdentific
         aux->prox = (PnoIdentificador) malloc(sizeof(struct noIdentificador));
         aux->prox->ant = aux;
         aux->prox->prox = NULL;
-        aux->prox->tipoIdentificador = tipoIdenficador; // tipoIdenficador usado aqui
+        aux->prox->tipoIdentificador = tipoIdenficador;
         aux->prox->tipoDado = tipoDado;
         adicionaLinhaIdentificador(aux->prox, linha);
         strcpy(aux->prox->nomeIdentificador, nomeIdentificador);
@@ -222,7 +215,6 @@ const char* getExpTypeName(ExpType type) {
     }
 }
 
-/* Modify mostraTabelaSimbolos function */
 void mostraTabelaSimbolos(PnoIdentificador *tabelaHash) {
     fprintf(yyout, "\nSYMBOL TABLE\n");
     fprintf(yyout, "-------------\n");
@@ -501,7 +493,6 @@ void buildSymTabFromTree(TreeNode* tree) {
             }
             
             case VetorK: {
-                // Verificar se o vetor existe no escopo atual
                 PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, tree->attr.name, currentScope);
                 if (existing == NULL) {
                     existing = buscaIdentificadorTabela(symbolTable, tree->attr.name, "global");
@@ -518,12 +509,10 @@ void buildSymTabFromTree(TreeNode* tree) {
             }
 
             case AssignK:
-                // Adicione aqui a verificação de tipos para atribuições
                 checkAssignmentTypes(tree);
                 break;
             
             case AtivK: {
-                // Funções são sempre globais
                 PnoIdentificador existing = buscaIdentificadorTabela(symbolTable, tree->attr.name, "global");
                 if (existing != NULL) {
                     // Verificar se a função foi chamada antes de ser declarada
@@ -552,7 +541,7 @@ void buildSymTabFromTree(TreeNode* tree) {
         }
     }
     
-    // Processar os irmãos e filhos (código existente)
+    // Processar os irmãos e filhos
     if (tree->sibling != NULL) {
         buildSymTabFromTree(tree->sibling);
     }
@@ -566,7 +555,6 @@ void buildSymTabFromTree(TreeNode* tree) {
     }
 }
 
-// Function to clean up
 void deleteSymTab(void) {
     if (symbolTable != NULL) {
         liberandoTabelaSimbolos(symbolTable);
@@ -574,9 +562,7 @@ void deleteSymTab(void) {
     }
 }
 
-// Verificar se a função main foi declarada
 void checkMainFunction() {
-    // A função main deve estar no escopo global
     PnoIdentificador mainFunc = buscaIdentificadorTabela(symbolTable, "main", "global");
     
     if (mainFunc == NULL) {
@@ -586,7 +572,6 @@ void checkMainFunction() {
         return;
     }
     
-    // Verificar se é realmente uma função e não uma variável
     if (mainFunc->tipoIdentificador != FunDeclK) {
         fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET);
         fprintf(stderr, "MAIN DEVE SER UMA FUNÇÃO, NÃO UMA VARIÁVEL.\n");
@@ -594,7 +579,6 @@ void checkMainFunction() {
         return;
     }
     
-    // Verificar se a função main tem tipo de retorno void (opcionalmente)
     if (mainFunc->tipoDado != Void) {
         fprintf(stderr, ANSI_COLOR_PURPLE "ERRO SEMÂNTICO: " ANSI_COLOR_RESET);
         fprintf(stderr, "FUNÇÃO MAIN DEVE TER TIPO DE RETORNO VOID.\n");

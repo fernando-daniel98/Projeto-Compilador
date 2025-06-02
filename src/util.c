@@ -4,19 +4,16 @@
 #include "../include/globals.h"
 #include "../include/syntax_tree.h"
 
-static int indentno = -1; /* number of spaces to indent */
+static int indentno = -1; // começa com -1 para que a primeira chamada de printSpaces imprima 0 espaços
 
-/* macros to increase/decrease indentation */
 #define INDENT indentno+=1
 #define UNINDENT indentno-=1
 
-/* printSpaces indents by printing spaces */
 void printSpaces(void) {
     for (int i = 0; i < indentno; i++)
         fprintf(yyout, "\t");
 }
 
-/* Function to convert ExpType to string */
 const char* expTypeToString(ExpType type) {
     switch(type) {
         case Void: return "void";
@@ -25,7 +22,6 @@ const char* expTypeToString(ExpType type) {
     }
 }
 
-/* Function to convert operator to string */
 const char* operatorToString(int op) {
     switch(op) {
         case PLUS_OP: return "+";
@@ -43,7 +39,6 @@ const char* operatorToString(int op) {
     }
 }
 
-/* Função para verificar se um nó é um operador unário negativo */
 int isUnaryNegative(TreeNode* tree) {
     return (tree != NULL && 
             tree->nodekind == ExpressionK && 
@@ -51,6 +46,7 @@ int isUnaryNegative(TreeNode* tree) {
             tree->attr.op == MINUS_OP &&
             tree->child[1] == NULL);
 }
+
 /* printTree recursively prints the syntax tree */
 void printTree(TreeNode* tree) {
     INDENT;
@@ -134,7 +130,6 @@ void printTree(TreeNode* tree) {
                     fprintf(yyout, "Assign\n");
                     break;
                 case NuloExp:
-                    // fprintf(yyout, "Null Expression\n"); // Comentado ou removido
                     break;
                 default:
                     fprintf(yyout, "Unknown ExpressionK node kind\n");
@@ -145,7 +140,6 @@ void printTree(TreeNode* tree) {
             fprintf(yyout, "Unknown node kind\n");
         }
 
-        /* Print children */
         for (int i = 0; i < MAXCHILDREN; i++) {
             if (tree->child[i] != NULL) {
                 printTree(tree->child[i]);
@@ -169,16 +163,12 @@ void freeTree(TreeNode *tree) {
     free(tree);
 }
 
-/* coisas novas */
-
-/* Função para imprimir informações básicas do nó */
 void printNodeInfo(FILE* output, TreeNode* node) {
     if (node == NULL) {
         fprintf(output, "NULL");
         return;
     }
     
-    // Imprimir tipo do nó
     if (node->nodekind == StatementK) {
         switch (node->kind.stmt) {
             case IfK: fprintf(output, "If"); break;
@@ -217,7 +207,6 @@ void printNodeInfo(FILE* output, TreeNode* node) {
     fprintf(output, " (linha %d)", node->lineno);
 }
 
-/* Função que mostra a hierarquia da árvore sintática */
 void printTreeHierarchy(FILE* output, TreeNode* tree, int level, const char* prefix) {
     static int nodeCounter = 0;
     
@@ -262,11 +251,9 @@ void printTreeHierarchy(FILE* output, TreeNode* tree, int level, const char* pre
     }
 }
 
-/* Função wrapper para imprimir a hierarquia completa */
 void displayTreeHierarchy(TreeNode* tree, FILE* output) {
-    // Se output for NULL, usa stdout como padrão
     if (output == NULL) {
         output = stdout;
     }
-    printTreeHierarchy(output, tree, 0, ""); // nível inicial é 0
+    printTreeHierarchy(output, tree, 0, "");
 }

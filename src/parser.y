@@ -34,9 +34,9 @@ static TreeNode *savedTree;
     ExpType type;
 }
 
-%define parse.error verbose // Adicione na seção de definições
+%define parse.error verbose
 
-/* Declare types for all non-terminals that return a node */
+
 %type <node> programa
 %type <node> declaracao_lista declaracao
 %type <node> var_declaracao fun_declaracao
@@ -47,16 +47,13 @@ static TreeNode *savedTree;
 %type <node> simples_expressao soma_expressao termo fator
 %type <node> ativacao args arg_lista params relacional soma mult
 
-/* Declare type for tipo_especificador */
 %type <type> tipo_especificador
 
-/* Declare types for tokens */
 %token <node> ID NUM
 %token <node> IF ELSE WHILE RETURN
 %token <node> PLUS MINUS MULT DIV
 %token <node> SMAL SMALEQ GREAT GREATEQ EQ DIFF ASSIGN
 
-/* Tokens without values */
 %token INT VOID ERROR
 %token SEMICOL COMMA
 %token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE
@@ -156,41 +153,21 @@ params:
     }
 ;
 
-/* A nova implementação (abaixo) está mais clara. */
-/* param_lista: 
-    param_lista COMMA param 
-    {
-        TreeNode* t = $1;
-        if (t != NULL) {
-            while (t->sibling != NULL) t = t->sibling;
-            t->sibling = $3;
-            $$ = $1;
-        }
-        else $$ = $3;
-    }
-    | param { $$ = $1; }
-; */
-
 param_lista: 
     param_lista COMMA param 
     {
-        // Não queremos uma lista de irmãos, mas sim que o primeiro parâmetro
-        // seja filho da função e os demais sejam irmãos deste primeiro
         TreeNode* first_param = $1;
         
-        // Encontra o último parâmetro na cadeia de irmãos
         TreeNode* t = first_param;
         while (t->sibling != NULL) {
             t = t->sibling;
         }
         
-        // Adiciona o novo parâmetro como irmão do último
         t->sibling = $3;
         
-        // Retorna o primeiro parâmetro
         $$ = first_param;
     }
-    | param { $$ = $1; }  // Este é o primeiro parâmetro, filho diretamente da função
+    | param { $$ = $1; }
 ;
 
 param: 
@@ -230,8 +207,8 @@ composto_decl:
         {
             TreeNode* t = newNode(StatementK);
             t->kind.stmt = NuloDecl;
-            t->child[0] = $2;  // local declarations
-            t->child[1] = $3;  // statements
+            t->child[0] = $2;
+            t->child[1] = $3;
             $$ = t;
         }
 ;
@@ -287,18 +264,18 @@ selecao_decl:
     {
         TreeNode* t = newNode(StatementK);
         t->kind.stmt = IfK;
-        t->child[0] = $3;  /* condition */
-        t->child[1] = $5;  /* if-part */
-        t->child[2] = NULL; /* else-part is null */
+        t->child[0] = $3;
+        t->child[1] = $5;
+        t->child[2] = NULL;
         $$ = t;
     }
     | IF LPAREN expressao RPAREN statement ELSE statement 
     {
         TreeNode* t = newNode(StatementK);
         t->kind.stmt = IfK;
-        t->child[0] = $3;  /* condition */
-        t->child[1] = $5;  /* if-part */
-        t->child[2] = $7;  /* else-part */
+        t->child[0] = $3;
+        t->child[1] = $5;
+        t->child[2] = $7;
         $$ = t;
     }
 ;
@@ -308,8 +285,8 @@ iteracao_decl:
     {
         TreeNode* t = newNode(StatementK);
         t->kind.stmt = WhileK;
-        t->child[0] = $3;  /* condition */
-        t->child[1] = $5;  /* body */
+        t->child[0] = $3;
+        t->child[1] = $5;
         $$ = t;
     }
 ;
@@ -325,7 +302,7 @@ retorno_decl:
     {
         TreeNode* t = newNode(StatementK);
         t->kind.stmt = ReturnINT;
-        t->child[0] = $2;  /* return value */
+        t->child[0] = $2;
         $$ = t;
     }
 ;
@@ -349,7 +326,7 @@ var:
         TreeNode* t = newNode(ExpressionK);
         t->kind.exp = VetorK;
         t->attr.name = $1->attr.name;
-        t->child[0] = $3;  // index expression
+        t->child[0] = $3;
         free($1);
         $$ = t;
     }
@@ -358,7 +335,7 @@ var:
 simples_expressao: 
     soma_expressao relacional soma_expressao 
     {
-        TreeNode* t = $2;  // reuse relational operator node
+        TreeNode* t = $2;
         t->child[0] = $1;
         t->child[1] = $3;
         $$ = t;
@@ -383,7 +360,7 @@ relacional:
 soma_expressao: 
     soma_expressao soma termo 
     {
-        TreeNode* t = $2;  // reuse operator node
+        TreeNode* t = $2;
         t->child[0] = $1;
         t->child[1] = $3;
         $$ = t;
@@ -423,9 +400,9 @@ fator:
     {
         TreeNode* t = newNode(ExpressionK);
         t->kind.exp = OpK;
-        t->attr.op = MINUS_OP; // Especifica que é o operador unário MINUS
-        t->child[0] = $2;    // O fator negado é o primeiro filho
-        t->child[1] = NULL;  // O segundo filho é NULL para indicar unário
+        t->attr.op = MINUS_OP;
+        t->child[0] = $2;
+        t->child[1] = NULL;
         $$ = t;
     }
 ;
@@ -436,7 +413,7 @@ ativacao:
         TreeNode* t = newNode(ExpressionK);
         t->kind.exp = AtivK;
         t->attr.name = $1->attr.name;
-        t->child[0] = $3;  // arguments
+        t->child[0] = $3;
         free($1);
         $$ = t;
     }
@@ -463,7 +440,7 @@ arg_lista:
 
 %%
 
-// No final do arquivo, após %%
+
 void yyerror(const char *s) {
     fprintf(stderr, ANSI_COLOR_YELLOW "ERRO SINTÁTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
     fprintf(stderr, ANSI_COLOR_YELLOW "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET " | %s\n", lineNum, s);
@@ -471,12 +448,9 @@ void yyerror(const char *s) {
     syntax_errors++;
 }
 
-// Nova função parse() que retorna a árvore sintática
 TreeNode *parse(void) {
-    // Reset para nova análise
     savedTree = NULL;
     
-    // Executar o parser
     int parseResult = yyparse();
     
     if(parseResult == 0){
@@ -489,5 +463,5 @@ TreeNode *parse(void) {
     }
 
     
-    return savedTree; // Agora retorna a variável global preenchida pelo Bison
+    return savedTree;
 }
