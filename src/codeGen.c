@@ -705,6 +705,12 @@ void insertExpressionRel(TreeNode *tree, PnoIdentificador* symbTable){
 
 void insertExpressionConst(TreeNode *tree, PnoIdentificador* symbTable){
     quadruple* constant = NULL;
+
+    // Para o caso da constante ser zero, reservei o endereço 63 do registrador
+    if (tree->attr.val == 0) {
+        numReg = 63; // Registrador 31 é reservado para zero
+        return;
+    }
     
     numReg = verificacaoRegistradores(NULL, NULL, 1); 
         
@@ -730,53 +736,150 @@ void insertExpressionConst(TreeNode *tree, PnoIdentificador* symbTable){
 
 void insertExpressionId(TreeNode *tree, PnoIdentificador* symbTable){
     quadruple* instrucaoId = NULL;
-    
+    ENDERECO *op1 = NULL, *op2 = NULL, *op3 = NULL;
+
+    if (tree == NULL) {
+        fprintf(stderr, "Erro interno: Nó da árvore nulo em insertExpressionId.\n");
+        return;
+    }
+    if (tree->nodekind != ExpressionK || (tree->kind.exp != VetorK && tree->kind.exp != IdK)) {
+        fprintf(stderr, "Erro interno: Nó inesperado em insertExpressionId, linha %d.\n", tree->lineno);
+        return;
+    }
+
     if(tree->kind.exp == VetorK){
+        if (tree->child[0] == NULL) {
+            fprintf(stderr, ANSI_COLOR_RED "ERRO: " ANSI_COLOR_RESET);
+            fprintf(stderr, "Acesso a vetor '%s' (linha %d) sem expressão de índice.\n", tree->attr.name, tree->lineno);
+            return; 
+        }
+
         instrucaoId = criaInstrucao(LOAD);
+        if (instrucaoId == NULL) {
+            fprintf(stderr, "Falha ao criar instrução LOAD para vetor '%s', linha %d.\n", tree->attr.name, tree->lineno);
+            return;
+        }
 
+        // Processa a expressão do índice. O resultado estará em 'numReg'.
         criarCodigoIntermediario(tree->child[0], symbTable, 1); 
-        instrucaoId->oper3 = criaEndereco(IntConst, numReg, NULL, 1);
-        aux = numReg;
+        op3 = criaEndereco(IntConst, numReg, NULL, 1); // oper3 é o registrador do índice
+        if (op3 == NULL) {
+            fprintf(stderr, "Falha ao criar endereço para oper3 (índice do vetor) para LOAD de '%s', linha %d.\n", tree->attr.name, tree->lineno);
+            free(instrucaoId);
+            return;
+        }
 
-        numReg = verificacaoRegistradores(NULL, NULL, 1); 
+        // Obtém um novo registrador para ser o destino do LOAD.
+        // O '1' em verificacaoRegistradores indica que é para um temporário.
+        int destReg = verificacaoRegistradores(NULL, NULL, 1); 
+        if (destReg == -1) {
+            fprintf(stderr, ANSI_COLOR_RED "ERRO: " ANSI_COLOR_RESET);
+            fprintf(stderr, "Falha ao obter registrador de destino para LOAD de vetor '%s', linha %d.\n", tree->attr.name, tree->lineno);
+            // verificacaoRegistradores deve imprimir seu próprio erro detalhado.
+            if(op3->nome) free(op3->nome); free(op3); // op3 é IntConst, nome é NULL
+            free(instrucaoId);
+            return;
+        }
+        numReg = destReg; // Atualiza numReg para o registrador de destino do LOAD
         
-        instrucaoId->oper1 = criaEndereco(IntConst, numReg, NULL, 1); 
-        instrucaoId->oper2 = criaEndereco(String, 0, tree->attr.name, 0);
+        op1 = criaEndereco(IntConst, numReg, NULL, 1); // oper1 é o registrador de destino
+        op2 = criaEndereco(String, 0, tree->attr.name, 0); // oper2 é o nome base do vetor
+
+        if (op1 == NULL || op2 == NULL) {
+            fprintf(stderr, "Falha ao criar endereços para oper1 ou oper2 para LOAD de vetor '%s', linha %d.\n", tree->attr.name, tree->lineno);
+            if(op1) free(op1);
+            if(op2 && op2->nome) free(op2->nome); if(op2) free(op2);
+            if(op3) free(op3);
+            free(instrucaoId);
+            return;
+        }
+        instrucaoId->oper1 = op1;
+        instrucaoId->oper2 = op2;
+        instrucaoId->oper3 = op3;
 
     }
     else if(tree->kind.exp == IdK){  
-        PnoIdentificador varEscopo = buscaIdentificadorTabela(symbTable, tree->attr.name, funcName);
+        PnoIdentificador varEscopo = NULL;
+        varEscopo = buscaIdentificadorTabela(symbTable, tree->attr.name, funcName);
+        char* escopoParaVerificacao = funcName;
+
         if(varEscopo == NULL){
             varEscopo = buscaIdentificadorTabela(symbTable, tree->attr.name, "global");
+            if (varEscopo != NULL) {
+                escopoParaVerificacao = "global";
+            }
+        } else {
+            escopoParaVerificacao = varEscopo->escopo;
         }
 
         if(varEscopo == NULL){
-            printf(ANSI_COLOR_RED "ERRO: " ANSI_COLOR_RESET);
-            printf("Escopo da variavel '%s' nao encontrada", tree->attr.name);
-            numReg = -1; 
+            fprintf(stderr, ANSI_COLOR_RED "ERRO: " ANSI_COLOR_RESET);
+            fprintf(stderr, "Variável '%s' (linha %d) não encontrada na tabela de símbolos.\n", tree->attr.name, tree->lineno);
+            numReg = -1; // Sinaliza erro para a lógica de adição da quádrupla
+            // Não criar instrucaoId aqui, pois a variável não existe.
+        } else {
+            // O '0' em verificacaoRegistradores indica que é para uma variável (não temporário).
+            int destReg = verificacaoRegistradores(tree->attr.name, escopoParaVerificacao, 0);
+            if (destReg == -1) {
+                fprintf(stderr, ANSI_COLOR_RED "ERRO: " ANSI_COLOR_RESET);
+                fprintf(stderr, "Falha ao obter registrador para variável '%s' no escopo '%s', linha %d.\n", tree->attr.name, escopoParaVerificacao, tree->lineno);
+                // verificacaoRegistradores deve imprimir seu próprio erro detalhado.
+                numReg = -1; // Sinaliza erro
+            } else {
+                numReg = destReg; // Atualiza numReg para o registrador de destino do LOAD
+
+                instrucaoId = criaInstrucao(LOAD);
+                if (instrucaoId == NULL) {
+                    fprintf(stderr, "Falha ao criar instrução LOAD para Id '%s', linha %d.\n", tree->attr.name, tree->lineno);
+                    numReg = -1; // Sinaliza erro
+                } else {
+                    op1 = criaEndereco(IntConst, numReg, NULL, 1);
+                    op2 = criaEndereco(String, 0, tree->attr.name, 0);
+                    op3 = criaEndereco(Vazio, 0, NULL, 0);
+
+                    if (op1 == NULL || op2 == NULL || op3 == NULL) {
+                        fprintf(stderr, "Falha ao criar endereços para LOAD de Id '%s', linha %d.\n", tree->attr.name, tree->lineno);
+                        if(op1) free(op1);
+                        if(op2 && op2->nome) free(op2->nome); if(op2) free(op2);
+                        if(op3) free(op3);
+                        free(instrucaoId);
+                        instrucaoId = NULL; // Garante que não será adicionado
+                        numReg = -1; // Sinaliza erro
+                    } else {
+                        instrucaoId->oper1 = op1;
+                        instrucaoId->oper2 = op2;
+                        instrucaoId->oper3 = op3;
+                    }
+                }
+            }
         }
-        else if(!strcmp(varEscopo->escopo, "global")){
-            numReg = verificacaoRegistradores(tree->attr.name, "global", 0);
-        }
-        else{
-            numReg = verificacaoRegistradores(tree->attr.name, funcName, 0);
-        }
-        
-        instrucaoId = criaInstrucao(LOAD);
-        instrucaoId->oper1 = criaEndereco(IntConst, numReg, NULL, 1);
-        instrucaoId->oper2 = criaEndereco(String, 0, tree->attr.name, 0);
-        instrucaoId->oper3 = criaEndereco(Vazio, 0, NULL, 0);
     }
 
+    // Adiciona a instrução ao código intermediário se tudo ocorreu bem
     if(instrucaoId != NULL && numReg != -1){ 
-        intermediateCode[adressCounter++] = instrucaoId;
+        if (adressCounter < MAX_LEN_CODE_INTERMEDIATE) {
+            intermediateCode[adressCounter++] = instrucaoId;
+        } else {
+            fprintf(stderr, "Limite do código intermediário atingido ao adicionar LOAD para '%s', linha %d.\n", tree->attr.name, tree->lineno);
+            // Libera a instrução e seus operandos, pois não será adicionada
+            if(instrucaoId->oper1) free(instrucaoId->oper1); // Nome é NULL para IntConst
+            if(instrucaoId->oper2 && instrucaoId->oper2->nome) free(instrucaoId->oper2->nome);
+            if(instrucaoId->oper2) free(instrucaoId->oper2);
+            if(instrucaoId->oper3) free(instrucaoId->oper3); // Nome é NULL para IntConst/Vazio
+            free(instrucaoId);
+        }
     } else if (instrucaoId != NULL && numReg == -1) {
+        // Se instrucaoId foi criada mas houve erro (numReg == -1), libera
+        // (Este caso pode ser redundante se as falhas anteriores já limpam instrucaoId e o setam para NULL)
+        fprintf(stderr, "INFO: Instrução LOAD para '%s' (linha %d) não adicionada devido a erro anterior na obtenção de registrador.\n", tree->attr.name, tree->lineno);
         if(instrucaoId->oper1) free(instrucaoId->oper1);
         if(instrucaoId->oper2 && instrucaoId->oper2->nome) free(instrucaoId->oper2->nome);
         if(instrucaoId->oper2) free(instrucaoId->oper2);
         if(instrucaoId->oper3) free(instrucaoId->oper3);
         free(instrucaoId);
     }
+    // Se varEscopo == NULL (para IdK), instrucaoId não foi nem criada, então não há o que liberar aqui.
+    // numReg já está -1.
 }
 
 void insertExpressionCall(TreeNode *tree, PnoIdentificador* symbTable) {

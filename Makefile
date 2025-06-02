@@ -6,18 +6,14 @@ SRC_DIR=./src
 TEST_DIR=./tests
 
 $(shell mkdir -p $(BUILD_DIR))
-$(shell mkdir -p $(OUTPUT_DIR)/ast)
 $(shell mkdir -p $(OUTPUT_DIR)/logs)
 
 clean:
 	rm -rf $(BUILD_DIR)/*
-	rm -rf $(OUTPUT_DIR)
 	rm -f compiler
 
 clean_output:
 	rm -f $(OUTPUT_DIR)/logs/*.log
-	rm -f $(OUTPUT_DIR)/ast/*.dot
-	rm -f $(OUTPUT_DIR)/*.out
 
 
 compiler: $(BUILD_DIR)/lex.yy.o $(BUILD_DIR)/parser.tab.o $(BUILD_DIR)/tab.o $(BUILD_DIR)/util.o $(BUILD_DIR)/codeGen.o $(BUILD_DIR)/main.o $(BUILD_DIR)/reg.o

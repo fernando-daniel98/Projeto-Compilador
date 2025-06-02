@@ -4,7 +4,7 @@
 #include "../include/globals.h"
 #include "../include/codeGen.h"
 
-#define MAX_REG 23 // Numero maximo de registradores
+#define MAX_REG 57 // Numero maximo de registradores; 64 regs e 6 reservados
 #define MAX_REG_DESCARTE 10000000 // Numero maximo de registradores que podem ser descartados
 
 // CORREÇÃO: Usar MAXTOKENLEN
