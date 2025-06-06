@@ -5,4 +5,8 @@
 /build
 
 /tests/others
+/tests/*.txt
 
+/output
+
+*.s

@@ -8,6 +8,8 @@
 #define MAXNOLIN 100
 #define MAXTOKENLEN 40
 
+#define DEBUG_MODE 1
+
 // Coloracoes em ANSI
 #define ANSI_COLOR_RESET    "\e[0m"
 #define ANSI_COLOR_RED      "\e[0;31m" // Erro léxico

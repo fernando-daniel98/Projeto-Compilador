@@ -3,7 +3,7 @@
 
 #include "globals.h"
 #include "syntax_tree.h"
-#include "symbol_table.h"
+#include "tab.h"
 
 // Funções de análise semântica
 void initSymbolTable(void);

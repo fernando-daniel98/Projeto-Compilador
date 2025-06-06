@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 // CORREÇÃO: Ajustar caminhos dos includes
 #include "../include/globals.h"
 #include "../include/codeGen.h"
+#include "../include/reg.h"
 
 #define MAX_REG 57 // Numero maximo de registradores; 64 regs e 6 reservados
 #define MAX_REG_DESCARTE 10000000 // Numero maximo de registradores que podem ser descartados
@@ -82,20 +84,21 @@ int buscarVarReg(char* nomeVar, char* escopo){
 // Funcao para mostrar os registradores e suas informacoes na tela do usuario
 void mostrarReg(){
     int cont = 0;
-    printf("\n============== Registradores ===============\n");
+    fprintf(yyout, "\n============== Registradores ===============\n");
     for(int i = 0; i < MAX_REG; i++){
         if(listaReg[i].nomeVar != NULL){
-            printf("t%d: %s, %s, %d\n", listaReg[i].numReg, listaReg[i].nomeVar, listaReg[i].escopo, listaReg[i].descarte);
+            fprintf(yyout, "t%d: %s, %s, %d\n", listaReg[i].numReg, listaReg[i].nomeVar, listaReg[i].escopo, listaReg[i].descarte);
         }
     }
-    printf(ANSI_COLOR_PURPLE);
-    printf("%d Registradores Livres\n\n", MAX_REG - totalRegEmUso);
-    printf(ANSI_COLOR_RESET);
+    
+    fprintf(yyout, "\n");
+    fprintf(yyout, "Registradores Livres: %d.\n", MAX_REG - totalRegEmUso);
+
 }
 
 // Funcao para descartar um registrador que nao esta sendo mais utilizado no momento
 int descartarReg(){
-    int menor = MAX_REG_DESCARTE; // Inicializa com um valor alto
+    float menor = INFINITY; // Inicializa com um valor alto
     int regDescartado = -1;
 
     for(int i = 0; i < MAX_REG; i++){	
@@ -108,9 +111,7 @@ int descartarReg(){
     }
 
     if(menor == MAX_REG_DESCARTE){
-        printf(ANSI_COLOR_RED);
-        printf("ERRO: Nao foi possivel descartar nenhum registrador\n");
-        printf(ANSI_COLOR_RESET);
+        fprintf(stderr, ANSI_COLOR_RED "ERRO: Nao foi possivel descartar nenhum registrador\n" ANSI_COLOR_RESET);
 
         return -1;
     }
@@ -120,13 +121,11 @@ int descartarReg(){
     listaReg[regDescartado].descarte = 0;
     totalRegEmUso--;
     
-    // CORREÇÃO: Comentar DEBUG_MODE pois não está definido no projeto
-    /*
+
     if(DEBUG_MODE){
-        printf(ANSI_COLOR_PURPLE "WARNING: " ANSI_COLOR_RESET); 
-        printf("Descartado registrador t%d\n", regDescartado);
+        fprintf(stderr, ANSI_COLOR_PURPLE "WARNING: " ANSI_COLOR_RESET "Descartado registrador t%d\n", regDescartado);
     }
-    */
+
     // Adicionar uma impressão de aviso, mesmo sem DEBUG_MODE, pode ser útil
     // fprintf(stderr, ANSI_COLOR_PURPLE "INFO: " ANSI_COLOR_RESET "Descartado registrador t%d\n", regDescartado);
 
@@ -144,34 +143,26 @@ int verificacaoRegistradores(char *lexema, char* escopo, int boolTemp){
         if((reg = (buscarVarReg(lexema, escopo))) == -1){
             if(totalRegEmUso == MAX_REG){
                 if((reg = descartarReg()) == -1){
-                    printf(ANSI_COLOR_RED);
-                    printf("ERRO: Nao foi possivel descartar nenhum registrador\n");
-                    printf(ANSI_COLOR_RESET);
+                    fprintf(stderr, ANSI_COLOR_RED "ERRO: Nao foi possivel descartar nenhum registrador\n" ANSI_COLOR_RESET);
                     return -1;
                 }
-                            }
+            }
             
             if((reg = adicionarVarReg(lexema, escopo)) == -1){
-                printf(ANSI_COLOR_RED);
-                printf("Erro ao adicionar variavel no vetor de registradores");
-                printf(ANSI_COLOR_RESET);
-                            }
+                fprintf(stderr, ANSI_COLOR_RED "Erro ao adicionar variavel no vetor de registradores\n" ANSI_COLOR_RESET);
+            }
         }
         
         return reg;
     }
     if(totalRegEmUso == MAX_REG){
         if((reg = descartarReg()) == -1){
-            printf(ANSI_COLOR_RED);
-            printf("ERRO: Nao foi possivel descartar nenhum registrador\n");
-            printf(ANSI_COLOR_RESET);
+            fprintf(stderr, ANSI_COLOR_RED "ERRO: Nao foi possivel descartar nenhum registrador\n" ANSI_COLOR_RESET);
             return -1;
         }
     }
     if((reg = adicionaTempReg()) == -1){
-        printf(ANSI_COLOR_RED);
-        printf("Erro ao adicionar variavel no vetor de registradores");
-        printf(ANSI_COLOR_RESET);
+        fprintf(stderr, ANSI_COLOR_RED "Erro ao adicionar variavel no vetor de registradores\n" ANSI_COLOR_RESET);
     }
 
     return reg;

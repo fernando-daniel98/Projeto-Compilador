@@ -16,7 +16,7 @@ clean_output:
 	rm -f $(OUTPUT_DIR)/logs/*.log
 
 
-compiler: $(BUILD_DIR)/lex.yy.o $(BUILD_DIR)/parser.tab.o $(BUILD_DIR)/tab.o $(BUILD_DIR)/util.o $(BUILD_DIR)/codeGen.o $(BUILD_DIR)/main.o $(BUILD_DIR)/reg.o $(BUILD_DIR)/assembler.o
+compiler: $(BUILD_DIR)/lex.yy.o $(BUILD_DIR)/parser.tab.o $(BUILD_DIR)/util.o $(BUILD_DIR)/codeGen.o $(BUILD_DIR)/main.o $(BUILD_DIR)/reg.o $(BUILD_DIR)/assembler.o $(BUILD_DIR)/memory.o $(BUILD_DIR)/label.o $(BUILD_DIR)/funcoes_assembly.o $(BUILD_DIR)/tab.o
 	$(CC) $(CFLAGS) -o $@ $^ -lfl
 
 $(BUILD_DIR)/main.o: $(SRC_DIR)/main.c
@@ -26,9 +26,6 @@ $(BUILD_DIR)/lex.yy.o: $(BUILD_DIR)/lex.yy.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/parser.tab.o: $(BUILD_DIR)/parser.tab.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(BUILD_DIR)/tab.o: $(SRC_DIR)/tab.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/util.o: $(SRC_DIR)/util.c
@@ -41,6 +38,18 @@ $(BUILD_DIR)/reg.o: $(SRC_DIR)/reg.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./i
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/assembler.o: $(SRC_DIR)/assembler.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./include/*.h)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/memory.o: $(SRC_DIR)/memory.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./include/*.h)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/label.o: $(SRC_DIR)/label.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./include/*.h)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/funcoes_assembly.o: $(SRC_DIR)/funcoes_assembly.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./include/*.h)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/tab.o: $(SRC_DIR)/tab.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./include/*.h)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/lex.yy.c: $(SRC_DIR)/lexer.l $(BUILD_DIR)/parser.tab.h

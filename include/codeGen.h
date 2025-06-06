@@ -3,7 +3,7 @@
 
 #include "globals.h"
 #include "syntax_tree.h"
-#include "symbol_table.h"
+#include "tab.h"
 
 #define MAX_LEN_CODE_INTERMEDIATE 1000
 

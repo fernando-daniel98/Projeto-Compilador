@@ -7,10 +7,12 @@
 #include "../include/globals.h"
 #include "../include/syntax_tree.h"
 #include "../include/parser.h"
-#include "../include/symbol_table.h"
+#include "../include/tab.h"
 #include "../include/semantic.h"
 #include "../include/codeGen.h"
 #include "../include/assembler.h"
+#include "../include/memoria.h"
+#include "../include/label.h"
 
 // Variáveis externas necessárias
 extern FILE *yyin;
@@ -154,34 +156,6 @@ int main(int argc, char **argv) {
             fprintf(stderr, "Intermediate code generation completed.\n\n");
             
             imprimeCodigoIntermediario();
-
-            // Geração do Código Assembly
-            fprintf(stderr, "Starting assembly code generation...\n");
-            char assemblyFileName[256];
-            // Tenta extrair o nome base do arquivo de entrada
-            if (argc >= 2) {
-                char *base = basename(argv[1]); // Precisa de #include <libgen.h>
-                char *dot = strrchr(base, '.');
-                if (dot != NULL) {
-                    *dot = '\0'; // Remove a extensão
-                }
-                snprintf(assemblyFileName, sizeof(assemblyFileName), "%s.s", base);
-            } else {
-                strcpy(assemblyFileName, "output.s");
-            }
-            
-            FILE *assemblyOut = fopen(assemblyFileName, "w");
-            if (assemblyOut == NULL) {
-                fprintf(stderr, "Error: Could not open file %s for assembly output.\n", assemblyFileName);
-            } else {
-                fprintf(stderr, "Assembly output will be in: %s\n", assemblyFileName);
-                
-                generateAssembly(intermediateCode, symbolTable, assemblyOut);
-
-                fclose(assemblyOut);
-
-                fprintf(stderr, "Assembly code generation completed.\n\n");
-            }
             
         } else if (icStatus == -1) {
             fprintf(stderr, "Intermediate code generation failed: Memory allocation error.\n");
@@ -194,7 +168,7 @@ int main(int argc, char **argv) {
         fprintf(yyout, "-------------\n\n");
     }
 
-    // Liberação das estruturas utilizadas.
+    // Liberação das estruturas que não serão mais utilizadas.
     if (syntaxTree != NULL){
         freeTree(syntaxTree);
     }
@@ -202,6 +176,18 @@ int main(int argc, char **argv) {
     if (symbolTable != NULL){
         deleteSymTab();
     }
+
+    fprintf(yyout, "\n\n");
+    mostrarReg();
+    fprintf(yyout, "\n\n");
+
+    assembly();
+
+    imprimirAssembly();
+
+    imprime_memoria();
+
+    imprimirLabels();
 
     if (intermediateCode != NULL){
         freeIntermediateCode();

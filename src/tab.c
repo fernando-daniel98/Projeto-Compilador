@@ -3,7 +3,7 @@
 #include <string.h>
 #include "../include/globals.h"
 #include "../include/syntax_tree.h"
-#include "../include/symbol_table.h"
+#include "../include/tab.h"
 #include "../include/semantic.h"
 
 #define MAXTAMTABELA 29

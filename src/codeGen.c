@@ -4,8 +4,10 @@
 #include "../include/globals.h"
 #include "../include/codeGen.h"
 #include "../include/syntax_tree.h"
-#include "../include/symbol_table.h"
+#include "../include/tab.h"
 #include "../include/util.h"
+// #include "../include/reg.h"
+
 
 // Estrutura global para instrução de código intermediário
 quadruple **intermediateCode = NULL;
@@ -26,6 +28,8 @@ void alocateIntermediateCode() {
     for (int i = 0; i < MAX_LEN_CODE_INTERMEDIATE; i++) {
         intermediateCode[i] = NULL;
     }
+
+    inicializaReg();
 }
 
 // Função para desalocar o código intermediário
