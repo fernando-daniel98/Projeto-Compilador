@@ -27,9 +27,8 @@ void assembly(){
     }
 }
 
-// Alterado o tipo do parâmetro de INSTRUCAO* para quadruple*
+// OK
 int opRelacionais(quadruple* instrucao, ASSEMBLY** novaInstrucao){
-    int temp_reg_neq = 25; // Usando $t9 (25) como registrador temporário para NEQ
 
     // As comparações de string foram substituídas por comparações de enum
     if(instrucao->operation == EQ){
@@ -59,66 +58,19 @@ int opRelacionais(quadruple* instrucao, ASSEMBLY** novaInstrucao){
         (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
     }
-    else if(instrucao->operation == NEQ){ // NEQ é implementado com slt e or/nor, ou slt duas vezes e or
-        // (a < b)  -> t1
-        // (b < a)  -> t2
-        // result = t1 OR t2
-        // Aqui está implementando (a < b) XOR (b < a) que é o mesmo que (a != b)
-        // mas a implementação original para EQ usava xori no final, o que é para (NOT ((a<b) OR (b<a)))
-        // Para NEQ, precisamos de (a < b) OR (b < a)
-        // Vamos manter a lógica original de duas slt, mas o resultado final deve ser a OR das duas.
-        // A implementação original para NEQ estava incompleta ou incorreta.
-        // Corrigindo para (a < b) -> $t_dest, (b < a) -> $t_aux, $t_dest = $t_dest OR $t_aux
-        // Ou, se o resultado for 0 para igual e 1 para diferente:
-        // slt $t_dest, $oper1, $oper2
-        // slt $t_aux, $oper2, $oper1
-        // or $t_dest, $t_dest, $t_aux
-        // A implementação original parecia estar fazendo algo para EQ e depois invertendo.
-        // Para NEQ, se (a < b) ou (b < a), então a != b.
-        // A lógica original para NEQ estava incompleta.
-        // Vou assumir que o resultado da comparação vai para oper3->val
-        // e que oper1 e oper2 são os operandos.
-
-        // t1 = oper1 < oper2
+    else if(instrucao->operation == NEQ){ 
         (*novaInstrucao) = criarNoAssembly(typeR, "slt");
         (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
         (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
+
         instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
 
-        // t2 = oper2 < oper1
-        // Usar um registrador temporário se oper3->val for o destino final.
-        // Por simplicidade, vamos assumir que um registrador temporário pode ser usado implicitamente
-        // ou que a arquitetura do compilador lida com isso.
-        // A forma mais simples é:
-        // slt $dest, $op1, $op2
-        // slt $aux, $op2, $op1
-        // or $dest, $dest, $aux
-        // A implementação original para NEQ estava incompleta.
-        // Vamos seguir o padrão de GT para simplicidade, que é (op2 < op1)
-        // Se NEQ é para ser (op1 != op2), então:
-        // BEQ op1, op2, L_false
-        // ADDI dest, $zero, 1
-        // J L_end
-        // L_false:
-        // ADDI dest, $zero, 0
-        // L_end:
-        // Isso é mais complexo. A forma SLT é mais comum para setar flags.
-        // A implementação original de NEQ fazia mais coisas, como acessar "Vinculo Controle"
-        // e salvar o valor de retorno no frame da função anterior.
-        // Vou implementar como (op1 < op2) OR (op2 < op1)
-        // Assumindo que oper3->val é o destino.
-        // Precisamos de um registrador auxiliar. Vamos usar $temp (registrador 24)
         (*novaInstrucao) = criarNoAssembly(typeR, "slt");
-        (*novaInstrucao)->tipoR->rd = temp_reg_neq; // resultado de op2 < op1 em temp
+        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
         (*novaInstrucao)->tipoR->rs = instrucao->oper2->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper1->val;
-        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
         
-        (*novaInstrucao) = criarNoAssembly(typeR, "or");
-        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val; // rd final
-        (*novaInstrucao)->tipoR->rs = instrucao->oper3->val; // rs é o resultado de op1 < op2
-        (*novaInstrucao)->tipoR->rt = temp_reg_neq;       // rt é o resultado de op2 < op1
     }
     else if(instrucao->operation == GT){
         (*novaInstrucao) = criarNoAssembly(typeR, "slt");
@@ -159,12 +111,10 @@ int opRelacionais(quadruple* instrucao, ASSEMBLY** novaInstrucao){
     else{
         return 0;
     }
-
     return 1;
-
 }
 
-// Alterado o tipo do parâmetro de INSTRUCAO* para quadruple*
+// OK
 int opAritmeticos(quadruple* instrucao, ASSEMBLY** novaInstrucao){
     
     if(instrucao->operation == ADD){
@@ -180,38 +130,16 @@ int opAritmeticos(quadruple* instrucao, ASSEMBLY** novaInstrucao){
         (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
     }
     else if(instrucao->operation == MULT){
-        (*novaInstrucao) = criarNoAssembly(typeR, "mult"); // MIPS mult armazena em HI/LO
-        // Para obter o resultado em um registrador, use mflo rd
-        // Esta tradução direta pode precisar de ajuste dependendo do simulador/arquitetura alvo
-        // Assumindo que 'mult' aqui é uma pseudo-instrução ou o compilador lida com mflo.
-        // Se for MIPS padrão, seria:
-        // mult rs, rt
-        // mflo rd
-        // Por ora, mantendo a tradução direta.
-        (*novaInstrucao)->tipoR->rs = instrucao->oper1->val; // rs
-        (*novaInstrucao)->tipoR->rt = instrucao->oper2->val; // rt
-        // O campo 'rd' em typeR não é usado por 'mult' real. O resultado vai para HI/LO.
-        // Se oper3->val é o destino, precisaremos de um 'mflo'
-        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
-
-        *novaInstrucao = criarNoAssembly(typeR, "mflo");
+        (*novaInstrucao) = criarNoAssembly(typeR, "mult");
         (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
-        // rs e rt não são usados por mflo
-        (*novaInstrucao)->tipoR->rs = $zero; 
-        (*novaInstrucao)->tipoR->rt = $zero;
-
-
+        (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
+        (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
     }
     else if(instrucao->operation == DIV){ // Similar a mult
         (*novaInstrucao) = criarNoAssembly(typeR, "div");
+        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
         (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
-        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
-        // Quociente em LO, resto em HI
-        *novaInstrucao = criarNoAssembly(typeR, "mflo"); // Quociente
-        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
-        (*novaInstrucao)->tipoR->rs = $zero;
-        (*novaInstrucao)->tipoR->rt = $zero;
     }
     else{
         return 0;

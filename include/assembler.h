@@ -10,17 +10,42 @@
 #define MAX_ASSEMBLY 10000
 
 // Definições de registradores MIPS (valores numéricos)
-#define $zero 0     // Registrador zero constante
-#define $v0 2       // Valor de retorno de função, código de syscall
-#define $a0 4       // Argumento de função/syscall
-#define $sp 29      // Stack pointer
-#define $fp 30      // Frame pointer
-#define $ra 31      // Return address
-#define $s0 16      // Registrador salvo (usado como base para globais no código original)
-#define $temp 24    // Registrador temporário ($t8) - usado em assembler.c
-#define $pilha 26   // Registrador para a "pilha de parâmetros" (usando $k0) - usado em assembler.c
-// Para temp_reg_neq, ele é definido localmente em opRelacionais em assembler.c.
-// Se for necessário em funcoes_assembly.c, pode ser adicionado aqui ou passado.
+#define $zero 0   // Registrador sempre zero
+#define $at 1     // Assembler Temporary
+#define $v0 2     // Return value 0
+#define $v1 3     // Return value 1
+#define $a0 4     // Argument 0
+#define $a1 5     // Argument 1
+#define $a2 6     // Argument 2
+#define $a3 7     // Argument 3
+#define $t0 8     // Temporary 0
+#define $t1 9     // Temporary 1
+#define $t2 10    // Temporary 2
+#define $t3 11    // Temporary 3
+#define $t4 12    // Temporary 4
+#define $t5 13    // Temporary 5
+#define $t6 14    // Temporary 6
+#define $t7 15    // Temporary 7
+#define $s0 16    // Saved 0
+#define $s1 17    // Saved 1
+#define $s2 18    // Saved 2
+#define $s3 19    // Saved 3
+#define $s4 20    // Saved 4
+#define $s5 21    // Saved 5
+#define $s6 22    // Saved 6
+#define $s7 23    // Saved 7
+#define $t8 24    // Temporary 8
+#define $t9 25    // Temporary 9
+#define $k0 26    // Kernel 0
+#define $k1 27    // Kernel 1
+#define $gp 28    // Global Pointer
+#define $sp 29    // Stack Pointer
+#define $fp 30    // Frame Pointer
+#define $ra 31    // Return Address
+
+// Registradores customizados do seu código original
+#define $temp 59
+#define $pilha 58
 
 typedef enum{
     typeR, // Instrucoes do tipo R
