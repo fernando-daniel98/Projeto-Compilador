@@ -6,7 +6,7 @@
 #include "../include/codeGen.h"
 #include "../include/reg.h"
 
-#define MAX_REG 57 // Numero maximo de registradores; 64 regs e 6 reservados
+#define MAX_REG 55 // Registradores t0-t54 (seguindo lógica do Eduardo mas com mais regs)
 #define MAX_REG_DESCARTE 10000000 // Numero maximo de registradores que podem ser descartados
 
 // CORREÇÃO: Usar MAXTOKENLEN
@@ -19,13 +19,7 @@ int totalReg = 1;
 
 int totalRegEmUso = 0; 
 
-typedef struct reg{
-    int numReg;
-    char* nomeVar;
-    // CORREÇÃO: Usar MAXTOKENLEN para o tamanho do escopo
-    char escopo[MAXTOKENLEN];
-    int descarte; // Diz se o registrador pode ser descartado (1, 2, ..., n) ou nao (0)
-}REG;
+// Estrutura REG já definida em reg.h
 
 REG listaReg[MAX_REG]; // Lista encadeada com os registradores
 
@@ -36,6 +30,7 @@ void inicializaReg(){
         listaReg[i].nomeVar = NULL;
         strcpy(listaReg[i].escopo, "");
         listaReg[i].descarte = 0;
+        listaReg[i].ultimoUso = 0;  // Inicializar campo ultimoUso
     }
 }
 
@@ -46,6 +41,7 @@ int adicionarVarReg(char* nomeVar, char* escopo){
             listaReg[i].nomeVar = nomeVar;
             strcpy(listaReg[i].escopo, escopo);
             listaReg[i].descarte = 0;
+            listaReg[i].ultimoUso = totalReg;  // Atualizar último uso
             totalReg++;
             totalRegEmUso++;
             return i;

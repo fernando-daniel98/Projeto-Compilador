@@ -10,9 +10,7 @@
 #include "../include/tab.h"
 #include "../include/semantic.h"
 #include "../include/codeGen.h"
-#include "../include/assembler.h"
-#include "../include/memoria.h"
-#include "../include/label.h"
+#include "../include/assembler.h"     // Descomentado para testar assembler simples
 
 // Variáveis externas necessárias
 extern FILE *yyin;
@@ -181,13 +179,9 @@ int main(int argc, char **argv) {
     mostrarReg();
     fprintf(yyout, "\n\n");
 
+    // Testando assembler simples
     assembly();
-
     imprimirAssembly();
-
-    imprime_memoria();
-
-    imprimirLabels();
 
     if (intermediateCode != NULL){
         freeIntermediateCode();

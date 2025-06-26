@@ -1199,7 +1199,7 @@ void imprimeCodigoIntermediario() {
         if(intermediateCode[i]->oper1 != NULL){
             if(intermediateCode[i]->oper1->tipo == IntConst){
                 if(intermediateCode[i]->oper1->boolReg == 1){
-                    fprintf(yyout, "$t%d, ", intermediateCode[i]->oper1->val);
+                    fprintf(yyout, "%s, ", getRegisterName(intermediateCode[i]->oper1->val));
                 }
                 else if(intermediateCode[i]->oper1->boolReg == 2){
                     fprintf(yyout, "L%d, ", intermediateCode[i]->oper1->val);
@@ -1221,7 +1221,7 @@ void imprimeCodigoIntermediario() {
         if(intermediateCode[i]->oper2 != NULL){
             if(intermediateCode[i]->oper2->tipo == IntConst){
                 if(intermediateCode[i]->oper2->boolReg == 1){
-                    fprintf(yyout, "$t%d, ", intermediateCode[i]->oper2->val);
+                    fprintf(yyout, "%s, ", getRegisterName(intermediateCode[i]->oper2->val));
                 }
                 else if(intermediateCode[i]->oper2->boolReg == 2){
                     fprintf(yyout, "L%d, ", intermediateCode[i]->oper2->val);
@@ -1243,7 +1243,7 @@ void imprimeCodigoIntermediario() {
         if(intermediateCode[i]->oper3 != NULL){
             if(intermediateCode[i]->oper3->tipo == IntConst){
                 if(intermediateCode[i]->oper3->boolReg == 1)
-                    fprintf(yyout, "$t%d", intermediateCode[i]->oper3->val);
+                    fprintf(yyout, "%s", getRegisterName(intermediateCode[i]->oper3->val));
                 else
                     fprintf(yyout, "%d", intermediateCode[i]->oper3->val);
             }

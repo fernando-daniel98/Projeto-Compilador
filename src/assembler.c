@@ -32,25 +32,17 @@ int opRelacionais(quadruple* instrucao, ASSEMBLY** novaInstrucao){
 
     // As comparações de string foram substituídas por comparações de enum
     if(instrucao->operation == EQ){
-        (*novaInstrucao) = criarNoAssembly(typeR, "slt");
+        (*novaInstrucao) = criarNoAssembly(typeR, "xor");
         (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
         (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
 
         instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
 
-        (*novaInstrucao) = criarNoAssembly(typeR, "slt");
-        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val; // RD deve ser o mesmo para a segunda parte da emulação
-        (*novaInstrucao)->tipoR->rs = instrucao->oper2->val;
-        (*novaInstrucao)->tipoR->rt = instrucao->oper1->val;
-
-        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
-
-        (*novaInstrucao) = criarNoAssembly(typeI, "xori");
-        (*novaInstrucao)->tipoI->rt = instrucao->oper3->val;
-        (*novaInstrucao)->tipoI->rs = instrucao->oper3->val;
+        (*novaInstrucao) = criarNoAssembly(typeR, "slti");
+        (*novaInstrucao)->tipoR->rt = instrucao->oper3->val; // RD deve ser o mesmo para a segunda parte da emulação
+        (*novaInstrucao)->tipoR->rs = instrucao->oper3->val;
         (*novaInstrucao)->tipoI->imediato = 1;
-
     }
     else if(instrucao->operation == LT){
         (*novaInstrucao) = criarNoAssembly(typeR, "slt");
@@ -60,7 +52,7 @@ int opRelacionais(quadruple* instrucao, ASSEMBLY** novaInstrucao){
     }
     else if(instrucao->operation == NEQ){ 
         (*novaInstrucao) = criarNoAssembly(typeR, "slt");
-        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
+        (*novaInstrucao)->tipoR->rd = $temp;
         (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
 
@@ -70,6 +62,13 @@ int opRelacionais(quadruple* instrucao, ASSEMBLY** novaInstrucao){
         (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
         (*novaInstrucao)->tipoR->rs = instrucao->oper2->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper1->val;
+
+        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
+
+        (*novaInstrucao) = criarNoAssembly(typeR, "or");
+        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
+        (*novaInstrucao)->tipoR->rs = $temp;
+        (*novaInstrucao)->tipoR->rt = instrucao->oper3->val;
         
     }
     else if(instrucao->operation == GT){
@@ -166,6 +165,7 @@ void geraAssembly(quadruple* instrucao){
         novaInstrucao->tipoR->rt = instrucao->oper2->val; // Fonte2 (y)
         instrucoesAssembly[indiceAssembly++] = novaInstrucao;
     }
+    // Verificar se seria preciso fazer uma mudanca para imediatos com mais de 16b
     else if(instrucao->operation == LOADI){ // LOADI rt, imm  -> ori rt, $zero, imm
         novaInstrucao = criarNoAssembly(typeI, "ori");
         novaInstrucao->tipoI->rt = instrucao->oper1->val; // rt (destino)
@@ -174,23 +174,8 @@ void geraAssembly(quadruple* instrucao){
         instrucoesAssembly[indiceAssembly++] = novaInstrucao;
     }
     else if(instrucao->operation == ALLOC){
-        // oper1: nome da variável (String)
-        // oper2: nome da função/escopo (String)
-        // oper3: tamanho (IntConst) ou Vazio para não vetor
-        if (instrucao->oper2 == NULL || instrucao->oper2->nome == NULL) {
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Nome de função/escopo nulo para ALLOC.\n");
-            return;
-        }
         MEMORIA_FUNCOES* funcao = buscar_funcao(&vetorMemoria, instrucao->oper2->nome);
-        if (funcao == NULL) {
-             printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Função %s não encontrada para ALLOC.\n", instrucao->oper2->nome);
-             return;
-        }
-
-        if(instrucao->oper1 == NULL || instrucao->oper1->nome == NULL){
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Nome de variável nulo para ALLOC.\n");
-            return;
-        }
+        int count = 0;
 
         if(instrucao->oper3 == NULL){
             printf(ANSI_COLOR_RED "Erro: " ANSI_COLOR_RESET);
@@ -205,10 +190,12 @@ void geraAssembly(quadruple* instrucao){
             for(int i = 0; i < instrucao->oper3->val; i++){
                 insere_variavel(funcao, instrucao->oper1->nome, vetor);	
             }
+            count = instrucao->oper3->val;
         }
 
         // A verificação de estouro de memória já estava aqui, mantida.
         static int flag_alloc = 0; // Renomeado para evitar conflito com 'flag' de outros contextos
+        
         if(funcao->tamanho > get_sp(funcao) && !flag_alloc){
             printf(ANSI_COLOR_RED "Erro: " ANSI_COLOR_RESET);
             printf("Memoria insuficiente na funcao %s\n", funcao->nome);
@@ -217,20 +204,7 @@ void geraAssembly(quadruple* instrucao){
         }
     }
     else if(instrucao->operation == ARG){
-        // oper1: tipo do argumento ("INT" ou "VET") (String)
-        // oper2: nome do argumento (String)
-        // oper3: nome da função (String)
-        if (instrucao->oper3 == NULL || instrucao->oper3->nome == NULL ||
-            instrucao->oper1 == NULL || instrucao->oper1->nome == NULL ||
-            instrucao->oper2 == NULL || instrucao->oper2->nome == NULL) {
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Operandos nulos para ARG.\n");
-            return;
-        }
         MEMORIA_FUNCOES* funcao = buscar_funcao(&vetorMemoria, instrucao->oper3->nome);
-        if (funcao == NULL) {
-             printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Função %s não encontrada para ARG.\n", instrucao->oper3->nome);
-             return;
-        }
         
         if(!strcmp(instrucao->oper1->nome, "INT")) 
             insere_variavel(funcao, instrucao->oper2->nome, inteiroArg);
@@ -238,37 +212,29 @@ void geraAssembly(quadruple* instrucao){
     }	
     else if(instrucao->operation == IFFALSE){ // IFF reg, label -> beq reg, $zero, label
         novaInstrucao = criarNoAssembly(typeI, "beq");
-        novaInstrucao->tipoI->rs = instrucao->oper1->val; // registrador com a condição
-        novaInstrucao->tipoI->rt = $zero;                 // comparar com zero
-        novaInstrucao->tipoI->label = instrucao->oper2->val; // label para pular se falso (igual a zero)
+        novaInstrucao->tipoI->rs = $zero;
+        novaInstrucao->tipoI->rt = instrucao->oper1->val;
+        novaInstrucao->tipoI->label = instrucao->oper2->val;
+
         instrucoesAssembly[indiceAssembly++] = novaInstrucao;
     }
     else if(instrucao->operation == LABEL){
-        // oper1: número do label (IntConst)
-        if (instrucao->oper1 == NULL) {
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Operando nulo para LABEL.\n");
-            return;
-        }
-        char* auxLabel = (char*) malloc(sizeof(char) * 20); // Aumentado tamanho para "Label XXXXXXXX"
-        sprintf(auxLabel, "Label%d", instrucao->oper1->val); // Removido espaço para consistência
+
+        char* auxLabel = (char*) malloc(sizeof(char) * 10);
+
+        sprintf(auxLabel, "Label %d", instrucao->oper1->val);
         novaInstrucao = criarNoAssembly(typeLabel, auxLabel); 
         novaInstrucao->tipoLabel->endereco = instrucao->oper1->val; // O endereço aqui é o número do label
         novaInstrucao->tipoLabel->boolean = 1; // Indica que é um label de desvio
 
-        // Adicionar à tabela de labels do assembler
-        adicionarLabel(auxLabel, indiceAssembly); // O endereço é o índice atual da instrução assembly
+        char label[26];
+        sprintf(label, "Label %d", instrucao->oper1->val);
+        adicionarLabel(label, indiceAssembly);
 
         instrucoesAssembly[indiceAssembly++] = novaInstrucao;
     }
     else if(instrucao->operation == FUNC){
-        // oper1: tipo de retorno ("INT", "VOID") (String)
-        // oper2: nome da função (String)
-        // oper3: número de parâmetros (IntConst)
-        if (instrucao->oper2 == NULL || instrucao->oper2->nome == NULL || instrucao->oper3 == NULL) {
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Operandos nulos para FUNC.\n");
-            return;
-        }
-        novaInstrucao = criarNoAssembly(typeLabel, strdup(instrucao->oper2->nome)); 
+        novaInstrucao = criarNoAssembly(typeLabel, strdup(instrucao->oper2->nome)); // REVER
         novaInstrucao->tipoLabel->boolean = 0; // Indica que é um label de função
 
         adicionarLabel(instrucao->oper2->nome, indiceAssembly);
@@ -310,7 +276,7 @@ void geraAssembly(quadruple* instrucao){
             novaInstrucao = criarNoAssembly(typeI, "subi"); // Assumindo subi como subtract immediate
             novaInstrucao->tipoI->rt = $pilha;
             novaInstrucao->tipoI->rs = $pilha;
-            novaInstrucao->tipoI->imediato = 5; // Deslocamento para área de parâmetros?
+            novaInstrucao->tipoI->imediato = 5; // REVER
             instrucoesAssembly[indiceAssembly++] = novaInstrucao;
         }
         else{
@@ -318,86 +284,31 @@ void geraAssembly(quadruple* instrucao){
             novaInstrucao = criarNoAssembly(typeI, "sw");
             novaInstrucao->tipoI->rt = $ra; // Registrador de retorno
             novaInstrucao->tipoI->rs = $fp; // Baseado no frame pointer atual
-            // oper3->val aqui é o número de parâmetros da função que está sendo definida.
-            // O endereço de retorno é salvo no frame da função CHAMADA.
-            // get_fp_relation(funcaoAtual, get_variavel(funcaoAtual, "Endereco Retorno")) deve dar o offset correto.
-            // O "+ instrucao->oper3->val" parece incorreto aqui. O oper3 da FUNC é num_params.
-            // O local de salvar $ra é fixo no frame da função atual (a que está sendo definida).
-            VARIAVEL* var_ret_addr = get_variavel(funcaoAtual, "Endereco Retorno");
-            if (var_ret_addr == NULL) {
-                printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Variavel 'Endereco Retorno' não encontrada para %s.\n", funcaoAtual->nome);
-                return;
-            }
-            novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var_ret_addr);
+            novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, get_variavel(funcaoAtual, "Endereco Retorno")) + instrucao->oper3->val; // REVER
             instrucoesAssembly[indiceAssembly++] = novaInstrucao;
         }
     }
     else if(instrucao->operation == RETURN){
-        // oper1: valor de retorno (IntConst, registrador) ou Vazio
-        if (funcaoAtual == NULL || funcaoAtual->nome == NULL) {
-             printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "funcaoAtual nula ou sem nome para RETURN.\n");
-             return;
-        }
-        if(!strcmp(funcaoAtual->nome, "main")) return; // HALT tratará o fim do main
+        if(!strcmp(funcaoAtual->nome, "main")) return; // HALT trata o fim do main
         
-        if (instrucao->oper1 != NULL && instrucao->oper1->tipo != Vazio) {
-            // Salva o valor do retorno no frame da função ANTERIOR (chamadora)
-            // Isso é feito pela instrução CALL ao retornar, ou o valor é colocado em $v0
-            // A convenção MIPS é colocar o valor de retorno em $v0 (registrador 2)
-            // E então a função chamadora pega de $v0.
-            // O código original tentava salvar no frame da função anterior, o que é complexo.
-            // Vamos usar $v0.
-            novaInstrucao = criarNoAssembly(typeR, "add"); // move $v0, reg_retorno
-            novaInstrucao->tipoR->rd = $v0; // $v0 (registrador 2)
-            novaInstrucao->tipoR->rs = instrucao->oper1->val; // registrador com o valor de retorno
-            novaInstrucao->tipoR->rt = $zero;
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-        }
+        // Acessa o valor de controle da funcao anterior
+        novaInstrucao = criarNoAssembly(typeI, "lw");
+        novaInstrucao->tipoI->rt = $temp;
+        novaInstrucao->tipoI->rs = $fp;
+        novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, get_variavel(funcaoAtual, "Vinculo Controle"));
+        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
 
-        // Restaurar $ra (já foi salvo no início da função em FUN)
-        // E pular de volta para $ra
-        // O código original para RET fazia mais coisas, como acessar "Vinculo Controle"
-        // e salvar o valor de retorno no frame da função anterior.
-        // Simplificando para o padrão MIPS:
-        // 1. Colocar valor de retorno em $v0 (feito acima se houver retorno)
-        // 2. Restaurar $sp e $fp (se foram alterados significativamente além do prólogo)
-        // 3. jr $ra
-
-        // O código original para END faz o jr $ra. O RETURN deve apenas preparar o valor.
-        // Se a semântica do RETURN na linguagem C-- é só preparar o valor e END faz o pulo,
-        // então o código acima para $v0 é suficiente.
-        // A lógica original do RET era:
-        // lw $temp, offset_vinculo_controle($fp)  ; $temp = fp da chamadora
-        // sw reg_retorno, offset_valor_retorno($temp) ; Salva no frame da chamadora
-        // Isso é uma convenção de chamada não padrão.
-        // Vou manter a lógica de colocar em $v0, e o END fará o jr $ra.
+        // Salva o valor do retorno no frame da funcao anterior
+        novaInstrucao = criarNoAssembly(typeI, "sw");
+        novaInstrucao->tipoI->rs = $temp;
+        novaInstrucao->tipoI->rt = instrucao->oper1->val;
+        novaInstrucao->tipoI->imediato = 2; // 2 para avancar para "Valor de Retorno"
+        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+        
     }
     else if(instrucao->operation == PARAM){
-        // oper1: valor/registrador do parâmetro (IntConst)
-        // oper2: tipo ("VET" ou "INT") (String)
-        // oper3: nome da variável se VET (String), ou Vazio
-        
-        // Esta instrução é para PASSAR um parâmetro ANTES de um CALL.
-        // Os parâmetros são tipicamente colocados em $a0-$a3 ou na pilha.
-        // O código original move da área $pilha para o stack frame da função CHAMADA ($sp).
-        
-        if (instrucao->oper1 == NULL || instrucao->oper2 == NULL || instrucao->oper2->nome == NULL) {
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Operandos nulos para PARAM.\n");
-            return;
-        }
-        MEMORIA_FUNCOES* params_func = buscar_funcao(&vetorMemoria, "parametros");
-        if (params_func == NULL) {
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Função 'parametros' não encontrada.\n");
-            return;
-        }
-                
         if(!strcmp(instrucao->oper2->nome, "VET")){
-            if (instrucao->oper3 == NULL || instrucao->oper3->nome == NULL) {
-                 printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Nome da variável VET nula para PARAM.\n");
-                 return;
-            }
             VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper3->nome);
-            if (var == NULL) { /* get_variavel já imprime erro */ return; }
 
             if(var->tipo == vetorArg){ // Se o vetor sendo passado já é um argumento (ponteiro)
                 novaInstrucao = criarNoAssembly(typeI, "lw"); // Carrega o endereço do vetor
@@ -409,10 +320,10 @@ void geraAssembly(quadruple* instrucao){
                 novaInstrucao = criarNoAssembly(typeI, "sw"); // Salva o endereço na área de params
                 novaInstrucao->tipoI->rs = $pilha; // Base da área de params
                 novaInstrucao->tipoI->rt = instrucao->oper1->val; // Reg com o endereço
-                novaInstrucao->tipoI->imediato = params_func->tamanho; // Offset na área de params
+                novaInstrucao->tipoI->imediato = buscar_funcao(&vetorMemoria, "parametros")->tamanho;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
             }
-            else{ // Se é um vetor local (passar seu endereço base)
+            else{
                 novaInstrucao = criarNoAssembly(typeI, "addi"); // Calcula o endereço base do vetor
                 novaInstrucao->tipoI->rt = instrucao->oper1->val; // Reg temporário para o endereço
                 novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp;
@@ -422,7 +333,7 @@ void geraAssembly(quadruple* instrucao){
                 novaInstrucao = criarNoAssembly(typeI, "sw"); // Salva o endereço na área de params
                 novaInstrucao->tipoI->rs = $pilha;
                 novaInstrucao->tipoI->rt = instrucao->oper1->val;
-                novaInstrucao->tipoI->imediato = params_func->tamanho;
+                novaInstrucao->tipoI->imediato = buscar_funcao(&vetorMemoria, "parametros")->tamanho;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
             }
         }
@@ -430,62 +341,61 @@ void geraAssembly(quadruple* instrucao){
             novaInstrucao = criarNoAssembly(typeI, "sw"); // Salva o valor do registrador na área de params
             novaInstrucao->tipoI->rs = $pilha;
             novaInstrucao->tipoI->rt = instrucao->oper1->val; // Registrador com o valor do parâmetro
-            novaInstrucao->tipoI->imediato = params_func->tamanho;
+            novaInstrucao->tipoI->imediato = buscar_funcao(&vetorMemoria, "parametros")->tamanho;
             instrucoesAssembly[indiceAssembly++] = novaInstrucao;
         }
-        insere_variavel(params_func, "Param", inteiro); // Incrementa o contador de params na área especial
+
+        insere_variavel(buscar_funcao(&vetorMemoria, "parametros"), "Param", inteiro); // Incrementa o contador de params na área especial
     } 
     else if(instrucao->operation == LOAD){
-        // oper1: registrador destino (IntConst)
-        // oper2: nome da variável/vetor (String)
-        // oper3: registrador com índice (IntConst) ou Vazio
-        if (instrucao->oper1 == NULL || instrucao->oper2 == NULL || instrucao->oper2->nome == NULL || instrucao->oper3 == NULL) {
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Operandos nulos para LOAD.\n");
+        if(!instrucao->oper3){
+            printf(ANSI_COLOR_RED "Erro: " ANSI_COLOR_RESET);
+            printf("NULL no argumento 3\n");
             return;
         }
-        VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper2->nome);
-        if (var == NULL) { /* get_variavel já imprime erro */ return; }
 
-        if(instrucao->oper3->tipo != Vazio){ // Load de um índice de um vetor: oper1 = oper2[oper3]
-            // lw rd, offset(base_addr_reg)
-            // Primeiro, calcular o endereço base do vetor em um registrador temporário ($temp)
-            // Se var->tipo == vetor (vetor local) ou vetorArg (ponteiro para vetor)
-            // Se vetorArg, primeiro lw $temp, offset_do_ponteiro($fp) -> $temp agora tem o endereço base real
-            // Se vetor local, addi $temp, $fp, offset_do_vetor -> $temp agora tem o endereço base real
-            
-            if (var->tipo == vetorArg) { // Vetor passado como parâmetro (var contém o endereço do ponteiro)
-                novaInstrucao = criarNoAssembly(typeI, "lw"); // Carrega o endereço base do vetor (que está no ponteiro)
-                novaInstrucao->tipoI->rt = $temp; // $temp = *(endereço_do_ponteiro_var)
+        VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper2->nome);
+
+        if(instrucao->oper3->tipo != Vazio){            
+            if (var->tipo == vetorArg) {
+                novaInstrucao = criarNoAssembly(typeI, "addi");
+                novaInstrucao->tipoI->rt = $temp;
                 novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp;
                 novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var);
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-            } else { // Vetor local ou global (var é o início do vetor)
-                novaInstrucao = criarNoAssembly(typeI, "addi"); // Calcula o endereço base do vetor
-                novaInstrucao->tipoI->rt = $temp; // $temp = endereço_de_var
+
+                novaInstrucao = criarNoAssembly(typeR, "add");
+                novaInstrucao->tipoR->rd = $temp;
+                novaInstrucao->tipoR->rs = $temp;
+                novaInstrucao->tipoR->rt = instrucao->oper3->val;
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+
+                novaInstrucao = criarNoAssembly(typeI, "lw");
+                novaInstrucao->tipoI->rt = instrucao->oper1->val;
+                novaInstrucao->tipoI->rs = $temp;
+                novaInstrucao->tipoI->imediato = 0;
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+            } else {
+                novaInstrucao = criarNoAssembly(typeI, "lw");
+                novaInstrucao->tipoI->rt = $temp;
                 novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp;
                 novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var);
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+
+                novaInstrucao = criarNoAssembly(typeR, "add");
+                novaInstrucao->tipoR->rd = $temp;
+                novaInstrucao->tipoR->rs = $temp;
+                novaInstrucao->tipoR->rt = instrucao->oper3->val;
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+
+                novaInstrucao = criarNoAssembly(typeI, "lw");
+                novaInstrucao->tipoI->rt = instrucao->oper1->val;
+                novaInstrucao->tipoI->rs = $temp;
+                novaInstrucao->tipoI->imediato = 0;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
             }
-            
-            // Agora $temp tem o endereço base do vetor. Adicionar o índice.
-            // Assumindo que o índice em oper3->val já está escalado (multiplicado por 4 se for array de int)
-            // Se não, precisa de sll antes do add. Vamos assumir que está em unidades de bytes ou que o simulador aceita índice direto.
-            // Para MIPS, o índice precisa ser em bytes. Se oper3->val é o índice N, precisamos de N*4.
-            // Vamos assumir que oper3->val é um registrador que já tem o offset em bytes.
-            novaInstrucao = criarNoAssembly(typeR, "add"); // $temp = $temp + reg_indice
-            novaInstrucao->tipoR->rd = $temp;
-            novaInstrucao->tipoR->rs = $temp;
-            novaInstrucao->tipoR->rt = instrucao->oper3->val; // Registrador com o índice (offset)
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-            // Finalmente, carregar o valor
-            novaInstrucao = criarNoAssembly(typeI, "lw"); // rd = $temp[0]
-            novaInstrucao->tipoI->rt = instrucao->oper1->val; // Registrador destino final
-            novaInstrucao->tipoI->rs = $temp; // Endereço calculado
-            novaInstrucao->tipoI->imediato = 0; // Offset 0 do endereço calculado
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
         }
-        else{ // Load de uma variável inteira: oper1 = oper2
+        else{
             novaInstrucao = criarNoAssembly(typeI, "lw");
             novaInstrucao->tipoI->rt = instrucao->oper1->val; // Registrador destino
             novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp; // Base ($s0 para global, $fp para local)
@@ -494,43 +404,53 @@ void geraAssembly(quadruple* instrucao){
         }
     }
     else if(instrucao->operation == STORE){
-        // oper1: nome da variável/vetor (String)
-        // oper2: registrador com valor a ser armazenado (IntConst)
-        // oper3: registrador com índice (IntConst) ou Vazio
-        if (instrucao->oper1 == NULL || instrucao->oper1->nome == NULL || instrucao->oper2 == NULL || instrucao->oper3 == NULL) {
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Operandos nulos para STORE.\n");
+        if(!instrucao->oper3){
+            printf(ANSI_COLOR_RED "Erro: " ANSI_COLOR_RESET);
+            printf("NULL no argumento 3\n");
             return;
         }
+
         VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper1->nome);
-        if (var == NULL) { /* get_variavel já imprime erro */ return; }
 
         if(instrucao->oper3->tipo != Vazio){ // Store em um vetor: oper1[oper3] = oper2
             // Similar ao LOAD para calcular o endereço.
             if (var->tipo == vetorArg) {
-                novaInstrucao = criarNoAssembly(typeI, "lw"); 
-                novaInstrucao->tipoI->rt = $temp; 
+                novaInstrucao = criarNoAssembly(typeI, "addi");
+                novaInstrucao->tipoI->rt = $temp;
                 novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp;
                 novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var);
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+
+                novaInstrucao = criarNoAssembly(typeR, "add");
+                novaInstrucao->tipoR->rd = $temp;
+                novaInstrucao->tipoR->rs = $temp;
+                novaInstrucao->tipoR->rt = instrucao->oper3->val;
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+
+                novaInstrucao = criarNoAssembly(typeI, "sw");
+                novaInstrucao->tipoI->rt = instrucao->oper2->val;
+                novaInstrucao->tipoI->rs = $temp;
+                novaInstrucao->tipoI->imediato = 0;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
             } else { 
-                novaInstrucao = criarNoAssembly(typeI, "addi"); 
-                novaInstrucao->tipoI->rt = $temp; 
-                novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp;
-                novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var);
+                novaInstrucao = criarNoAssembly(typeI, "lw");
+                novaInstrucao->tipoI->rt = $temp; // Registrador temporário para
+                novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp; // Base
+                novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var); // Offset
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+
+                novaInstrucao = criarNoAssembly(typeR, "add");
+                novaInstrucao->tipoR->rd = $temp; // Endereço base do vetor
+                novaInstrucao->tipoR->rs = $temp; // Base do vetor
+                novaInstrucao->tipoR->rt = instrucao->oper3->val; // Registrador com o índice (offset)
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+
+                novaInstrucao = criarNoAssembly(typeI, "sw"); // $temp[0] = reg_valor
+                novaInstrucao->tipoI->rt = instrucao->oper2->val; // Registrador com o valor a ser armazenado
+                novaInstrucao->tipoI->rs = $temp; // Endereço calculado
+                novaInstrucao->tipoI->imediato = 0; // Offset 0
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
             }
-            
-            novaInstrucao = criarNoAssembly(typeR, "add"); 
-            novaInstrucao->tipoR->rd = $temp;
-            novaInstrucao->tipoR->rs = $temp;
-            novaInstrucao->tipoR->rt = instrucao->oper3->val; // Registrador com o índice (offset)
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-            novaInstrucao = criarNoAssembly(typeI, "sw"); // $temp[0] = reg_valor
-            novaInstrucao->tipoI->rt = instrucao->oper2->val; // Registrador com o valor a ser armazenado
-            novaInstrucao->tipoI->rs = $temp; // Endereço calculado
-            novaInstrucao->tipoI->imediato = 0;
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
         }
         else{ // Store em uma variável inteira: oper1 = oper2
             novaInstrucao = criarNoAssembly(typeI, "sw");
@@ -541,15 +461,9 @@ void geraAssembly(quadruple* instrucao){
         }
     }
     else if(instrucao->operation == GOTO){
-        // oper1: número do label (IntConst)
-        if (instrucao->oper1 == NULL) {
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Operando nulo para GOTO.\n");
-            return;
-        }
         novaInstrucao = criarNoAssembly(typeJ, "j");
-        char labelName[20];
-        sprintf(labelName, "Label%d", instrucao->oper1->val);
-        novaInstrucao->tipoJ->labelImediato = strdup(labelName);
+        novaInstrucao->tipoJ->labelImediato = strdup("Label ########");
+        sprintf(novaInstrucao->tipoJ->labelImediato, "Label %d", instrucao->oper1->val);
         instrucoesAssembly[indiceAssembly++] = novaInstrucao;
     }
     else if(instrucao->operation == HALT){
@@ -558,72 +472,42 @@ void geraAssembly(quadruple* instrucao){
         instrucoesAssembly[indiceAssembly++] = novaInstrucao;
     }
     else if(instrucao->operation == CALL){
-        // oper1: nome da função (String)
-        // oper2: número de parâmetros (IntConst)
-        // oper3: registrador de retorno (IntConst) ou Vazio
-        if (instrucao->oper1 == NULL || instrucao->oper1->nome == NULL || instrucao->oper2 == NULL || instrucao->oper3 == NULL) {
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Operandos nulos para CALL.\n");
-            return;
-        }
-        MEMORIA_FUNCOES* params_func = buscar_funcao(&vetorMemoria, "parametros");
-         if (params_func == NULL) {
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Função 'parametros' não encontrada para CALL.\n");
+        if(!instrucao->oper3){
+            printf(ANSI_COLOR_RED "Erro: " ANSI_COLOR_RESET);
+            printf("NULL no argumento 3\n");
             return;
         }
                 
         if(!strcmp(instrucao->oper1->nome, "output")){
-            // Carrega o último parâmetro da área de parâmetros para $temp e o imprime
+            apagar_temp(buscar_funcao(&vetorMemoria, "parametros")); // Apaga os temporarios usados na chamada
+
             novaInstrucao = criarNoAssembly(typeI, "lw");
-            novaInstrucao->tipoI->rt = $a0; // Argumento para syscall de print_int é em $a0
+            novaInstrucao->tipoI->rt = $temp;
             novaInstrucao->tipoI->rs = $pilha;
-            // O tamanho em params_func é o offset do *próximo* param. O último está em tamanho-1.
-            novaInstrucao->tipoI->imediato = params_func->tamanho -1; 
+            novaInstrucao->tipoI->imediato = buscar_funcao(&vetorMemoria, "parametros")->tamanho;
             instrucoesAssembly[indiceAssembly++] = novaInstrucao;
 
-            novaInstrucao = criarNoAssembly(typeI, "ori"); // Syscall para print_int é 1
-            novaInstrucao->tipoI->rt = $v0; // $v0 = 1
-            novaInstrucao->tipoI->rs = $zero;
-            novaInstrucao->tipoI->imediato = 1;
+            // Mostra o valor do $temp para o usuario
+            novaInstrucao = criarNoAssembly(typeI, "out");
+            novaInstrucao->tipoI->rs = $temp;
+            novaInstrucao->tipoI->rt = $zero;
+            novaInstrucao->tipoI->imediato = 0;
             instrucoesAssembly[indiceAssembly++] = novaInstrucao;
 
-            novaInstrucao = criarNoAssembly(typeJ, "syscall"); // Faz a chamada de sistema
-            novaInstrucao->tipoJ->labelImediato = strdup(""); // Dummy
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-            
-            apagar_temp(params_func); // Limpa o último parâmetro da área "parametros"
-            return; 
+            return;
         }
         else if(!strcmp(instrucao->oper1->nome, "input")){
-            novaInstrucao = criarNoAssembly(typeI, "ori"); // Syscall para read_int é 5
-            novaInstrucao->tipoI->rt = $v0; // $v0 = 5
+            novaInstrucao = criarNoAssembly(typeI, "in");
+            novaInstrucao->tipoI->rt = instrucao->oper3->val;
             novaInstrucao->tipoI->rs = $zero;
-            novaInstrucao->tipoI->imediato = 5;
+            novaInstrucao->tipoI->imediato = 0;
             instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-            novaInstrucao = criarNoAssembly(typeJ, "syscall");
-            novaInstrucao->tipoJ->labelImediato = strdup(""); // Dummy
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-            
-            // O resultado da leitura (inteiro) estará em $v0.
-            // A quádrupla CALL para input tem oper3 como o registrador destino.
-            if (instrucao->oper3->tipo != Vazio) {
-                novaInstrucao = criarNoAssembly(typeR, "add"); // Move $v0 para o registrador destino
-                novaInstrucao->tipoR->rd = instrucao->oper3->val; // Registrador destino
-                novaInstrucao->tipoR->rs = $v0;
-                novaInstrucao->tipoR->rt = $zero;
-                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-            }
-            return; 
+            return;
         }
-
-        // Para funções normais:
-        // 1. Salvar registradores $t0-$t9, $s0-$s7 se necessário (caller-save vs callee-save)
-        //    (Simplificado aqui, assumindo que a convenção de registradores é tratada ou não é estrita)
-        // 2. Passar parâmetros (já feito pelas instruções PARAM, que os colocaram na área $pilha)
-        //    Agora, precisamos mover da área $pilha para $a0-$a3 ou para a pilha real se mais de 4.
-        //    O código original move da área $pilha para o stack frame da função CHAMADA ($sp).
         
         int num_params_val = instrucao->oper2->val;
+        MEMORIA_FUNCOES* params_func = buscar_funcao(&vetorMemoria, "parametros");
+        
         for(int i = 0; i < num_params_val; i++) { // Parâmetros são recuperados em ordem reversa de como foram colocados
             apagar_temp(params_func); // Decrementa o contador em params_func e retorna o offset do último
 

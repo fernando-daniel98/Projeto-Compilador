@@ -109,4 +109,7 @@ void imprimeCodigoIntermediario();
 const char* getTACOperationName(typeOperations op);
 typeOperations mapOperatorToTAC(int op);
 
+// Função para mapear numero do registrador para nome legivel (declaração compartilhada)
+const char* getRegisterName(int regNum);
+
 #endif
