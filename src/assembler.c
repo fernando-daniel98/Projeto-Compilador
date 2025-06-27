@@ -135,11 +135,11 @@ int opAritmeticos(quadruple* instrucao, ASSEMBLY** novaInstrucao) {
     return 1; // Sucesso
 }
 
-// Função para gerar assembly de operações relacionais usando a lógica do Eduardo
+// Função para gerar assembly de operações relacionais
 int opRelacionais(quadruple* instrucao, ASSEMBLY** novaInstrucao) {
     if (instrucao->operation == EQ) {
         // EQ: if arg1 == arg2 then arg3 = 1, else arg3 = 0
-        // Eduardo's logic: slt twice and xor
+        // Lógica de comparação: slt twice and xor
         *novaInstrucao = criarNoAssembly(typeR, "slt");
         (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
         (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
@@ -217,7 +217,7 @@ int opRelacionais(quadruple* instrucao, ASSEMBLY** novaInstrucao) {
     return 1;
 }
 
-// Função principal para gerar assembly completo baseado na lógica do Eduardo
+// Função principal para gerar assembly completo
 void geraAssemblyCompleto(quadruple* instrucao) {
     ASSEMBLY* novaInstrucao = NULL;
     
@@ -249,7 +249,7 @@ void geraAssemblyCompleto(quadruple* instrucao) {
     }
     // ALLOC (alocar memória)
     else if (instrucao->operation == ALLOC) {
-        // Inserir variável no sistema de memória dinâmico
+        // Inserir variável na memória
         if (instrucao->oper1 && instrucao->oper1->nome && funcaoAtual) {
             // Determinar tipo baseado no contexto
             TIPO_VAR tipo = (instrucao->oper3 && instrucao->oper3->val > 1) ? vetor : inteiro;
@@ -273,7 +273,7 @@ void geraAssemblyCompleto(quadruple* instrucao) {
             // Se for main, inicializar registradores especiais usando cálculos dinâmicos
             if (strcmp(instrucao->oper2->nome, "main") == 0) {
                 // ===============================================
-                // INICIALIZAÇÃO DINÂMICA DA MAIN (estilo Eduardo)
+                // INICIALIZAÇÃO DINÂMICA DA MAIN
                 // Calcula valores baseados no tamanho das variáveis globais
                 // ===============================================
                 
@@ -328,7 +328,7 @@ void geraAssemblyCompleto(quadruple* instrucao) {
             } else {
                 // ===============================================
                 // INÍCIO DE FUNÇÃO REGULAR - Salvar $ra
-                // Padrão do Eduardo: sempre salvar $ra em offset calculado
+                // Sempre salvar $ra em offset calculado
                 // ===============================================
                 
                 // sw $ra offset($fp) - salva return address no frame atual
@@ -346,7 +346,7 @@ void geraAssemblyCompleto(quadruple* instrucao) {
     }
     // ARG (argumento de função)
     else if (instrucao->operation == ARG) {
-        // Inserir argumento no sistema de memória dinâmico
+        // Inserir argumento na memória
         if (instrucao->oper2 && instrucao->oper2->nome && funcaoAtual) {
             // Detectar tipo de argumento baseado no oper1 (tipo do parâmetro)
             TIPO_VAR tipo = inteiroArg;
@@ -380,7 +380,7 @@ void geraAssemblyCompleto(quadruple* instrucao) {
         instrucoesAssembly[indiceAssembly++] = novaInstrucao;
     }
     // ===============================================
-    // RETURN (retorno de função com valor) - Implementação sofisticada do Eduardo
+    // RETURN (retorno de função com valor)
     // ===============================================
     else if (instrucao->operation == RETURN) {
         if (strcmp(nomeFuncaoAtual, "main") != 0) {
@@ -582,7 +582,7 @@ void geraAssemblyCompleto(quadruple* instrucao) {
         if (instrucao->oper1 && instrucao->oper1->nome) {
             if (strcmp(instrucao->oper1->nome, "output") == 0) {
                 // ===============================================
-                // FUNÇÃO DE OUTPUT - Implementação do Eduardo
+                // FUNÇÃO DE OUTPUT
                 // ===============================================
                 
                 // Limpar temporários usados na chamada
@@ -605,7 +605,7 @@ void geraAssemblyCompleto(quadruple* instrucao) {
                 return; // Não precisa fazer mais nada
             } else if (strcmp(instrucao->oper1->nome, "input") == 0) {
                 // ===============================================
-                // FUNÇÃO DE INPUT - Implementação do Eduardo
+                // FUNÇÃO DE INPUT
                 // ===============================================
                 
                 // in reg $zero 0 - ler valor do usuário
@@ -618,7 +618,7 @@ void geraAssemblyCompleto(quadruple* instrucao) {
                 return; // Não precisa fazer mais nada
             } else {
                 // ===============================================
-                // CHAMADA DE FUNÇÃO SOFISTICADA (Implementação do Eduardo)
+                // CHAMADA DE FUNÇÃO
                 // Sistema completo de transferência de parâmetros e controle
                 // ===============================================
                 
@@ -724,7 +724,7 @@ void geraAssemblyCompleto(quadruple* instrucao) {
         }
     }
     // ===============================================
-    // END (fim de função) - RETORNO SOFISTICADO do Eduardo
+    // END (fim de função) - RETORNO
     // ===============================================
     else if (instrucao->operation == END) {
         if (instrucao->oper1 && instrucao->oper1->nome) {
@@ -773,12 +773,12 @@ void geraAssemblyCompleto(quadruple* instrucao) {
 
 // Função principal para gerar assembly completo
 void assembly() {
-    // Inicializar sistema de memória sofisticado
+    // Inicializar sistema de memória
     inicializa_memoria(&vetorMemoria);
     
     inicializaAssembly();
     
-    printf("Gerando assembly sofisticado baseado na lógica do Eduardo...\n");
+    // Gerar instruções de assembly
     
     // Jump para main no início
     ASSEMBLY *jumpMain = criarNoAssembly(typeJ, "j");
@@ -792,8 +792,7 @@ void assembly() {
         }
     }
     
-    printf("Assembly sofisticado gerado com %d instruções.\n", indiceAssembly);
-    printf("Sistema de memória dinâmico ativo com cálculos automáticos de offset.\n");
+    // Assembly gerado com sucesso
 }
 
 // Função para imprimir o assembly gerado
@@ -857,7 +856,7 @@ void imprimirAssembly() {
                 if (strncmp(instr->tipoLabel->nome, "#", 1) == 0) {
                     printf("%s\n", instr->tipoLabel->nome);
                 } else {
-                    // Formato Eduardo exato: N:  nome: (dois espaços após o número)
+                    // Formato: N:  nome: (dois espaços após o número)
                     printf("%d:  %s:\n", i, instr->tipoLabel->nome);
                 }
                 break;

@@ -43,7 +43,7 @@ MEMORIA_FUNCOES* insere_funcao(MEMORIA *memoria, char * nome_funcao){
     funcao->prox = NULL;
     funcao->tabelaVar = NULL;
     
-    // Inserir variáveis de controle obrigatórias seguindo EXATAMENTE o padrão do Eduardo
+    // Inserir variáveis de controle obrigatórias
     insere_variavel(funcao, "Vinculo Controle", controle);         // Índice 0
     insere_variavel(funcao, "Endereco Retorno", retorno);          // Índice 1 ($ra)
     insere_variavel(funcao, "Valor Retorno", retorno);             // Índice 2
@@ -287,7 +287,7 @@ MEMORIA_FUNCOES* buscar_funcao(MEMORIA* memoria, char* nome_funcao){
 }
 
 
-// Função para obter o tamanho do frame da função (baseada no Eduardo)
+// Função para obter o tamanho do frame da função
 int get_sp(MEMORIA_FUNCOES* funcao){
     if(funcao == NULL){
         printf("Erro: NULL passado como argumento em get_sp\n");
@@ -298,7 +298,7 @@ int get_sp(MEMORIA_FUNCOES* funcao){
     return funcao->tamanho;
 }
 
-// Função para obter o offset base do frame pointer (baseada no Eduardo)
+// Função para obter o offset base do frame pointer
 int get_fp(MEMORIA_FUNCOES* funcao){
     if(funcao == NULL){
         printf("Erro: NULL passado como argumento em get_fp\n");
@@ -309,12 +309,12 @@ int get_fp(MEMORIA_FUNCOES* funcao){
         return 0; // Função global tem fp = 0
     }
     
-    // No padrão do Eduardo, get_fp sempre retorna 0 para funções não-globais
+    // get_fp sempre retorna 0 para funções não-globais
     // O frame pointer aponta para a posição 0, e argumentos ficam em posições negativas
     return 0;
 }
 
-// Função para calcular offset relativo ao $sp (baseada no Eduardo)
+// Função para calcular offset relativo ao $sp
 int get_sp_relation(MEMORIA_FUNCOES* funcao, VARIAVEL* var){
     if(funcao == NULL || var == NULL){
         printf("Erro: NULL passado como argumento em get_sp_relation\n");
@@ -325,7 +325,7 @@ int get_sp_relation(MEMORIA_FUNCOES* funcao, VARIAVEL* var){
     return get_sp(funcao) - var->indice;
 }
 
-// Função para calcular offset relativo ao $fp (baseada no Eduardo)
+// Função para calcular offset relativo ao $fp
 int get_fp_relation(MEMORIA_FUNCOES* funcao, VARIAVEL* var){
     if(funcao == NULL || var == NULL){
         printf("Erro: NULL passado como argumento em get_fp_relation\n");

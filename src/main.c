@@ -175,13 +175,16 @@ int main(int argc, char **argv) {
         deleteSymTab();
     }
 
-    fprintf(yyout, "\n\n");
+    fprintf(yyout, "Debug registradores CI:");
     mostrarReg();
-    fprintf(yyout, "\n\n");
 
     // Testando assembler simples
     assembly();
     imprimirAssembly();
+    fprintf(yyout, "\n");
+
+    fprintf(yyout, "Debug registradores CA:");
+    mostrarReg();
 
     if (intermediateCode != NULL){
         freeIntermediateCode();

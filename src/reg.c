@@ -6,7 +6,7 @@
 #include "../include/codeGen.h"
 #include "../include/reg.h"
 
-#define MAX_REG 55 // Registradores t0-t54 (seguindo lógica do Eduardo mas com mais regs)
+#define MAX_REG 55 // Registradores t0-t54
 #define MAX_REG_DESCARTE 10000000 // Numero maximo de registradores que podem ser descartados
 
 // CORREÇÃO: Usar MAXTOKENLEN
