@@ -69,6 +69,8 @@ int buscarVarReg(char* nomeVar, char* escopo){
     for(int i = 0; i < MAX_REG; i++){
         if(listaReg[i].nomeVar != NULL){
             if(strcmp(listaReg[i].nomeVar, nomeVar) == 0 && strcmp(listaReg[i].escopo, escopo) == 0){
+                // Aplica a mesma ideia do algoritmo LRU visto em SO
+                atualizarUltimoUso(i);
                 return i;
             }
         }
@@ -83,48 +85,59 @@ void mostrarReg(){
     fprintf(yyout, "\n============== Registradores ===============\n");
     for(int i = 0; i < MAX_REG; i++){
         if(listaReg[i].nomeVar != NULL){
-            fprintf(yyout, "t%d: %s, %s, %d\n", listaReg[i].numReg, listaReg[i].nomeVar, listaReg[i].escopo, listaReg[i].descarte);
+            fprintf(yyout, "t%d: %s, %s, uso=%d\n", listaReg[i].numReg, listaReg[i].nomeVar, listaReg[i].escopo, listaReg[i].ultimoUso);
         }
     }
     
-    fprintf(yyout, "\n");
-    fprintf(yyout, "Registradores Livres: %d.\n", MAX_REG - totalRegEmUso);
-
+    fprintf(yyout, "\nRegistradores Livres: %d.\n", MAX_REG - totalRegEmUso);
+    fprintf(yyout, "============================================\n\n");
 }
 
-// Funcao para descartar um registrador que nao esta sendo mais utilizado no momento
+// Funcao para descartar um registrador usando algoritmo LRU (Least Recently Used)
 int descartarReg(){
-    float menor = INFINITY; // Inicializa com um valor alto
+    int menorUltimoUso = totalReg + 1; // Inicializa com valor maior que qualquer último uso
     int regDescartado = -1;
 
+    // Encontra o registrador com menor ultimoUso (mais antigo)
     for(int i = 0; i < MAX_REG; i++){	
-        if(listaReg[i].descarte > 0){ // Apenas considera registradores marcados para descarte
-            if(menor > listaReg[i].descarte){
-                menor = listaReg[i].descarte;
+        if(listaReg[i].nomeVar != NULL && strcmp(listaReg[i].nomeVar, stringTemp) == 0){ 
+            // Apenas considera registradores temporários para descarte
+            if(listaReg[i].ultimoUso < menorUltimoUso){
+                menorUltimoUso = listaReg[i].ultimoUso;
                 regDescartado = i;
             }
         }
     }
 
-    if(menor == MAX_REG_DESCARTE){
-        fprintf(stderr, ANSI_COLOR_RED "ERRO: Nao foi possivel descartar nenhum registrador\n" ANSI_COLOR_RESET);
+    // Se não encontrou temporários, descarta qualquer registrador (caso extremo)
+    if(regDescartado == -1){
+        for(int i = 0; i < MAX_REG; i++){	
+            if(listaReg[i].nomeVar != NULL){ 
+                if(listaReg[i].ultimoUso < menorUltimoUso){
+                    menorUltimoUso = listaReg[i].ultimoUso;
+                    regDescartado = i;
+                }
+            }
+        }
+    }
 
+    if(regDescartado == -1){
+        fprintf(stderr, ANSI_COLOR_RED "ERRO: Nao foi possivel descartar nenhum registrador\n" ANSI_COLOR_RESET);
         return -1;
     }
 
+    // Limpa o registrador descartado
     listaReg[regDescartado].nomeVar = NULL;
     strcpy(listaReg[regDescartado].escopo, "");
     listaReg[regDescartado].descarte = 0;
+    listaReg[regDescartado].ultimoUso = 0;
     totalRegEmUso--;
     
 
     if(DEBUG_MODE){
         fprintf(stderr, ANSI_COLOR_PURPLE "WARNING: " ANSI_COLOR_RESET "Descartado registrador t%d\n", regDescartado);
     }
-
-    // Adicionar uma impressão de aviso, mesmo sem DEBUG_MODE, pode ser útil
-    // fprintf(stderr, ANSI_COLOR_PURPLE "INFO: " ANSI_COLOR_RESET "Descartado registrador t%d\n", regDescartado);
-
+    
     return regDescartado;
 }
 
@@ -164,4 +177,11 @@ int verificacaoRegistradores(char *lexema, char* escopo, int boolTemp){
     return reg;
     
 
+}
+
+// Funcao para atualizar o ultimo uso de um registrador (para LRU)
+void atualizarUltimoUso(int regNum){
+    if(regNum >= 0 && regNum < MAX_REG && listaReg[regNum].nomeVar != NULL){
+        listaReg[regNum].ultimoUso = totalReg++;
+    }
 }

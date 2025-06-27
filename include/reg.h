@@ -45,5 +45,6 @@ int buscarVarReg(char* nomeVar, char* escopo);
 void mostrarReg();
 int descartarReg();
 int verificacaoRegistradores(char *lexema, char* escopo, int boolTemp);
+void atualizarUltimoUso(int regNum);  // Nova função para LRU
 
 #endif // _REG_H_
