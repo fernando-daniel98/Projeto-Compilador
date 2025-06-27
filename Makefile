@@ -16,7 +16,7 @@ clean_output:
 	rm -f $(OUTPUT_DIR)/logs/*.log
 
 
-compiler: $(BUILD_DIR)/lex.yy.o $(BUILD_DIR)/parser.tab.o $(BUILD_DIR)/util.o $(BUILD_DIR)/codeGen.o $(BUILD_DIR)/main.o $(BUILD_DIR)/reg.o $(BUILD_DIR)/assembler_complete.o $(BUILD_DIR)/tab.o $(BUILD_DIR)/memory.o
+compiler: $(BUILD_DIR)/lex.yy.o $(BUILD_DIR)/parser.tab.o $(BUILD_DIR)/util.o $(BUILD_DIR)/codeGen.o $(BUILD_DIR)/main.o $(BUILD_DIR)/reg.o $(BUILD_DIR)/assembler.o $(BUILD_DIR)/tab.o $(BUILD_DIR)/memory.o
 	$(CC) $(CFLAGS) -o $@ $^ -lfl
 
 $(BUILD_DIR)/main.o: $(SRC_DIR)/main.c
@@ -37,9 +37,6 @@ $(BUILD_DIR)/codeGen.o: $(SRC_DIR)/codeGen.c
 $(BUILD_DIR)/reg.o: $(SRC_DIR)/reg.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./include/*.h)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/assembler.o: $(SRC_DIR)/assembler.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./include/*.h)
-	$(CC) $(CFLAGS) -c $< -o $@
-
 $(BUILD_DIR)/memory.o: $(SRC_DIR)/memory.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./include/*.h)
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -58,7 +55,7 @@ $(BUILD_DIR)/lex.yy.c: $(SRC_DIR)/lexer.l $(BUILD_DIR)/parser.tab.h
 $(BUILD_DIR)/parser.tab.c $(BUILD_DIR)/parser.tab.h: $(SRC_DIR)/parser.y
 	bison -d -v -t -Wcounterexamples $< -o $(BUILD_DIR)/parser.tab.c
 
-$(BUILD_DIR)/assembler_complete.o: $(SRC_DIR)/assembler_complete.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./include/*.h)
+$(BUILD_DIR)/assembler.o: $(SRC_DIR)/assembler.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./include/*.h)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 
@@ -110,6 +107,3 @@ test_all: compiler
 	done
 	@echo "======================================"
 	@echo "===== All Tests in Directory End ====="
-
-$(BUILD_DIR)/assembler_simple.o: $(SRC_DIR)/assembler_simple.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./include/*.h)
-	$(CC) $(CFLAGS) -c $< -o $@

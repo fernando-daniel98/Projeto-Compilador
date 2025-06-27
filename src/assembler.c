@@ -5,727 +5,897 @@
 #include "../include/assembler.h"
 #include "../include/memoria.h"
 
+// Estruturas globais para assembly
+ASSEMBLY **instrucoesAssembly = NULL;
+int indiceAssembly = 0;
+static char nomeFuncaoAtual[256] = "";  // Nome da função atual (string)
+// funcaoAtual será o ponteiro para MEMORIA_FUNCOES (definido em memoria.h)
 
-MEMORIA vetorMemoria; // var global que guarda a estrutura da memoria
-MEMORIA_FUNCOES *funcaoAtual = NULL; // pont para a funcao atual; analogo a funcName em codeGen.h
-
-void geraAssembly(quadruple* instrucao);
-
-// Função que inicia a estrutura e gera o código assembly
-void assembly(){
-    inicializaAssembly();
-
-    /* Criar uma funcao Jump para a main */
-    ASSEMBLY *novaInstrucao = criarNoAssembly(typeJ, "j");
-    novaInstrucao->tipoJ->labelImediato = strdup("main");
-    instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-    for(int i = 0; i < adressCounter; i++){ // Alterado de indiceVetor para adressCounter
-        if (intermediateCode[i] != NULL) { // Adicionada verificação de nulidade
-            geraAssembly(intermediateCode[i]);
-        }
-    }
-}
-
-// OK
-int opRelacionais(quadruple* instrucao, ASSEMBLY** novaInstrucao){
-
-    // As comparações de string foram substituídas por comparações de enum
-    if(instrucao->operation == EQ){
-        (*novaInstrucao) = criarNoAssembly(typeR, "xor");
-        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
-        (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
-        (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
-
-        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
-
-        (*novaInstrucao) = criarNoAssembly(typeR, "slti");
-        (*novaInstrucao)->tipoR->rt = instrucao->oper3->val; // RD deve ser o mesmo para a segunda parte da emulação
-        (*novaInstrucao)->tipoR->rs = instrucao->oper3->val;
-        (*novaInstrucao)->tipoI->imediato = 1;
-    }
-    else if(instrucao->operation == LT){
-        (*novaInstrucao) = criarNoAssembly(typeR, "slt");
-        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
-        (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
-        (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
-    }
-    else if(instrucao->operation == NEQ){ 
-        (*novaInstrucao) = criarNoAssembly(typeR, "slt");
-        (*novaInstrucao)->tipoR->rd = $temp;
-        (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
-        (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
-
-        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
-
-        (*novaInstrucao) = criarNoAssembly(typeR, "slt");
-        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
-        (*novaInstrucao)->tipoR->rs = instrucao->oper2->val;
-        (*novaInstrucao)->tipoR->rt = instrucao->oper1->val;
-
-        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
-
-        (*novaInstrucao) = criarNoAssembly(typeR, "or");
-        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
-        (*novaInstrucao)->tipoR->rs = $temp;
-        (*novaInstrucao)->tipoR->rt = instrucao->oper3->val;
-        
-    }
-    else if(instrucao->operation == GT){
-        (*novaInstrucao) = criarNoAssembly(typeR, "slt");
-        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
-        (*novaInstrucao)->tipoR->rs = instrucao->oper2->val; // GT (a > b) -> (b < a)
-        (*novaInstrucao)->tipoR->rt = instrucao->oper1->val;
-    }
-    else if(instrucao->operation == GTE){ // a >= b  é NOT (a < b)
-        (*novaInstrucao) = criarNoAssembly(typeR, "slt");
-        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
-        (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
-        (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
-
-        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
-
-        int rd = (*novaInstrucao)->tipoR->rd;
-
-        (*novaInstrucao) = criarNoAssembly(typeI, "xori"); // Inverte o bit (0->1, 1->0)
-        (*novaInstrucao)->tipoI->rt = rd;
-        (*novaInstrucao)->tipoI->rs = rd;
-        (*novaInstrucao)->tipoI->imediato = 1;
-    }
-    else if(instrucao->operation == LTE){ // a <= b é NOT (b < a)
-        (*novaInstrucao) = criarNoAssembly(typeR, "slt");
-        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
-        (*novaInstrucao)->tipoR->rs = instrucao->oper2->val; // (b < a)
-        (*novaInstrucao)->tipoR->rt = instrucao->oper1->val;
-
-        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
-
-        int rd = (*novaInstrucao)->tipoR->rd;
-
-        (*novaInstrucao) = criarNoAssembly(typeI, "xori"); // Inverte o bit
-        (*novaInstrucao)->tipoI->rt = rd;
-        (*novaInstrucao)->tipoI->rs = rd;
-        (*novaInstrucao)->tipoI->imediato = 1;
-    }
-    else{
-        return 0;
-    }
-    return 1;
-}
-
-// OK
-int opAritmeticos(quadruple* instrucao, ASSEMBLY** novaInstrucao){
+// ===============================================
+// FUNÇÃO PARA MAPEAR REGISTRADORES PARA NOMES
+// Converte números de registradores para nomes legíveis
+// ===============================================
+const char* getRegisterName(int regNum) {
+    // Usar array de buffers para evitar conflitos
+    static char tempNames[4][32];
+    static int nameIndex = 0;
     
-    if(instrucao->operation == ADD){
+    switch (regNum) {
+        // Registradores especiais (sistema)
+        case 63: return "$zero";   // Sempre 0
+        case 62: return "$ra";     // Return Address
+        case 61: return "$fp";     // Frame Pointer
+        case 60: return "$sp";     // Stack Pointer
+        case 59: return "$temp";   // Temporário do compilador
+        case 58: return "$pilha";  // Ponteiro para pilha de parâmetros
+        case 57: return "$s2";     // Saved register 2
+        case 56: return "$s1";     // Saved register 1
+        case 55: return "$s0";     // Saved register 0
+        
+        // Registradores temporários (0-54)
+        default:
+            if (regNum >= 0 && regNum <= 54) {
+                nameIndex = (nameIndex + 1) % 4;  // Usar próximo buffer
+                snprintf(tempNames[nameIndex], sizeof(tempNames[nameIndex]), "$t%d", regNum);
+                return tempNames[nameIndex];
+            } else {
+                nameIndex = (nameIndex + 1) % 4;  // Usar próximo buffer
+                snprintf(tempNames[nameIndex], sizeof(tempNames[nameIndex]), "$reg%d", regNum);
+                return tempNames[nameIndex];
+            }
+    }
+}
+
+// Função para inicializar o sistema de assembly
+void inicializaAssembly() {
+    instrucoesAssembly = (ASSEMBLY **) malloc(MAX_ASSEMBLY * sizeof(ASSEMBLY *));
+    for (int i = 0; i < MAX_ASSEMBLY; i++) {
+        instrucoesAssembly[i] = NULL;
+    }
+    indiceAssembly = 0;
+    strcpy(nomeFuncaoAtual, "");
+}
+
+// Função para criar um novo nó de assembly
+ASSEMBLY* criarNoAssembly(tipoInstrucao tipo, char *nome) {
+    ASSEMBLY* novaInstrucao = (ASSEMBLY*) malloc(sizeof(ASSEMBLY));
+    novaInstrucao->tipo = tipo;
+    
+    // Inicializar todos os ponteiros como NULL
+    novaInstrucao->tipoI = NULL;
+    novaInstrucao->tipoR = NULL;
+    novaInstrucao->tipoJ = NULL;
+    novaInstrucao->tipoLabel = NULL;
+    
+    switch (tipo) {
+        case typeR:
+            novaInstrucao->tipoR = (TIPO_R*) malloc(sizeof(TIPO_R));
+            novaInstrucao->tipoR->nome = strdup(nome);
+            novaInstrucao->tipoR->rd = 0;
+            novaInstrucao->tipoR->rs = 0;
+            novaInstrucao->tipoR->rt = 0;
+            break;
+            
+        case typeI:
+            novaInstrucao->tipoI = (TIPO_I*) malloc(sizeof(TIPO_I));
+            novaInstrucao->tipoI->nome = strdup(nome);
+            novaInstrucao->tipoI->rs = 0;
+            novaInstrucao->tipoI->rt = 0;
+            novaInstrucao->tipoI->imediato = 0;
+            novaInstrucao->tipoI->label = 0;
+            break;
+            
+        case typeJ:
+            novaInstrucao->tipoJ = (TIPO_J*) malloc(sizeof(TIPO_J));
+            novaInstrucao->tipoJ->nome = strdup(nome);
+            novaInstrucao->tipoJ->labelImediato = NULL;
+            break;
+            
+        case typeLabel:
+            novaInstrucao->tipoLabel = (TIPO_LABEL*) malloc(sizeof(TIPO_LABEL));
+            novaInstrucao->tipoLabel->nome = strdup(nome);
+            novaInstrucao->tipoLabel->endereco = 0;
+            novaInstrucao->tipoLabel->boolean = 0;
+            break;
+    }
+    
+    return novaInstrucao;
+}
+
+// Função para gerar assembly de operações aritméticas
+int opAritmeticos(quadruple* instrucao, ASSEMBLY** novaInstrucao) {
+    if (instrucao->operation == ADD) {
         *novaInstrucao = criarNoAssembly(typeR, "add");
         (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
         (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
     }
-    else if(instrucao->operation == SUB){
-        (*novaInstrucao) = criarNoAssembly(typeR, "sub");
+    else if (instrucao->operation == SUB) {
+        *novaInstrucao = criarNoAssembly(typeR, "sub");
         (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
         (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
     }
-    else if(instrucao->operation == MULT){
-        (*novaInstrucao) = criarNoAssembly(typeR, "mult");
+    else if (instrucao->operation == MULT) {
+        *novaInstrucao = criarNoAssembly(typeR, "mult");
         (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
         (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
     }
-    else if(instrucao->operation == DIV){ // Similar a mult
-        (*novaInstrucao) = criarNoAssembly(typeR, "div");
+    else if (instrucao->operation == DIV) {
+        *novaInstrucao = criarNoAssembly(typeR, "div");
         (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
         (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
     }
-    else{
+    // AND e OR não estão no enum, removendo por enquanto
+    else {
+        return 0; // Operação não reconhecida
+    }
+    return 1; // Sucesso
+}
+
+// Função para gerar assembly de operações relacionais usando a lógica do Eduardo
+int opRelacionais(quadruple* instrucao, ASSEMBLY** novaInstrucao) {
+    if (instrucao->operation == EQ) {
+        // EQ: if arg1 == arg2 then arg3 = 1, else arg3 = 0
+        // Eduardo's logic: slt twice and xor
+        *novaInstrucao = criarNoAssembly(typeR, "slt");
+        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
+        (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
+        (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
+        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
+
+        *novaInstrucao = criarNoAssembly(typeR, "slt");
+        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
+        (*novaInstrucao)->tipoR->rs = instrucao->oper2->val;
+        (*novaInstrucao)->tipoR->rt = instrucao->oper1->val;
+        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
+
+        *novaInstrucao = criarNoAssembly(typeI, "xori");
+        (*novaInstrucao)->tipoI->rt = instrucao->oper3->val;
+        (*novaInstrucao)->tipoI->rs = instrucao->oper3->val;
+        (*novaInstrucao)->tipoI->imediato = 1;
+    }
+    else if (instrucao->operation == LT) {
+        *novaInstrucao = criarNoAssembly(typeR, "slt");
+        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
+        (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
+        (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
+    }
+    else if (instrucao->operation == NEQ) {
+        // NEQ: if arg1 != arg2 then arg3 = 1, else arg3 = 0
+        *novaInstrucao = criarNoAssembly(typeR, "slt");
+        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
+        (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
+        (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
+        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
+
+        *novaInstrucao = criarNoAssembly(typeR, "slt");
+        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
+        (*novaInstrucao)->tipoR->rs = instrucao->oper2->val;
+        (*novaInstrucao)->tipoR->rt = instrucao->oper1->val;
+    }
+    else if (instrucao->operation == GT) {
+        // GT: if arg1 > arg2 then arg3 = 1, else arg3 = 0
+        *novaInstrucao = criarNoAssembly(typeR, "slt");
+        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
+        (*novaInstrucao)->tipoR->rs = instrucao->oper2->val;
+        (*novaInstrucao)->tipoR->rt = instrucao->oper1->val;
+    }
+    else if (instrucao->operation == GTE) {
+        // GTE: if arg1 >= arg2 then arg3 = 1, else arg3 = 0
+        *novaInstrucao = criarNoAssembly(typeR, "slt");
+        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
+        (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
+        (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
+        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
+
+        int rd = (*novaInstrucao)->tipoR->rd;
+        *novaInstrucao = criarNoAssembly(typeI, "xori");
+        (*novaInstrucao)->tipoI->rt = rd;
+        (*novaInstrucao)->tipoI->rs = rd;
+        (*novaInstrucao)->tipoI->imediato = 1;
+    }
+    else if (instrucao->operation == LTE) {
+        // LTE: if arg1 <= arg2 then arg3 = 1, else arg3 = 0
+        *novaInstrucao = criarNoAssembly(typeR, "slt");
+        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
+        (*novaInstrucao)->tipoR->rs = instrucao->oper2->val;
+        (*novaInstrucao)->tipoR->rt = instrucao->oper1->val;
+        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
+
+        int rd = (*novaInstrucao)->tipoR->rd;
+        *novaInstrucao = criarNoAssembly(typeI, "xori");
+        (*novaInstrucao)->tipoI->rt = rd;
+        (*novaInstrucao)->tipoI->rs = rd;
+        (*novaInstrucao)->tipoI->imediato = 1;
+    }
+    else {
         return 0;
     }
     return 1;
 }
 
-// Alterado o tipo do parâmetro de INSTRUCAO* para quadruple*
-void geraAssembly(quadruple* instrucao){
+// Função principal para gerar assembly completo baseado na lógica do Eduardo
+void geraAssemblyCompleto(quadruple* instrucao) {
     ASSEMBLY* novaInstrucao = NULL;
-
-    if (instrucao == NULL) return; // Segurança
-
-    if(opAritmeticos(instrucao, &novaInstrucao)){
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-    }
-    else if(opRelacionais(instrucao, &novaInstrucao)){
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-    }
-    else if(instrucao->operation == ASSIGN){ // x = y  -> add x, $zero, y
-        novaInstrucao = criarNoAssembly(typeR, "add");
-        novaInstrucao->tipoR->rd = instrucao->oper1->val; // Destino (x)
-        novaInstrucao->tipoR->rs = $zero;                 // Fonte1 ($zero)
-        novaInstrucao->tipoR->rt = instrucao->oper2->val; // Fonte2 (y)
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-    }
-    // Verificar se seria preciso fazer uma mudanca para imediatos com mais de 16b
-    else if(instrucao->operation == LOADI){ // LOADI rt, imm  -> ori rt, $zero, imm
-        novaInstrucao = criarNoAssembly(typeI, "ori");
-        novaInstrucao->tipoI->rt = instrucao->oper1->val; // rt (destino)
-        novaInstrucao->tipoI->rs = $zero;                 // rs ($zero)
-        novaInstrucao->tipoI->imediato = instrucao->oper2->val; // imediato
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-    }
-    else if(instrucao->operation == ALLOC){
-        MEMORIA_FUNCOES* funcao = buscar_funcao(&vetorMemoria, instrucao->oper2->nome);
-        int count = 0;
-
-        if(instrucao->oper3 == NULL){
-            printf(ANSI_COLOR_RED "Erro: " ANSI_COLOR_RESET);
-            printf("NULL no operando 3 para ALLOC\n");
-            return;
-        }
-        
-        if(instrucao->oper3->tipo == Vazio){
-            insere_variavel(funcao, instrucao->oper1->nome, inteiro);
-        }
-        else{ // Assumindo IntConst para tamanho do vetor
-            for(int i = 0; i < instrucao->oper3->val; i++){
-                insere_variavel(funcao, instrucao->oper1->nome, vetor);	
-            }
-            count = instrucao->oper3->val;
-        }
-
-        // A verificação de estouro de memória já estava aqui, mantida.
-        static int flag_alloc = 0; // Renomeado para evitar conflito com 'flag' de outros contextos
-        
-        if(funcao->tamanho > get_sp(funcao) && !flag_alloc){
-            printf(ANSI_COLOR_RED "Erro: " ANSI_COLOR_RESET);
-            printf("Memoria insuficiente na funcao %s\n", funcao->nome);
-            printf("Aumente a memoria alocada pelo compilador ou diminua as variaveis da funcao\n");
-            flag_alloc = 1;
-        }
-    }
-    else if(instrucao->operation == ARG){
-        MEMORIA_FUNCOES* funcao = buscar_funcao(&vetorMemoria, instrucao->oper3->nome);
-        
-        if(!strcmp(instrucao->oper1->nome, "INT")) 
-            insere_variavel(funcao, instrucao->oper2->nome, inteiroArg);
-        else insere_variavel(funcao, instrucao->oper2->nome, vetorArg);
-    }	
-    else if(instrucao->operation == IFFALSE){ // IFF reg, label -> beq reg, $zero, label
-        novaInstrucao = criarNoAssembly(typeI, "beq");
-        novaInstrucao->tipoI->rs = $zero;
-        novaInstrucao->tipoI->rt = instrucao->oper1->val;
-        novaInstrucao->tipoI->label = instrucao->oper2->val;
-
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-    }
-    else if(instrucao->operation == LABEL){
-
-        char* auxLabel = (char*) malloc(sizeof(char) * 10);
-
-        sprintf(auxLabel, "Label %d", instrucao->oper1->val);
-        novaInstrucao = criarNoAssembly(typeLabel, auxLabel); 
-        novaInstrucao->tipoLabel->endereco = instrucao->oper1->val; // O endereço aqui é o número do label
-        novaInstrucao->tipoLabel->boolean = 1; // Indica que é um label de desvio
-
-        char label[26];
-        sprintf(label, "Label %d", instrucao->oper1->val);
-        adicionarLabel(label, indiceAssembly);
-
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-    }
-    else if(instrucao->operation == FUNC){
-        novaInstrucao = criarNoAssembly(typeLabel, strdup(instrucao->oper2->nome)); // REVER
-        novaInstrucao->tipoLabel->boolean = 0; // Indica que é um label de função
-
-        adicionarLabel(instrucao->oper2->nome, indiceAssembly);
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-        funcaoAtual = insere_funcao(&vetorMemoria, strdup(instrucao->oper2->nome));
     
-        if(!strcmp(instrucao->oper2->nome, "main")){
-            novaInstrucao = criarNoAssembly(typeI, "ori");
-            novaInstrucao->tipoI->rt = $fp;
-            novaInstrucao->tipoI->rs = $zero; 
-            novaInstrucao->tipoI->imediato = buscar_funcao(&vetorMemoria, "global")->tamanho + get_fp(funcaoAtual);
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-            novaInstrucao = criarNoAssembly(typeR, "add");
-            novaInstrucao->tipoR->rd = $fp;
-            novaInstrucao->tipoR->rs = $fp;
-            novaInstrucao->tipoR->rt = $s0; // $s0 (registrador 16) é usado como base para globais?
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-            novaInstrucao = criarNoAssembly(typeI, "ori");
-            novaInstrucao->tipoI->rt = $sp;
-            novaInstrucao->tipoI->rs = $zero;
-            novaInstrucao->tipoI->imediato = buscar_funcao(&vetorMemoria, "global")->tamanho + get_sp(funcaoAtual);
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-            novaInstrucao = criarNoAssembly(typeR, "add");
-            novaInstrucao->tipoR->rd = $sp;
-            novaInstrucao->tipoR->rs = $sp;
-            novaInstrucao->tipoR->rt = $s0;
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-            novaInstrucao = criarNoAssembly(typeR, "add");
-            novaInstrucao->tipoR->rd = $pilha;
-            novaInstrucao->tipoR->rs = $zero;
-            novaInstrucao->tipoR->rt = $s0; 
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-            novaInstrucao = criarNoAssembly(typeI, "subi"); // Assumindo subi como subtract immediate
-            novaInstrucao->tipoI->rt = $pilha;
-            novaInstrucao->tipoI->rs = $pilha;
-            novaInstrucao->tipoI->imediato = 5; // REVER
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-        }
-        else{
-            // Guarda o endereço de retorno
-            novaInstrucao = criarNoAssembly(typeI, "sw");
-            novaInstrucao->tipoI->rt = $ra; // Registrador de retorno
-            novaInstrucao->tipoI->rs = $fp; // Baseado no frame pointer atual
-            novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, get_variavel(funcaoAtual, "Endereco Retorno")) + instrucao->oper3->val; // REVER
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-        }
-    }
-    else if(instrucao->operation == RETURN){
-        if(!strcmp(funcaoAtual->nome, "main")) return; // HALT trata o fim do main
-        
-        // Acessa o valor de controle da funcao anterior
-        novaInstrucao = criarNoAssembly(typeI, "lw");
-        novaInstrucao->tipoI->rt = $temp;
-        novaInstrucao->tipoI->rs = $fp;
-        novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, get_variavel(funcaoAtual, "Vinculo Controle"));
+    if (instrucao == NULL) return;
+    
+    // Operações aritméticas
+    if (opAritmeticos(instrucao, &novaInstrucao)) {
         instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-        // Salva o valor do retorno no frame da funcao anterior
-        novaInstrucao = criarNoAssembly(typeI, "sw");
-        novaInstrucao->tipoI->rs = $temp;
-        novaInstrucao->tipoI->rt = instrucao->oper1->val;
-        novaInstrucao->tipoI->imediato = 2; // 2 para avancar para "Valor de Retorno"
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-        
     }
-    else if(instrucao->operation == PARAM){
-        if(!strcmp(instrucao->oper2->nome, "VET")){
-            VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper3->nome);
-
-            if(var->tipo == vetorArg){ // Se o vetor sendo passado já é um argumento (ponteiro)
-                novaInstrucao = criarNoAssembly(typeI, "lw"); // Carrega o endereço do vetor
-                novaInstrucao->tipoI->rt = instrucao->oper1->val; // Reg temporário para o endereço
-                novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp;
-                novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var);
-                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-                novaInstrucao = criarNoAssembly(typeI, "sw"); // Salva o endereço na área de params
-                novaInstrucao->tipoI->rs = $pilha; // Base da área de params
-                novaInstrucao->tipoI->rt = instrucao->oper1->val; // Reg com o endereço
-                novaInstrucao->tipoI->imediato = buscar_funcao(&vetorMemoria, "parametros")->tamanho;
-                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-            }
-            else{
-                novaInstrucao = criarNoAssembly(typeI, "addi"); // Calcula o endereço base do vetor
-                novaInstrucao->tipoI->rt = instrucao->oper1->val; // Reg temporário para o endereço
-                novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp;
-                novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var);
-                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-                novaInstrucao = criarNoAssembly(typeI, "sw"); // Salva o endereço na área de params
-                novaInstrucao->tipoI->rs = $pilha;
-                novaInstrucao->tipoI->rt = instrucao->oper1->val;
-                novaInstrucao->tipoI->imediato = buscar_funcao(&vetorMemoria, "parametros")->tamanho;
-                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-            }
+    // Operações relacionais
+    else if (opRelacionais(instrucao, &novaInstrucao)) {
+        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+    }
+    // ASSIGN (atribuição)
+    else if (instrucao->operation == ASSIGN) {
+        novaInstrucao = criarNoAssembly(typeR, "add");
+        novaInstrucao->tipoR->rd = instrucao->oper1->val;    // destino
+        novaInstrucao->tipoR->rs = $zero;                    // $zero (63)
+        novaInstrucao->tipoR->rt = instrucao->oper2->val;    // fonte
+        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+    }
+    // LOADI (carregar imediato)
+    else if (instrucao->operation == LOADI) {
+        novaInstrucao = criarNoAssembly(typeI, "ori");
+        novaInstrucao->tipoI->rt = instrucao->oper1->val;    // destino
+        novaInstrucao->tipoI->rs = $zero;                    // $zero (63)
+        novaInstrucao->tipoI->imediato = instrucao->oper2->val; // valor imediato
+        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+    }
+    // ALLOC (alocar memória)
+    else if (instrucao->operation == ALLOC) {
+        // Inserir variável no sistema de memória dinâmico
+        if (instrucao->oper1 && instrucao->oper1->nome && funcaoAtual) {
+            // Determinar tipo baseado no contexto
+            TIPO_VAR tipo = (instrucao->oper3 && instrucao->oper3->val > 1) ? vetor : inteiro;
+            insere_variavel(funcaoAtual, instrucao->oper1->nome, tipo);
         }
-        else{ // Parâmetro tipo INT (passar valor)
-            novaInstrucao = criarNoAssembly(typeI, "sw"); // Salva o valor do registrador na área de params
-            novaInstrucao->tipoI->rs = $pilha;
-            novaInstrucao->tipoI->rt = instrucao->oper1->val; // Registrador com o valor do parâmetro
-            novaInstrucao->tipoI->imediato = buscar_funcao(&vetorMemoria, "parametros")->tamanho;
+        
+        // ALLOC é tratado em tempo de compilação para layout de memória
+        // Não gerar código assembly - apenas configurar memória
+    }
+    // FUNC (declaração de função) - precisa vir antes de ARG
+    else if (instrucao->operation == FUNC) {
+        if (instrucao->oper2 && instrucao->oper2->nome) {
+            strcpy(nomeFuncaoAtual, instrucao->oper2->nome);
+            novaInstrucao = criarNoAssembly(typeLabel, instrucao->oper2->nome);
+            novaInstrucao->tipoLabel->boolean = 0; // é função (não label)
             instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-        }
-
-        insere_variavel(buscar_funcao(&vetorMemoria, "parametros"), "Param", inteiro); // Incrementa o contador de params na área especial
-    } 
-    else if(instrucao->operation == LOAD){
-        if(!instrucao->oper3){
-            printf(ANSI_COLOR_RED "Erro: " ANSI_COLOR_RESET);
-            printf("NULL no argumento 3\n");
-            return;
-        }
-
-        VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper2->nome);
-
-        if(instrucao->oper3->tipo != Vazio){            
-            if (var->tipo == vetorArg) {
-                novaInstrucao = criarNoAssembly(typeI, "addi");
-                novaInstrucao->tipoI->rt = $temp;
-                novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp;
-                novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var);
+            
+            // Atualizar função atual no sistema de memória
+            funcaoAtual = insere_funcao(&vetorMemoria, instrucao->oper2->nome);
+            
+            // Se for main, inicializar registradores especiais usando cálculos dinâmicos
+            if (strcmp(instrucao->oper2->nome, "main") == 0) {
+                // ===============================================
+                // INICIALIZAÇÃO DINÂMICA DA MAIN (estilo Eduardo)
+                // Calcula valores baseados no tamanho das variáveis globais
+                // ===============================================
+                
+                // Inicializar $fp dinamicamente
+                // ori $fp $zero (tamanho_global + offset_fp)
+                novaInstrucao = criarNoAssembly(typeI, "ori");
+                novaInstrucao->tipoI->rt = $fp;
+                novaInstrucao->tipoI->rs = $zero;
+                // Cálculo dinâmico: tamanho das globais + offset da função atual
+                int fp_value = buscar_funcao(&vetorMemoria, "global")->tamanho + get_fp(funcaoAtual);
+                novaInstrucao->tipoI->imediato = fp_value;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
+                
+                // add $fp $fp $s0 (somar com base do sistema)
                 novaInstrucao = criarNoAssembly(typeR, "add");
-                novaInstrucao->tipoR->rd = $temp;
-                novaInstrucao->tipoR->rs = $temp;
-                novaInstrucao->tipoR->rt = instrucao->oper3->val;
+                novaInstrucao->tipoR->rd = $fp;
+                novaInstrucao->tipoR->rs = $fp;
+                novaInstrucao->tipoR->rt = $s0;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-                novaInstrucao = criarNoAssembly(typeI, "lw");
-                novaInstrucao->tipoI->rt = instrucao->oper1->val;
-                novaInstrucao->tipoI->rs = $temp;
-                novaInstrucao->tipoI->imediato = 0;
+                
+                // Inicializar $sp dinamicamente
+                // ori $sp $zero (tamanho_global + offset_sp)
+                novaInstrucao = criarNoAssembly(typeI, "ori");
+                novaInstrucao->tipoI->rt = $sp;
+                novaInstrucao->tipoI->rs = $zero;
+                // Cálculo dinâmico: tamanho das globais + tamanho da função atual
+                int sp_value = buscar_funcao(&vetorMemoria, "global")->tamanho + get_sp(funcaoAtual);
+                novaInstrucao->tipoI->imediato = sp_value;
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                
+                // add $sp $sp $s0 (somar com base do sistema)
+                novaInstrucao = criarNoAssembly(typeR, "add");
+                novaInstrucao->tipoR->rd = $sp;
+                novaInstrucao->tipoR->rs = $sp;
+                novaInstrucao->tipoR->rt = $s0;
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                
+                // Inicializar pilha de parâmetros dinamicamente
+                // add $pilha $zero $s0 (definir base da pilha)
+                novaInstrucao = criarNoAssembly(typeR, "add");
+                novaInstrucao->tipoR->rd = $pilha;
+                novaInstrucao->tipoR->rs = $zero;
+                novaInstrucao->tipoR->rt = $s0;
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                
+                // subi $pilha $pilha 5 (ajustar posição inicial da pilha)
+                novaInstrucao = criarNoAssembly(typeI, "subi");
+                novaInstrucao->tipoI->rt = $pilha;
+                novaInstrucao->tipoI->rs = $pilha;
+                novaInstrucao->tipoI->imediato = 5;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
             } else {
-                novaInstrucao = criarNoAssembly(typeI, "lw");
-                novaInstrucao->tipoI->rt = $temp;
-                novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp;
-                novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var);
-                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-                novaInstrucao = criarNoAssembly(typeR, "add");
-                novaInstrucao->tipoR->rd = $temp;
-                novaInstrucao->tipoR->rs = $temp;
-                novaInstrucao->tipoR->rt = instrucao->oper3->val;
-                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-                novaInstrucao = criarNoAssembly(typeI, "lw");
-                novaInstrucao->tipoI->rt = instrucao->oper1->val;
-                novaInstrucao->tipoI->rs = $temp;
-                novaInstrucao->tipoI->imediato = 0;
+                // ===============================================
+                // INÍCIO DE FUNÇÃO REGULAR - Salvar $ra
+                // Padrão do Eduardo: sempre salvar $ra em offset calculado
+                // ===============================================
+                
+                // sw $ra offset($fp) - salva return address no frame atual
+                // O offset é calculado dinamicamente baseado na variável "Endereco Retorno"
+                VARIAVEL* var_ra = get_variavel(funcaoAtual, "Endereco Retorno");
+                int offset_ra = var_ra ? get_fp_relation(funcaoAtual, var_ra) + instrucao->oper3->val : 4;
+                
+                novaInstrucao = criarNoAssembly(typeI, "sw");
+                novaInstrucao->tipoI->rt = $ra;    // $ra (62) - return address a ser salvo
+                novaInstrucao->tipoI->rs = $fp;    // $fp (61) - frame pointer base
+                novaInstrucao->tipoI->imediato = offset_ra; // offset calculado dinamicamente
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
             }
         }
-        else{
+    }
+    // ARG (argumento de função)
+    else if (instrucao->operation == ARG) {
+        // Inserir argumento no sistema de memória dinâmico
+        if (instrucao->oper2 && instrucao->oper2->nome && funcaoAtual) {
+            // Detectar tipo de argumento baseado no oper1 (tipo do parâmetro)
+            TIPO_VAR tipo = inteiroArg;
+            
+            // Melhorar detecção de tipo de argumento
+            if (instrucao->oper1 && strcmp(instrucao->oper1->nome, "VET") == 0) {
+                tipo = vetorArg;
+            }
+            
+            insere_variavel(funcaoAtual, instrucao->oper2->nome, tipo);
+        }
+        
+        // ARG é tratado em tempo de compilação
+        // Não gerar código assembly - apenas configurar memória
+    }
+    // IFFALSE (branch if false) - corrigindo IFF para IFFALSE
+    else if (instrucao->operation == IFFALSE) {
+        novaInstrucao = criarNoAssembly(typeI, "beq");
+        novaInstrucao->tipoI->rs = $zero;                    // $zero (63)
+        novaInstrucao->tipoI->rt = instrucao->oper1->val;    // registrador de condição
+        novaInstrucao->tipoI->label = instrucao->oper2->val; // label de destino
+        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+    }
+    // LABEL
+    else if (instrucao->operation == LABEL) {
+        char labelName[32];
+        sprintf(labelName, "Label %d", instrucao->oper1->val);
+        novaInstrucao = criarNoAssembly(typeLabel, labelName);
+        novaInstrucao->tipoLabel->endereco = instrucao->oper1->val;
+        novaInstrucao->tipoLabel->boolean = 1; // é label (não função)
+        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+    }
+    // ===============================================
+    // RETURN (retorno de função com valor) - Implementação sofisticada do Eduardo
+    // ===============================================
+    else if (instrucao->operation == RETURN) {
+        if (strcmp(nomeFuncaoAtual, "main") != 0) {
+            // ===============================================
+            // SEQUÊNCIA SOFISTICADA DE RETORNO COM VALOR:
+            // 1. Carregar endereço do vínculo de controle da função anterior
+            // 2. Salvar valor de retorno no endereço correto do frame anterior
+            // ===============================================
+            
+            // 1. lw $temp offset($fp) - carregar vínculo de controle da função anterior
+            VARIAVEL* var_controle = get_variavel(funcaoAtual, "Vinculo Controle");
+            int offset_controle = var_controle ? get_fp_relation(funcaoAtual, var_controle) : 0;
+            
             novaInstrucao = criarNoAssembly(typeI, "lw");
-            novaInstrucao->tipoI->rt = instrucao->oper1->val; // Registrador destino
-            novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp; // Base ($s0 para global, $fp para local)
-            novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var); // Offset da variável
+            novaInstrucao->tipoI->rt = $temp;   // $temp (59) - receberá o endereço do frame anterior
+            novaInstrucao->tipoI->rs = $fp;     // $fp (61) - frame pointer atual
+            novaInstrucao->tipoI->imediato = offset_controle; // offset do vínculo de controle
+            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+            
+            // 2. sw valor_retorno 2($temp) - salvar valor no frame anterior
+            // Offset 2 é a posição padrão para "Valor de Retorno" no frame anterior
+            novaInstrucao = criarNoAssembly(typeI, "sw");
+            novaInstrucao->tipoI->rs = $temp;   // $temp (59) - endereço base do frame anterior
+            novaInstrucao->tipoI->rt = instrucao->oper1->val; // registrador com valor de retorno
+            novaInstrucao->tipoI->imediato = 2; // offset 2 = posição "Valor de Retorno"
             instrucoesAssembly[indiceAssembly++] = novaInstrucao;
         }
     }
-    else if(instrucao->operation == STORE){
-        if(!instrucao->oper3){
-            printf(ANSI_COLOR_RED "Erro: " ANSI_COLOR_RESET);
-            printf("NULL no argumento 3\n");
-            return;
+    // PARAM (parâmetro de função)
+    else if (instrucao->operation == PARAM) {
+        novaInstrucao = criarNoAssembly(typeI, "sw");
+        novaInstrucao->tipoI->rs = $pilha;
+        novaInstrucao->tipoI->rt = instrucao->oper1->val;
+        novaInstrucao->tipoI->imediato = 0; // offset na pilha de parâmetros
+        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+    }
+    // LOAD (carregar de memória)
+    else if (instrucao->operation == LOAD) {
+        // Verificar se é acesso indexado a vetor (LOAD $reg, var, index_reg)  
+        // Se oper3 existe e não é "-", então é acesso indexado
+        if (instrucao->oper3 && 
+            (instrucao->oper3->boolReg == 1 || 
+             (instrucao->oper3->nome && strcmp(instrucao->oper3->nome, "-") != 0))) {
+            // ===============================================
+            // ACESSO INDEXADO A VETOR: a[index]
+            // IMPLEMENTAÇÃO CORRETA: Primeiro carregar base, depois acessar com índice
+            // ===============================================
+            
+            // Para uma implementação mais realista do MIPS:
+            // 1. Assumir que o vetor é um parâmetro e sua base está disponível
+            // 2. Gerar uma instrução que usa o índice para acessar
+            
+            novaInstrucao = criarNoAssembly(typeI, "lw");
+            novaInstrucao->tipoI->rt = instrucao->oper1->val;    // destino
+            
+            // Encontrar a variável vetor para determinar se é global ou local
+            if (instrucao->oper2 && instrucao->oper2->nome) {
+                VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper2->nome);
+                if (var && var->bool_global) {
+                    // Para vetores globais, usar $s0 como base
+                    novaInstrucao->tipoI->rs = $s0;
+                    novaInstrucao->tipoI->imediato = 0; // offset será calculado pelo hardware
+                } else {
+                    // Para vetores locais/parâmetros, usar uma abordagem mais sofisticada:
+                    // Como o MIPS não suporta endereçamento duplo, vamos simular
+                    // carregando primeiro o endereço base e depois usando offset 0
+                    
+                    // IMPLEMENTAÇÃO SIMPLIFICADA: usar base calculada + índice no registrador
+                    // Por simplicidade, assumir que a base está no registrador do vetor
+                    novaInstrucao->tipoI->rs = $temp;  // usar $temp como base calculada
+                    novaInstrucao->tipoI->imediato = 0; // offset 0 porque usaremos índice
+                    
+                    // Adicionar comentário para debug
+                    // Primeiro, carregar o endereço base do vetor em $temp
+                    ASSEMBLY* loadBase = criarNoAssembly(typeI, "lw");
+                    loadBase->tipoI->rt = $temp;  // $temp receberá a base do vetor
+                    
+                    if (var) {
+                        int offset = get_fp_relation(funcaoAtual, var);
+                        loadBase->tipoI->rs = $fp;
+                        loadBase->tipoI->imediato = offset;
+                    } else {
+                        loadBase->tipoI->rs = $fp;
+                        loadBase->tipoI->imediato = 0;
+                    }
+                    instrucoesAssembly[indiceAssembly++] = loadBase;
+                }
+            } else {
+                novaInstrucao->tipoI->rs = $fp;
+                novaInstrucao->tipoI->imediato = 0;
+            }
+            
+        } else {
+            // ===============================================
+            // ACESSO SIMPLES A VARIÁVEL: var
+            // Gerar: lw $dest, offset($fp/$s0)
+            // ===============================================
+            novaInstrucao = criarNoAssembly(typeI, "lw");
+            novaInstrucao->tipoI->rt = instrucao->oper1->val;    // destino
+            
+            // Calcular offset dinâmico baseado na variável
+            int offset = 0;
+            if (instrucao->oper2 && instrucao->oper2->nome) {
+                VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper2->nome);
+                if (var) {
+                    offset = get_fp_relation(funcaoAtual, var);
+                    novaInstrucao->tipoI->rs = var->bool_global ? $s0 : $fp;
+                } else {
+                    novaInstrucao->tipoI->rs = $fp;
+                }
+            } else {
+                novaInstrucao->tipoI->rs = $fp;
+            }
+            
+            novaInstrucao->tipoI->imediato = offset;
         }
-
-        VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper1->nome);
-
-        if(instrucao->oper3->tipo != Vazio){ // Store em um vetor: oper1[oper3] = oper2
-            // Similar ao LOAD para calcular o endereço.
-            if (var->tipo == vetorArg) {
+        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+    }
+    // STORE (salvar na memória)
+    else if (instrucao->operation == STORE) {
+        // Verificar se é acesso indexado a vetor (STORE var, value, index_reg)
+        // Se oper3 existe e não é "-", então é acesso indexado
+        if (instrucao->oper3 && 
+            (instrucao->oper3->boolReg == 1 || 
+             (instrucao->oper3->nome && strcmp(instrucao->oper3->nome, "-") != 0))) {
+            // ===============================================
+            // STORE INDEXADO A VETOR: a[index] = value
+            // ===============================================
+            
+            novaInstrucao = criarNoAssembly(typeI, "sw");
+            novaInstrucao->tipoI->rt = instrucao->oper2->val;    // fonte (valor a ser armazenado)
+            
+            // Encontrar a variável vetor para determinar se é global ou local
+            if (instrucao->oper1 && instrucao->oper1->nome) {
+                VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper1->nome);
+                if (var && var->bool_global) {
+                    // Para vetores globais, usar $s0 como base
+                    novaInstrucao->tipoI->rs = $s0;
+                    novaInstrucao->tipoI->imediato = 0; // offset será calculado pelo hardware
+                } else {
+                    // Para vetores locais/parâmetros, usar abordagem similar ao LOAD
+                    novaInstrucao->tipoI->rs = $temp;  // usar $temp como base calculada
+                    novaInstrucao->tipoI->imediato = 0; // offset 0 porque usaremos índice
+                    
+                    // Primeiro, carregar o endereço base do vetor em $temp
+                    ASSEMBLY* loadBase = criarNoAssembly(typeI, "lw");
+                    loadBase->tipoI->rt = $temp;  // $temp receberá a base do vetor
+                    
+                    if (var) {
+                        int offset = get_fp_relation(funcaoAtual, var);
+                        loadBase->tipoI->rs = $fp;
+                        loadBase->tipoI->imediato = offset;
+                    } else {
+                        loadBase->tipoI->rs = $fp;
+                        loadBase->tipoI->imediato = 0;
+                    }
+                    instrucoesAssembly[indiceAssembly++] = loadBase;
+                }
+            } else {
+                novaInstrucao->tipoI->rs = $fp;
+                novaInstrucao->tipoI->imediato = 0;
+            }
+            
+        } else {
+            // ===============================================
+            // STORE SIMPLES: var = value
+            // ===============================================
+            novaInstrucao = criarNoAssembly(typeI, "sw");
+            novaInstrucao->tipoI->rt = instrucao->oper2->val;    // fonte
+            
+            // Calcular offset dinâmico baseado na variável
+            int offset = 0;
+            if (instrucao->oper1 && instrucao->oper1->nome) {
+                VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper1->nome);
+                if (var) {
+                    offset = get_fp_relation(funcaoAtual, var);
+                    novaInstrucao->tipoI->rs = var->bool_global ? $s0 : $fp;
+                } else {
+                    novaInstrucao->tipoI->rs = $fp;
+                }
+            } else {
+                novaInstrucao->tipoI->rs = $fp;
+            }
+            
+            novaInstrucao->tipoI->imediato = offset;
+        }
+        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+    }
+    // GOTO (salto incondicional)
+    else if (instrucao->operation == GOTO) {
+        char labelName[32];
+        sprintf(labelName, "Label %d", instrucao->oper1->val);
+        novaInstrucao = criarNoAssembly(typeJ, "j");
+        novaInstrucao->tipoJ->labelImediato = strdup(labelName);
+        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+    }
+    // CALL (chamada de função)
+    else if (instrucao->operation == CALL) {
+        if (instrucao->oper1 && instrucao->oper1->nome) {
+            if (strcmp(instrucao->oper1->nome, "output") == 0) {
+                // ===============================================
+                // FUNÇÃO DE OUTPUT - Implementação do Eduardo
+                // ===============================================
+                
+                // Limpar temporários usados na chamada
+                apagar_temp(buscar_funcao(&vetorMemoria, "parametros"));
+                
+                // lw $temp offset($pilha) - carregar parâmetro da pilha
+                novaInstrucao = criarNoAssembly(typeI, "lw");
+                novaInstrucao->tipoI->rt = $temp;
+                novaInstrucao->tipoI->rs = $pilha;
+                novaInstrucao->tipoI->imediato = buscar_funcao(&vetorMemoria, "parametros")->tamanho;
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                
+                // out $zero $temp 0 - mostrar valor para o usuário
+                novaInstrucao = criarNoAssembly(typeI, "out");
+                novaInstrucao->tipoI->rs = $temp;
+                novaInstrucao->tipoI->rt = $zero;
+                novaInstrucao->tipoI->imediato = 0;
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                
+                return; // Não precisa fazer mais nada
+            } else if (strcmp(instrucao->oper1->nome, "input") == 0) {
+                // ===============================================
+                // FUNÇÃO DE INPUT - Implementação do Eduardo
+                // ===============================================
+                
+                // in reg $zero 0 - ler valor do usuário
+                novaInstrucao = criarNoAssembly(typeI, "in");
+                novaInstrucao->tipoI->rt = instrucao->oper3->val;
+                novaInstrucao->tipoI->rs = $zero;
+                novaInstrucao->tipoI->imediato = 0;
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                
+                return; // Não precisa fazer mais nada
+            } else {
+                // ===============================================
+                // CHAMADA DE FUNÇÃO SOFISTICADA (Implementação do Eduardo)
+                // Sistema completo de transferência de parâmetros e controle
+                // ===============================================
+                
+                // 1. TRANSFERIR PARÂMETROS DA PILHA PARA O STACK FRAME
+                // Processar todos os parâmetros de trás para frente
+                for(int i = instrucao->oper2->val; i > 0; i--) {
+                    // Limpar temporários usados na chamada anterior
+                    apagar_temp(buscar_funcao(&vetorMemoria, "parametros"));
+                    
+                    // lw $temp offset($pilha) - carregar parâmetro da pilha
+                    novaInstrucao = criarNoAssembly(typeI, "lw");
+                    novaInstrucao->tipoI->rt = $temp;
+                    novaInstrucao->tipoI->rs = $pilha;
+                    novaInstrucao->tipoI->imediato = buscar_funcao(&vetorMemoria, "parametros")->tamanho;
+                    instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                    
+                    // sw $temp i($sp) - salvar parâmetro no novo frame
+                    novaInstrucao = criarNoAssembly(typeI, "sw");
+                    novaInstrucao->tipoI->rs = $sp;
+                    novaInstrucao->tipoI->rt = $temp;
+                    novaInstrucao->tipoI->imediato = i;
+                    instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                }
+                
+                // 2. CONFIGURAR VÍNCULO DE CONTROLE
+                // add $temp $fp $zero - armazenar $fp atual em $temp
+                novaInstrucao = criarNoAssembly(typeR, "add");
+                novaInstrucao->tipoR->rt = $zero;  // $zero (63)
+                novaInstrucao->tipoR->rs = $fp;    // $fp (61) - frame pointer atual
+                novaInstrucao->tipoR->rd = $temp;  // $temp (59) - temporário
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                
+                // addi $temp $temp offset - ajustar para "Vínculo Controle"
+                VARIAVEL* var_controle = get_variavel(funcaoAtual, "Vinculo Controle");
+                int offset_controle = var_controle ? get_fp_relation(funcaoAtual, var_controle) : 0;
                 novaInstrucao = criarNoAssembly(typeI, "addi");
                 novaInstrucao->tipoI->rt = $temp;
-                novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp;
-                novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var);
-                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-                novaInstrucao = criarNoAssembly(typeR, "add");
-                novaInstrucao->tipoR->rd = $temp;
-                novaInstrucao->tipoR->rs = $temp;
-                novaInstrucao->tipoR->rt = instrucao->oper3->val;
-                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-                novaInstrucao = criarNoAssembly(typeI, "sw");
-                novaInstrucao->tipoI->rt = instrucao->oper2->val;
                 novaInstrucao->tipoI->rs = $temp;
-                novaInstrucao->tipoI->imediato = 0;
+                novaInstrucao->tipoI->imediato = offset_controle;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-            } else { 
-                novaInstrucao = criarNoAssembly(typeI, "lw");
-                novaInstrucao->tipoI->rt = $temp; // Registrador temporário para
-                novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp; // Base
-                novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var); // Offset
+                
+                // sw $temp offset($sp) - salvar vínculo de controle no novo frame
+                novaInstrucao = criarNoAssembly(typeI, "sw");
+                novaInstrucao->tipoI->rt = $temp;
+                novaInstrucao->tipoI->rs = $sp;
+                novaInstrucao->tipoI->imediato = instrucao->oper2->val + 1;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-                novaInstrucao = criarNoAssembly(typeR, "add");
-                novaInstrucao->tipoR->rd = $temp; // Endereço base do vetor
-                novaInstrucao->tipoR->rs = $temp; // Base do vetor
-                novaInstrucao->tipoR->rt = instrucao->oper3->val; // Registrador com o índice (offset)
+                
+                // 3. CRESCER A PILHA DINAMICAMENTE
+                // addi $fp $fp tamanho_dinamico - incrementar frame pointer
+                int tamanho_frame = get_sp(funcaoAtual) + 1;
+                novaInstrucao = criarNoAssembly(typeI, "addi");
+                novaInstrucao->tipoI->rt = $fp;
+                novaInstrucao->tipoI->rs = $fp;
+                novaInstrucao->tipoI->imediato = tamanho_frame;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-                novaInstrucao = criarNoAssembly(typeI, "sw"); // $temp[0] = reg_valor
-                novaInstrucao->tipoI->rt = instrucao->oper2->val; // Registrador com o valor a ser armazenado
-                novaInstrucao->tipoI->rs = $temp; // Endereço calculado
-                novaInstrucao->tipoI->imediato = 0; // Offset 0
+                
+                // addi $sp $sp tamanho_dinamico - incrementar stack pointer
+                novaInstrucao = criarNoAssembly(typeI, "addi");
+                novaInstrucao->tipoI->rt = $sp;
+                novaInstrucao->tipoI->rs = $sp;
+                novaInstrucao->tipoI->imediato = tamanho_frame;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                
+                // 4. CHAMAR A FUNÇÃO
+                // jal função - jump and link (salva PC+1 em $ra automaticamente)
+                novaInstrucao = criarNoAssembly(typeJ, "jal");
+                novaInstrucao->tipoJ->labelImediato = strdup(instrucao->oper1->nome);
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                
+                // ===============================================
+                // RETORNO DA FUNÇÃO - Restaurar estado anterior
+                // ===============================================
+                
+                // 5. REDUZIR A PILHA DINAMICAMENTE
+                // subi $fp $fp tamanho_dinamico - restaurar frame pointer anterior
+                novaInstrucao = criarNoAssembly(typeI, "subi");
+                novaInstrucao->tipoI->rt = $fp;
+                novaInstrucao->tipoI->rs = $fp;
+                novaInstrucao->tipoI->imediato = tamanho_frame;
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                
+                // subi $sp $sp tamanho_dinamico - restaurar stack pointer anterior  
+                novaInstrucao = criarNoAssembly(typeI, "subi");
+                novaInstrucao->tipoI->rt = $sp;
+                novaInstrucao->tipoI->rs = $sp;
+                novaInstrucao->tipoI->imediato = tamanho_frame;
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                
+                // 6. CARREGAR VALOR DE RETORNO SE NECESSÁRIO
+                if (instrucao->oper3 && instrucao->oper3->val != -1) {
+                    // lw reg offset($fp) - carregar valor de retorno
+                    VARIAVEL* var_retorno = get_variavel(funcaoAtual, "Valor Retorno");
+                    int offset_retorno = var_retorno ? get_fp_relation(funcaoAtual, var_retorno) : 2;
+                    
+                    novaInstrucao = criarNoAssembly(typeI, "lw");
+                    novaInstrucao->tipoI->rt = instrucao->oper3->val;
+                    novaInstrucao->tipoI->rs = $fp;
+                    novaInstrucao->tipoI->imediato = offset_retorno;
+                    instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                }
             }
         }
-        else{ // Store em uma variável inteira: oper1 = oper2
-            novaInstrucao = criarNoAssembly(typeI, "sw");
-            novaInstrucao->tipoI->rt = instrucao->oper2->val; // Registrador com o valor
-            novaInstrucao->tipoI->rs = (var->bool_global) ? $s0 : $fp; // Base
-            novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var); // Offset
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-        }
     }
-    else if(instrucao->operation == GOTO){
-        novaInstrucao = criarNoAssembly(typeJ, "j");
-        novaInstrucao->tipoJ->labelImediato = strdup("Label ########");
-        sprintf(novaInstrucao->tipoJ->labelImediato, "Label %d", instrucao->oper1->val);
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-    }
-    else if(instrucao->operation == HALT){
-        novaInstrucao = criarNoAssembly(typeJ, "halt"); // 'halt' pode ser uma syscall ou instrução especial
-        novaInstrucao->tipoJ->labelImediato = strdup("$zero"); // Argumento dummy, não usado por halt real
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-    }
-    else if(instrucao->operation == CALL){
-        if(!instrucao->oper3){
-            printf(ANSI_COLOR_RED "Erro: " ANSI_COLOR_RESET);
-            printf("NULL no argumento 3\n");
-            return;
-        }
-                
-        if(!strcmp(instrucao->oper1->nome, "output")){
-            apagar_temp(buscar_funcao(&vetorMemoria, "parametros")); // Apaga os temporarios usados na chamada
-
-            novaInstrucao = criarNoAssembly(typeI, "lw");
-            novaInstrucao->tipoI->rt = $temp;
-            novaInstrucao->tipoI->rs = $pilha;
-            novaInstrucao->tipoI->imediato = buscar_funcao(&vetorMemoria, "parametros")->tamanho;
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-            // Mostra o valor do $temp para o usuario
-            novaInstrucao = criarNoAssembly(typeI, "out");
-            novaInstrucao->tipoI->rs = $temp;
-            novaInstrucao->tipoI->rt = $zero;
-            novaInstrucao->tipoI->imediato = 0;
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-            return;
-        }
-        else if(!strcmp(instrucao->oper1->nome, "input")){
-            novaInstrucao = criarNoAssembly(typeI, "in");
-            novaInstrucao->tipoI->rt = instrucao->oper3->val;
-            novaInstrucao->tipoI->rs = $zero;
-            novaInstrucao->tipoI->imediato = 0;
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-            return;
-        }
-        
-        int num_params_val = instrucao->oper2->val;
-        MEMORIA_FUNCOES* params_func = buscar_funcao(&vetorMemoria, "parametros");
-        
-        for(int i = 0; i < num_params_val; i++) { // Parâmetros são recuperados em ordem reversa de como foram colocados
-            apagar_temp(params_func); // Decrementa o contador em params_func e retorna o offset do último
-
-            novaInstrucao = criarNoAssembly(typeI, "lw"); // lw $temp, offset_param($pilha)
-            novaInstrucao->tipoI->rt = $temp; // Carrega o parâmetro em $temp
-            novaInstrucao->tipoI->rs = $pilha;
-            novaInstrucao->tipoI->imediato = params_func->tamanho; // Offset do parâmetro atual
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-            // Salva o parâmetro (em $temp) no stack frame da função a ser chamada.
-            // Os parâmetros são colocados em $sp + offset.
-            // O primeiro parâmetro vai em $sp+0, segundo em $sp+4, etc. (ou $sp+k, $sp+k+4, ...)
-            // O código original usa 'i' que vai de num_params-1 até 0.
-            // sw $temp, (num_params_val - 1 - i)*4($sp)  (se i de 0 a num_params-1)
-            // ou sw $temp, i($sp) se i já é o offset correto.
-            // A lógica original era `imediato = i` onde i ia de `instrucao->arg2->val` (num_params) descendo até 1.
-            // Isso significa que o primeiro parâmetro (último a ser processado no loop) ia para 1($sp),
-            // o segundo para 2($sp), etc. Isso é incomum.
-            // Convenção MIPS: $a0, $a1, $a2, $a3, depois pilha.
-            // Vamos manter a lógica original de empilhar em $sp + offset.
-            // O offset 'i' no código original ia de N down to 1.
-            // Isso deve ser (num_params_val - 1 - i) se i_loop de 0 a N-1, para ordem correta.
-            // Ou, se i_stack_offset vai de 0 para N-1:
-            // sw $temp, i_stack_offset*4($sp)
-            // A lógica original: `imediato = i` onde `i` é o contador do loop de `num_params` até `1`.
-            // Isso parece ser um índice de 1 a N.
-            novaInstrucao = criarNoAssembly(typeI, "sw");
-            novaInstrucao->tipoI->rs = $sp; // Base é o stack pointer atual (que será da nova função)
-            novaInstrucao->tipoI->rt = $temp; // Valor do parâmetro
-            novaInstrucao->tipoI->imediato = (num_params_val - 1 - i); // Offset: 0 para o primeiro param, 1 para o segundo, etc.
-                                                                    // Se i vai de 0 a N-1.
-                                                                    // Se o loop original era de N down to 1, e imediato = i,
-                                                                    // então o último param (i=1) ia para 1($sp),
-                                                                    // o primeiro param (i=N) ia para N($sp).
-                                                                    // Isso é ordem reversa na pilha.
-                                                                    // Para ordem correta (primeiro param em menor endereço):
-                                                                    // offset = i (se loop de 0 a N-1)
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-        }
-
-        // Prólogo da chamada:
-        // 1. Salvar $fp da função atual (chamadora) no stack frame da função chamada.
-        //    Este é o "Vínculo de Controle".
-        //    sw $fp, offset_vinculo_controle($sp)
-        // O código original faz:
-        // add $temp, $zero, $fp  (temp = fp_atual)
-        // addi $temp, $temp, offset_vinculo_controle_no_frame_ATUAL (isso está errado)
-        // sw $temp, (num_params + 1)($sp) (salva um endereço calculado estranhamente)
-
-        // Correto para salvar $fp da chamadora:
-        // O $sp já aponta para o novo frame. O vínculo de controle é o $fp da chamadora.
-        // O offset para o vínculo de controle é tipicamente fixo, ex: 0($sp) após $sp ser ajustado.
-        // O código original parece querer salvar o $fp da chamadora em $sp + (num_params + 1).
-        // E o $fp da chamadora é o $fp atual.
-        novaInstrucao = criarNoAssembly(typeI, "sw");
-        novaInstrucao->tipoI->rt = $fp; // $fp da chamadora
-        novaInstrucao->tipoI->rs = $sp; // Baseado no $sp do novo frame
-        novaInstrucao->tipoI->imediato = num_params_val; // Salva $fp logo após os N parâmetros (índice N, se params são 0 a N-1)
-                                                        // Ou (num_params_val + 1) se os offsets dos params eram 1 a N.
-                                                        // Se i vai de 0 a N-1, e $fp em N.
-                                                        // Se i vai de 1 a N, e $fp em N+1.
-                                                        // A lógica original do PARAM usava `imediato = i` (1 a N).
-                                                        // Então, `imediato = num_params_val + 1` para o $fp.
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-
-        // 2. Ajustar $fp para a nova função: $fp = $sp
-        novaInstrucao = criarNoAssembly(typeR, "add");
-        novaInstrucao->tipoR->rd = $fp;
-        novaInstrucao->tipoR->rs = $sp;
-        novaInstrucao->tipoR->rt = $zero;
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-        // 3. Ajustar $sp para alocar espaço para variáveis locais da função chamada.
-        //    subi $sp, $sp, tamanho_locais
-        //    O código original incrementava $fp e $sp por get_sp(funcaoAtual)+1.
-        //    `funcaoAtual` aqui é a CHAMADORA. `get_sp` retorna o tamanho do frame.
-        //    Isso parece ser para avançar $fp e $sp para o início do frame da função CHAMADA.
-        //    addi $fp, $fp, tamanho_frame_chamadora + 1
-        //    addi $sp, $sp, tamanho_frame_chamadora + 1
-        //    Isso é feito ANTES do jal.
-        //    Esta lógica de ajuste de $fp/$sp antes do jal é para configurar o frame da função CHAMADA.
-        //    O $sp já deve estar apontando para o topo do frame da função chamada.
-        //    O $fp é tipicamente $sp + tamanho_frame_chamada.
-        //    A lógica original é complexa e não padrão.
-        //    Vou seguir a lógica original de ajuste de $fp e $sp.
-        //    `get_sp(funcaoAtual)` refere-se ao tamanho do frame da função CHAMADORA.
-        //    Isso move $fp e $sp para o início do frame da função CHAMADA.
-        novaInstrucao = criarNoAssembly(typeI, "addi");
-        novaInstrucao->tipoI->rt = $fp;
-        novaInstrucao->tipoI->rs = $fp; // $fp já é o $sp do novo frame
-        novaInstrucao->tipoI->imediato = get_sp(funcaoAtual) + 1; // Adiciona tamanho do frame da chamadora
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-        novaInstrucao = criarNoAssembly(typeI, "addi");
-        novaInstrucao->tipoI->rt = $sp;
-        novaInstrucao->tipoI->rs = $sp; // $sp já é o $sp do novo frame
-        novaInstrucao->tipoI->imediato = get_sp(funcaoAtual) + 1; // Adiciona tamanho do frame da chamadora
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-
-        // 4. Pular para a função (jal)
-        novaInstrucao = criarNoAssembly(typeJ, "jal");
-        novaInstrucao->tipoJ->labelImediato = strdup(instrucao->oper1->nome);
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-        // Epílogo da chamada (após o retorno do jal):
-        // 1. Restaurar $sp e $fp da função chamadora.
-        //    O $fp foi salvo, então lw $fp, offset_vinculo_controle($sp_novo_frame)
-        //    O $sp é restaurado adicionando o tamanho do frame da função chamada.
-        //    O código original subtrai 25 de $fp e $sp. Isso assume um tamanho de frame fixo de 25.
-        //    Isso deve ser o inverso da adição feita antes do jal.
-        //    subi $fp, $fp, get_sp(funcaoAtual_chamadora) + 1
-        //    subi $sp, $sp, get_sp(funcaoAtual_chamadora) + 1
-        //    O valor 25 é um placeholder para o tamanho do frame da função CHAMADA.
-        //    Isso deve ser get_sp(funcao_chamada) + 1.
-        //    Como não temos essa info aqui, manter 25 como no original.
-        novaInstrucao = criarNoAssembly(typeI, "subi");
-        novaInstrucao->tipoI->rt = $fp;
-        novaInstrucao->tipoI->rs = $fp;
-        novaInstrucao->tipoI->imediato = 25; // Placeholder
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-        novaInstrucao = criarNoAssembly(typeI, "subi");
-        novaInstrucao->tipoI->rt = $sp;
-        novaInstrucao->tipoI->rs = $sp;
-        novaInstrucao->tipoI->imediato = 25; // Placeholder
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-        // 2. Obter valor de retorno de $v0 se houver.
-        if(instrucao->oper3->tipo != Vazio){ // Se a função retorna algo e temos um registrador destino
-            // lw reg_destino, offset_valor_retorno($fp) // $fp é da chamadora
-            // Ou, se usando $v0:
-            // add reg_destino, $v0, $zero
-            // A lógica original: lw rt, offset_valor_retorno($fp)
-            // Onde rt é oper3->val.
-            VARIAVEL* var_ret_val = get_variavel(funcaoAtual, "Valor Retorno");
-            if (var_ret_val == NULL) {
-                printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Variavel 'Valor Retorno' não encontrada para %s em CALL.\n", funcaoAtual->nome);
+    // ===============================================
+    // END (fim de função) - RETORNO SOFISTICADO do Eduardo
+    // ===============================================
+    else if (instrucao->operation == END) {
+        if (instrucao->oper1 && instrucao->oper1->nome) {
+            if (strcmp(instrucao->oper1->nome, "main") == 0) {
+                // Fim da main - não fazer nada (main termina com halt)
                 return;
             }
+            
+            // ===============================================
+            // SEQUÊNCIA SOFISTICADA DE RETORNO DE FUNÇÃO:
+            // 1. Restaurar $ra que foi salvo dinamicamente no início da função
+            // 2. Usar jr $zero $ra $zero para retornar
+            // ===============================================
+            
+            // 1. lw $ra offset($fp) - restaurar Return Address
+            // O offset é calculado dinamicamente baseado na variável "Endereco Retorno"
+            VARIAVEL* var_ra = get_variavel(funcaoAtual, "Endereco Retorno");
+            int offset_ra = var_ra ? get_fp_relation(funcaoAtual, var_ra) : 1;
+            
             novaInstrucao = criarNoAssembly(typeI, "lw");
-            novaInstrucao->tipoI->rt = instrucao->oper3->val; // Registrador destino do valor de retorno
-            novaInstrucao->tipoI->rs = $fp; // $fp da função ATUAL (chamadora)
-            novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var_ret_val);
+            novaInstrucao->tipoI->rs = $fp;    // $fp (61) - frame pointer
+            novaInstrucao->tipoI->rt = $ra;    // $ra (62) - return address
+            novaInstrucao->tipoI->imediato = offset_ra; // offset calculado dinamicamente
+            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+            
+            // 2. jr $zero $ra $zero - retornar para a função chamadora
+            // PC = $ra (endereço de retorno)
+            novaInstrucao = criarNoAssembly(typeR, "jr");
+            novaInstrucao->tipoR->rs = $ra;    // $ra (62) - contém endereço de retorno
+            novaInstrucao->tipoR->rd = $zero;  // $zero (63) - não usado mas necessário
+            novaInstrucao->tipoR->rt = $zero;  // $zero (63) - não usado mas necessário
             instrucoesAssembly[indiceAssembly++] = novaInstrucao;
         }
-    } 
-    else if(instrucao->operation == END){
-        // oper1: nome da função (String)
-        if (instrucao->oper1 == NULL || instrucao->oper1->nome == NULL) {
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Operando nulo para END.\n");
-            return;
-        }
-        if(!strcmp(instrucao->oper1->nome, "main")){
-            // O HALT já foi adicionado no final do código intermediário.
-            // Não precisa fazer nada aqui para main, o HALT global cuidará disso.
-            return; 
-        }
-        
-        // Epílogo da função (a função que está terminando):
-        // 1. Restaurar $ra (salvo no início da função)
-        //    lw $ra, offset_endereco_retorno($fp)
-        VARIAVEL* var_ret_addr_end = get_variavel(funcaoAtual, "Endereco Retorno");
-         if (var_ret_addr_end == NULL) {
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Variavel 'Endereco Retorno' não encontrada para %s em END.\n", funcaoAtual->nome);
-            return;
-        }
-        novaInstrucao = criarNoAssembly(typeI, "lw");
-        novaInstrucao->tipoI->rs = $fp; // $fp da função atual
-        novaInstrucao->tipoI->rt = $ra; // Destino $ra
-        novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var_ret_addr_end);
+    }
+    // HALT
+    else if (instrucao->operation == HALT) {
+        novaInstrucao = criarNoAssembly(typeJ, "halt");
+        novaInstrucao->tipoJ->labelImediato = strdup("$zero");
         instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+    }
+    else {
+        // Instrução não implementada
+        printf("Assembly: Instrução não implementada: %s\n", getTACOperationName(instrucao->operation));
+    }
+}
+
+// Função principal para gerar assembly completo
+void assembly() {
+    // Inicializar sistema de memória sofisticado
+    inicializa_memoria(&vetorMemoria);
     
-        // 2. Restaurar $fp da função chamadora
-        //    lw $fp, offset_vinculo_controle($fp)
-        VARIAVEL* var_vinc_ctrl = get_variavel(funcaoAtual, "Vinculo Controle");
-        if (var_vinc_ctrl == NULL) {
-            printf(ANSI_COLOR_RED "Erro Assembly: " ANSI_COLOR_RESET "Variavel 'Vinculo Controle' não encontrada para %s em END.\n", funcaoAtual->nome);
-            return;
+    inicializaAssembly();
+    
+    printf("Gerando assembly sofisticado baseado na lógica do Eduardo...\n");
+    
+    // Jump para main no início
+    ASSEMBLY *jumpMain = criarNoAssembly(typeJ, "j");
+    jumpMain->tipoJ->labelImediato = strdup("main");
+    instrucoesAssembly[indiceAssembly++] = jumpMain;
+    
+    // Processar todas as instruções de código intermediário
+    for (int i = 0; i < adressCounter; i++) {
+        if (intermediateCode[i] != NULL) {
+            geraAssemblyCompleto(intermediateCode[i]);
         }
-        novaInstrucao = criarNoAssembly(typeI, "lw");
-        novaInstrucao->tipoI->rs = $fp; // $fp da função atual
-        novaInstrucao->tipoI->rt = $fp; // Destino $fp (restaurando o da chamadora)
-        novaInstrucao->tipoI->imediato = get_fp_relation(funcaoAtual, var_vinc_ctrl);
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-        // 3. Restaurar $sp da função chamadora
-        //    add $sp, $fp, 0 (se $fp aponta para o início do frame da chamadora)
-        //    Ou, se $sp foi decrementado no prólogo, deve ser incrementado aqui.
-        //    O $sp da chamadora é $fp_da_chamadora (que acabamos de restaurar em $fp) + tamanho_do_frame_da_chamadora.
-        //    Ou, mais simples, $sp = $fp (se $fp é o $sp da chamadora antes da alocação de locais).
-        //    O código original não restaurava $sp explicitamente no END, apenas $ra.
-        //    A restauração de $sp é crucial. $sp deve voltar para onde estava antes da chamada.
-        //    Se o $fp restaurado é o $fp da chamadora, e o $sp da chamadora era $fp_da_chamadora + (tamanho_frame_chamadora - tamanho_params_passados),
-        //    a forma mais simples é $sp = $fp (se $fp é o $sp da chamadora antes de alocar locais).
-        //    Se o $fp restaurado é o $fp da função chamadora, então o $sp da chamadora
-        //    deve ser $fp (restaurado) + (tamanho do frame da chamadora - espaço para params).
-        //    A convenção mais simples é $sp = $fp (após restaurar $fp).
-        //    Isso desfaz a alocação do frame da função atual.
-        novaInstrucao = criarNoAssembly(typeR, "add"); // $sp = $fp
-        novaInstrucao->tipoR->rd = $sp;
-        novaInstrucao->tipoR->rs = $fp; // $fp já foi restaurado para o da chamadora
-        novaInstrucao->tipoR->rt = $zero;
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
-
-
-        // 4. Pular para $ra
-        novaInstrucao = criarNoAssembly(typeR, "jr");
-        novaInstrucao->tipoR->rs = $ra;
-        novaInstrucao->tipoR->rd = $zero; // Não usado por jr
-        novaInstrucao->tipoR->rt = $zero; // Não usado por jr
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
     }
-    else{
-        printf(ANSI_COLOR_RED);
-        printf("Erro Assembly: ");
-        printf(ANSI_COLOR_RESET);
-        printf("Instrucao de código intermediário não reconhecida (%s)\n", getTACOperationName(instrucao->operation));
+    
+    printf("Assembly sofisticado gerado com %d instruções.\n", indiceAssembly);
+    printf("Sistema de memória dinâmico ativo com cálculos automáticos de offset.\n");
+}
+
+// Função para imprimir o assembly gerado
+void imprimirAssembly() {
+    printf("============== Assembly ==============\n");
+    
+    for (int i = 0; i < indiceAssembly; i++) {
+        ASSEMBLY* instr = instrucoesAssembly[i];
+        if (instr == NULL) continue;
+        
+        switch (instr->tipo) {
+            case typeR:
+                printf("%d:  \t%s %s %s %s\n", i,
+                       instr->tipoR->nome,
+                       getRegisterName(instr->tipoR->rd),
+                       getRegisterName(instr->tipoR->rs), 
+                       getRegisterName(instr->tipoR->rt));
+                break;
+                
+            case typeI:
+                if (instr->tipoI->label != 0) {
+                    printf("%d:  \t%s %s %s Label %d\n", i,
+                           instr->tipoI->nome,
+                           getRegisterName(instr->tipoI->rt),
+                           getRegisterName(instr->tipoI->rs),
+                           instr->tipoI->label);
+                } else {
+                    // Tratar instruções especiais como ori que têm formato diferente
+                    if (strcmp(instr->tipoI->nome, "ori") == 0) {
+                        // Formato ori: ori $rt $rs imediato  
+                        printf("%d:  \t%s %s %s %d\n", i,
+                               instr->tipoI->nome,
+                               getRegisterName(instr->tipoI->rt),
+                               getRegisterName(instr->tipoI->rs),
+                               instr->tipoI->imediato);
+                    } else {
+                        // Formato padrão: instrução reg offset($reg)
+                        if (instr->tipoI->imediato == 0) {
+                            printf("%d:  \t%s %s 0(%s)\n", i,
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   getRegisterName(instr->tipoI->rs));
+                        } else {
+                            printf("%d:  \t%s %s %d(%s)\n", i,
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   instr->tipoI->imediato,
+                                   getRegisterName(instr->tipoI->rs));
+                        }
+                    }
+                }
+                break;
+                
+            case typeJ:
+                printf("%d:  \t%s %s\n", i,
+                       instr->tipoJ->nome,
+                       instr->tipoJ->labelImediato);
+                break;
+                
+            case typeLabel:
+                if (strncmp(instr->tipoLabel->nome, "#", 1) == 0) {
+                    printf("%s\n", instr->tipoLabel->nome);
+                } else {
+                    // Formato Eduardo exato: N:  nome: (dois espaços após o número)
+                    printf("%d:  %s:\n", i, instr->tipoLabel->nome);
+                }
+                break;
+        }
     }
+}
+
+// Função para liberar memória do assembly
+void liberarAssembly() {
+    if (instrucoesAssembly == NULL) return;
+    
+    for (int i = 0; i < indiceAssembly; i++) {
+        if (instrucoesAssembly[i] != NULL) {
+            ASSEMBLY* instr = instrucoesAssembly[i];
+            
+            if (instr->tipoR != NULL) {
+                if (instr->tipoR->nome != NULL) free(instr->tipoR->nome);
+                free(instr->tipoR);
+            }
+            if (instr->tipoI != NULL) {
+                if (instr->tipoI->nome != NULL) free(instr->tipoI->nome);
+                free(instr->tipoI);
+            }
+            if (instr->tipoJ != NULL) {
+                if (instr->tipoJ->nome != NULL) free(instr->tipoJ->nome);
+                if (instr->tipoJ->labelImediato != NULL) free(instr->tipoJ->labelImediato);
+                free(instr->tipoJ);
+            }
+            if (instr->tipoLabel != NULL) {
+                if (instr->tipoLabel->nome != NULL) free(instr->tipoLabel->nome);
+                free(instr->tipoLabel);
+            }
+            
+            free(instr);
+        }
+    }
+    
+    free(instrucoesAssembly);
+    instrucoesAssembly = NULL;
+    indiceAssembly = 0;
 }

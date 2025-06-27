@@ -43,10 +43,13 @@ MEMORIA_FUNCOES* insere_funcao(MEMORIA *memoria, char * nome_funcao){
     funcao->prox = NULL;
     funcao->tabelaVar = NULL;
     
-    // Inserir variáveis de controle obrigatórias seguindo padrão do Eduardo
-    insere_variavel(funcao, "Vinculo Controle", controle);     // Offset 0
-    insere_variavel(funcao, "Endereco Retorno", retorno);      // Offset 1 ($ra)
-    insere_variavel(funcao, "Valor Retorno", retorno);         // Offset 2
+    // Inserir variáveis de controle obrigatórias seguindo EXATAMENTE o padrão do Eduardo
+    insere_variavel(funcao, "Vinculo Controle", controle);         // Índice 0
+    insere_variavel(funcao, "Endereco Retorno", retorno);          // Índice 1 ($ra)
+    insere_variavel(funcao, "Valor Retorno", retorno);             // Índice 2
+    insere_variavel(funcao, "Registrador Temporario", inteiro);    // Índice 3
+    insere_variavel(funcao, "Registrador $fp", inteiro);           // Índice 4  
+    insere_variavel(funcao, "Registrador $sp", inteiro);           // Índice 5
     
     // Encontrar posição para inserir na lista
     MEMORIA_FUNCOES* aux = memoria->funcoes;
@@ -127,31 +130,24 @@ VARIAVEL* get_variavel(MEMORIA_FUNCOES* funcao, char * nome_variavel){
         return NULL;
     }
     
-    MEMORIA_FUNCOES* aux = funcao;
-
-    VARIAVEL* aux2 = NULL;
-    while(aux != NULL){
-        aux2 = aux->tabelaVar;
-        while(aux2 != NULL){
-            if(strcmp(aux2->nome, nome_variavel) == 0){
-                return aux2;
-            }
-            aux2 = aux2->prox;
+    // Buscar apenas na função atual (não percorrer cadeia de funções)
+    VARIAVEL* aux2 = funcao->tabelaVar;
+    while(aux2 != NULL){
+        if(strcmp(aux2->nome, nome_variavel) == 0){
+            return aux2;
         }
-        aux = aux->prox;
+        aux2 = aux2->prox;
     }
 
-    // Se nao estiver na funcao, procurar na tabela de globais
-    aux = global;
-    while(aux != NULL){
-        aux2 = aux->tabelaVar;
+    // Se não estiver na função atual, procurar na tabela de globais
+    if(global != NULL){
+        aux2 = global->tabelaVar;
         while(aux2 != NULL){
             if(strcmp(aux2->nome, nome_variavel) == 0){
                 return aux2;
             }
             aux2 = aux2->prox;
         }
-        aux = aux->prox;
     }
 
     printf(ANSI_COLOR_RED); printf("Erro: "); printf(ANSI_COLOR_RESET);
@@ -313,9 +309,9 @@ int get_fp(MEMORIA_FUNCOES* funcao){
         return 0; // Função global tem fp = 0
     }
     
-    // Para funções normais, fp aponta para o início das variáveis de controle
-    VARIAVEL* vinculo = get_variavel(funcao, "Vinculo Controle");
-    return vinculo ? vinculo->indice : 0;
+    // No padrão do Eduardo, get_fp sempre retorna 0 para funções não-globais
+    // O frame pointer aponta para a posição 0, e argumentos ficam em posições negativas
+    return 0;
 }
 
 // Função para calcular offset relativo ao $sp (baseada no Eduardo)
