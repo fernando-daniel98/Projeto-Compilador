@@ -16,7 +16,7 @@ clean_output:
 	rm -f $(OUTPUT_DIR)/logs/*.log
 
 
-compiler: $(BUILD_DIR)/lex.yy.o $(BUILD_DIR)/parser.tab.o $(BUILD_DIR)/util.o $(BUILD_DIR)/codeGen.o $(BUILD_DIR)/main.o $(BUILD_DIR)/reg.o $(BUILD_DIR)/assembler.o $(BUILD_DIR)/tab.o $(BUILD_DIR)/memory.o
+compiler: $(BUILD_DIR)/lex.yy.o $(BUILD_DIR)/parser.tab.o $(BUILD_DIR)/util.o $(BUILD_DIR)/codeGen.o $(BUILD_DIR)/main.o $(BUILD_DIR)/reg.o $(BUILD_DIR)/assembler.o $(BUILD_DIR)/tab.o $(BUILD_DIR)/memory.o $(BUILD_DIR)/label.o
 	$(CC) $(CFLAGS) -o $@ $^ -lfl
 
 $(BUILD_DIR)/main.o: $(SRC_DIR)/main.c

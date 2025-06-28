@@ -182,6 +182,14 @@ int main(int argc, char **argv) {
     assembly();
     imprimirAssembly();
     fprintf(yyout, "\n");
+    
+    // Assembly sem labels (nova funcionalidade)
+    imprimirAssemblySemLabels();
+    fprintf(yyout, "\n");
+    
+    // Salvar assembly em arquivos separados
+    salvarAssemblyLimpo("./output/assembly_completo.asm");
+    salvarAssemblySemLabelsArquivo("./output/assembly_sem_labels.asm");
 
     fprintf(yyout, "Debug registradores CA:");
     mostrarReg();

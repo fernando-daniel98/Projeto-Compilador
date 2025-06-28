@@ -4,6 +4,7 @@
 #include "../include/codeGen.h"
 #include "../include/assembler.h"
 #include "../include/memoria.h"
+#include "../include/label.h"  // Adicionar include para labels
 
 // Estruturas globais para assembly
 ASSEMBLY **instrucoesAssembly = NULL;
@@ -54,6 +55,9 @@ void inicializaAssembly() {
     }
     indiceAssembly = 0;
     strcpy(nomeFuncaoAtual, "");
+    
+    // Inicializar sistema de labels
+    inicializaLabels();
 }
 
 // Função para criar um novo nó de assembly
@@ -139,19 +143,31 @@ int opAritmeticos(quadruple* instrucao, ASSEMBLY** novaInstrucao) {
 int opRelacionais(quadruple* instrucao, ASSEMBLY** novaInstrucao) {
     if (instrucao->operation == EQ) {
         // EQ: if arg1 == arg2 then arg3 = 1, else arg3 = 0
-        // Lógica de comparação: slt twice and xor
+        // Implementação correta: !(a < b) AND !(b < a) = (a == b)
+        // Usa registrador temporário para evitar sobrescrever
+        
+        // Primeiro: $temp = (arg1 < arg2)
         *novaInstrucao = criarNoAssembly(typeR, "slt");
-        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
+        (*novaInstrucao)->tipoR->rd = $temp;  // usar $temp (59) temporário
         (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
         instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
 
+        // Segundo: result = (arg2 < arg1)
         *novaInstrucao = criarNoAssembly(typeR, "slt");
         (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
         (*novaInstrucao)->tipoR->rs = instrucao->oper2->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper1->val;
         instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
 
+        // Terceiro: result = $temp OR result (se qualquer um for 1, são diferentes)
+        *novaInstrucao = criarNoAssembly(typeR, "add");
+        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
+        (*novaInstrucao)->tipoR->rs = $temp;
+        (*novaInstrucao)->tipoR->rt = instrucao->oper3->val;
+        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
+
+        // Quarto: result = !result (inverter para obter igualdade)
         *novaInstrucao = criarNoAssembly(typeI, "xori");
         (*novaInstrucao)->tipoI->rt = instrucao->oper3->val;
         (*novaInstrucao)->tipoI->rs = instrucao->oper3->val;
@@ -265,6 +281,10 @@ void geraAssemblyCompleto(quadruple* instrucao) {
             strcpy(nomeFuncaoAtual, instrucao->oper2->nome);
             novaInstrucao = criarNoAssembly(typeLabel, instrucao->oper2->nome);
             novaInstrucao->tipoLabel->boolean = 0; // é função (não label)
+            
+            // Adicionar função ao sistema de labels (mapear nome da função -> linha assembly)
+            adicionarLabel(instrucao->oper2->nome, indiceAssembly);
+            
             instrucoesAssembly[indiceAssembly++] = novaInstrucao;
             
             // Atualizar função atual no sistema de memória
@@ -372,11 +392,15 @@ void geraAssemblyCompleto(quadruple* instrucao) {
     }
     // LABEL
     else if (instrucao->operation == LABEL) {
+        
         char labelName[32];
         sprintf(labelName, "Label %d", instrucao->oper1->val);
         novaInstrucao = criarNoAssembly(typeLabel, labelName);
         novaInstrucao->tipoLabel->endereco = instrucao->oper1->val;
         novaInstrucao->tipoLabel->boolean = 1; // é label (não função)
+        // Adicionar label ao sistema de labels (mapear nome da label -> linha assembly)
+        adicionarLabel(labelName, indiceAssembly);
+        
         instrucoesAssembly[indiceAssembly++] = novaInstrucao;
     }
     // ===============================================
@@ -792,6 +816,9 @@ void assembly() {
         }
     }
     
+    // Resolver todas as referencias de labels após gerar o assembly
+    resolverLabels();
+    
     // Assembly gerado com sucesso
 }
 
@@ -862,6 +889,10 @@ void imprimirAssembly() {
                 break;
         }
     }
+    
+    // Imprimir mapeamento de labels
+    printf("\n");
+    imprimirLabels();
 }
 
 // Função para liberar memória do assembly
@@ -897,4 +928,417 @@ void liberarAssembly() {
     free(instrucoesAssembly);
     instrucoesAssembly = NULL;
     indiceAssembly = 0;
+    
+    // Liberar sistema de labels
+    liberarLabels();
+}
+
+// Função para resolver referencias de labels (converter nomes para endereços)
+void resolverLabels() {
+    for (int i = 0; i < indiceAssembly; i++) {
+        ASSEMBLY* instr = instrucoesAssembly[i];
+        if (instr == NULL) continue;
+        
+        // Resolver referencias em instruções tipo I (beq com label)
+        if (instr->tipo == typeI && instr->tipoI->label != 0) {
+            char labelName[32];
+            sprintf(labelName, "Label %d", instr->tipoI->label);
+            int endereco = getEnderecoLabel(labelName);
+            if (endereco != -1) {
+                // Calcular offset relativo (endereço destino - instrução atual - 1)
+                instr->tipoI->imediato = endereco - i - 1;
+                instr->tipoI->label = 0; // Limpar flag de label
+            } else {
+                printf("AVISO: Label '%s' não encontrada\n", labelName);
+            }
+        }
+        
+        // Resolver referencias em instruções tipo J (j, jal com label)
+        if (instr->tipo == typeJ && instr->tipoJ->labelImediato != NULL) {
+            int endereco = getEnderecoLabel(instr->tipoJ->labelImediato);
+            if (endereco != -1) {
+                // Para instruções J, podemos atualizar um campo ou manter o nome
+                // Por enquanto, vamos manter o nome mas podemos adicionar lógica específica
+            } else {
+                printf("AVISO: Label '%s' não encontrada\n", instr->tipoJ->labelImediato);
+            }
+        }
+    }
+}
+
+// Função para imprimir assembly sem labels e com referências resolvidas
+void imprimirAssemblySemLabels() {
+    printf("============== Assembly (sem labels) ==============\n");
+    
+    if (instrucoesAssembly == NULL || indiceAssembly == 0) {
+        printf("Nenhuma instrucao de assembly para imprimir.\n");
+        return;
+    }
+    
+    // Criar mapeamento de linha antiga -> linha nova (sem labels)
+    int *mapeamentoLinhas = (int*)malloc(indiceAssembly * sizeof(int));
+    int linhaAtual = 0;
+    
+    // Primeiro passo: mapear quais linhas não são labels/funções
+    for (int i = 0; i < indiceAssembly; i++) {
+        ASSEMBLY* instr = instrucoesAssembly[i];
+        if (instr == NULL) {
+            mapeamentoLinhas[i] = -1; // Linha vazia
+            continue;
+        }
+        
+        // Verificar se é um label ou função (typeLabel)
+        if (instr->tipo == typeLabel) {
+            mapeamentoLinhas[i] = -1; // Marcar para remoção
+        } else {
+            mapeamentoLinhas[i] = linhaAtual++; // Nova numeração
+        }
+    }
+    
+    // Segundo passo: imprimir apenas instruções que não são labels
+    for (int i = 0; i < indiceAssembly; i++) {
+        ASSEMBLY* instr = instrucoesAssembly[i];
+        if (instr == NULL || mapeamentoLinhas[i] == -1) continue;
+        
+        int novaLinha = mapeamentoLinhas[i];
+        
+        switch (instr->tipo) {
+            case typeR:
+                printf("%d:  \t%s %s %s %s\n", novaLinha,
+                       instr->tipoR->nome,
+                       getRegisterName(instr->tipoR->rd),
+                       getRegisterName(instr->tipoR->rs), 
+                       getRegisterName(instr->tipoR->rt));
+                break;
+                
+            case typeI:
+                if (instr->tipoI->label != 0) {
+                    // Resolver referência de label para número de linha
+                    char labelName[32];
+                    sprintf(labelName, "Label %d", instr->tipoI->label);
+                    int enderecoOriginal = getEnderecoLabel(labelName);
+                    
+                    if (enderecoOriginal != -1 && enderecoOriginal < indiceAssembly) {
+                        int novaLinhaDestino = mapeamentoLinhas[enderecoOriginal];
+                        if (novaLinhaDestino != -1) {
+                            // Calcular offset relativo na nova numeração
+                            int offset = novaLinhaDestino - novaLinha - 1;
+                            printf("%d:  \t%s %s %s %d\n", novaLinha,
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   getRegisterName(instr->tipoI->rs),
+                                   offset);
+                        } else {
+                            printf("%d:  \t%s %s %s Label_%d_removida\n", novaLinha,
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   getRegisterName(instr->tipoI->rs),
+                                   instr->tipoI->label);
+                        }
+                    } else {
+                        printf("%d:  \t%s %s %s Label_%d_nao_encontrada\n", novaLinha,
+                               instr->tipoI->nome,
+                               getRegisterName(instr->tipoI->rt),
+                               getRegisterName(instr->tipoI->rs),
+                               instr->tipoI->label);
+                    }
+                } else {
+                    // Tratar instruções normais
+                    if (strcmp(instr->tipoI->nome, "ori") == 0) {
+                        printf("%d:  \t%s %s %s %d\n", novaLinha,
+                               instr->tipoI->nome,
+                               getRegisterName(instr->tipoI->rt),
+                               getRegisterName(instr->tipoI->rs),
+                               instr->tipoI->imediato);
+                    } else {
+                        if (instr->tipoI->imediato == 0) {
+                            printf("%d:  \t%s %s 0(%s)\n", novaLinha,
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   getRegisterName(instr->tipoI->rs));
+                        } else {
+                            printf("%d:  \t%s %s %d(%s)\n", novaLinha,
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   instr->tipoI->imediato,
+                                   getRegisterName(instr->tipoI->rs));
+                        }
+                    }
+                }
+                break;
+                
+            case typeJ:
+                // Resolver referência de função para número de linha
+                if (instr->tipoJ->labelImediato != NULL) {
+                    // Tratamento especial para halt que não deveria ter referência de label
+                    if (strcmp(instr->tipoJ->nome, "halt") == 0) {
+                        printf("%d:  \t%s\n", novaLinha, instr->tipoJ->nome);
+                    } else {
+                        int enderecoOriginal = getEnderecoLabel(instr->tipoJ->labelImediato);
+                        
+                        if (enderecoOriginal != -1 && enderecoOriginal < indiceAssembly) {
+                            int novaLinhaDestino = mapeamentoLinhas[enderecoOriginal];
+                            if (novaLinhaDestino != -1) {
+                                printf("%d:  \t%s %d\n", novaLinha,
+                                       instr->tipoJ->nome,
+                                       novaLinhaDestino);
+                            } else {
+                                // A função foi removida, buscar a próxima instrução válida
+                                int proximaInstrucao = -1;
+                                for (int j = enderecoOriginal + 1; j < indiceAssembly; j++) {
+                                    if (mapeamentoLinhas[j] != -1) {
+                                        proximaInstrucao = mapeamentoLinhas[j];
+                                        break;
+                                    }
+                                }
+                                if (proximaInstrucao != -1) {
+                                    printf("%d:  \t%s %d\n", novaLinha,
+                                           instr->tipoJ->nome,
+                                           proximaInstrucao);
+                                } else {
+                                    printf("%d:  \t%s %s_removida\n", novaLinha,
+                                           instr->tipoJ->nome,
+                                           instr->tipoJ->labelImediato);
+                                }
+                            }
+                        } else {
+                            printf("%d:  \t%s %s_nao_encontrada\n", novaLinha,
+                                   instr->tipoJ->nome,
+                                   instr->tipoJ->labelImediato);
+                        }
+                    }
+                } else {
+                    printf("%d:  \t%s\n", novaLinha, instr->tipoJ->nome);
+                }
+                break;
+                
+            case typeLabel:
+                // Labels não são impressos nesta função
+                break;
+        }
+    }
+    
+    free(mapeamentoLinhas);
+    printf("\n");
+}
+
+// Função para salvar assembly limpo em arquivo (sem números de linha)
+void salvarAssemblyLimpo(const char* nomeArquivo) {
+    FILE* arquivo = fopen(nomeArquivo, "w");
+    if (arquivo == NULL) {
+        printf("Erro: Não foi possível criar o arquivo %s\n", nomeArquivo);
+        return;
+    }
+    
+    for (int i = 0; i < indiceAssembly; i++) {
+        ASSEMBLY* instr = instrucoesAssembly[i];
+        if (instr == NULL) continue;
+        
+        switch (instr->tipo) {
+            case typeR:
+                fprintf(arquivo, "%s %s %s %s\n",
+                       instr->tipoR->nome,
+                       getRegisterName(instr->tipoR->rd),
+                       getRegisterName(instr->tipoR->rs), 
+                       getRegisterName(instr->tipoR->rt));
+                break;
+                
+            case typeI:
+                if (instr->tipoI->label != 0) {
+                    fprintf(arquivo, "%s %s %s Label %d\n",
+                           instr->tipoI->nome,
+                           getRegisterName(instr->tipoI->rt),
+                           getRegisterName(instr->tipoI->rs),
+                           instr->tipoI->label);
+                } else {
+                    // Tratar instruções especiais como ori que têm formato diferente
+                    if (strcmp(instr->tipoI->nome, "ori") == 0) {
+                        // Formato ori: ori $rt $rs imediato  
+                        fprintf(arquivo, "%s %s %s %d\n",
+                               instr->tipoI->nome,
+                               getRegisterName(instr->tipoI->rt),
+                               getRegisterName(instr->tipoI->rs),
+                               instr->tipoI->imediato);
+                    } else {
+                        // Formato padrão: instrução reg offset($reg)
+                        if (instr->tipoI->imediato == 0) {
+                            fprintf(arquivo, "%s %s 0(%s)\n",
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   getRegisterName(instr->tipoI->rs));
+                        } else {
+                            fprintf(arquivo, "%s %s %d(%s)\n",
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   instr->tipoI->imediato,
+                                   getRegisterName(instr->tipoI->rs));
+                        }
+                    }
+                }
+                break;
+                
+            case typeJ:
+                fprintf(arquivo, "%s %s\n",
+                       instr->tipoJ->nome,
+                       instr->tipoJ->labelImediato);
+                break;
+                
+            case typeLabel:
+                if (strncmp(instr->tipoLabel->nome, "#", 1) == 0) {
+                    fprintf(arquivo, "%s\n", instr->tipoLabel->nome);
+                } else {
+                    // Formato: nome: (sem número da linha)
+                    fprintf(arquivo, "%s:\n", instr->tipoLabel->nome);
+                }
+                break;
+        }
+    }
+    
+    fclose(arquivo);
+    printf("Assembly salvo em: %s\n", nomeArquivo);
+}
+
+// Função para salvar assembly sem labels em arquivo (apenas instruções e números de linha)
+void salvarAssemblySemLabelsArquivo(const char* nomeArquivo) {
+    FILE* arquivo = fopen(nomeArquivo, "w");
+    if (arquivo == NULL) {
+        printf("Erro: Não foi possível criar o arquivo %s\n", nomeArquivo);
+        return;
+    }
+    
+    // Criar mapeamento de linha antiga -> linha nova (sem labels)
+    int *mapeamentoLinhas = (int*)malloc(indiceAssembly * sizeof(int));
+    int linhaAtual = 0;
+    
+    // Primeiro passo: mapear quais linhas não são labels/funções
+    for (int i = 0; i < indiceAssembly; i++) {
+        ASSEMBLY* instr = instrucoesAssembly[i];
+        if (instr == NULL) {
+            mapeamentoLinhas[i] = -1; // Linha vazia
+            continue;
+        }
+        
+        // Verificar se é um label ou função (typeLabel)
+        if (instr->tipo == typeLabel) {
+            mapeamentoLinhas[i] = -1; // Marcar para remoção
+        } else {
+            mapeamentoLinhas[i] = linhaAtual++; // Nova numeração
+        }
+    }
+    
+    // Segundo passo: salvar apenas instruções que não são labels
+    for (int i = 0; i < indiceAssembly; i++) {
+        ASSEMBLY* instr = instrucoesAssembly[i];
+        if (instr == NULL || mapeamentoLinhas[i] == -1) continue;
+        
+        switch (instr->tipo) {
+            case typeR:
+                fprintf(arquivo, "%s %s %s %s\n",
+                       instr->tipoR->nome,
+                       getRegisterName(instr->tipoR->rd),
+                       getRegisterName(instr->tipoR->rs), 
+                       getRegisterName(instr->tipoR->rt));
+                break;
+                
+            case typeI:
+                if (instr->tipoI->label != 0) {
+                    // Resolver referência de label para número de linha
+                    char labelName[32];
+                    sprintf(labelName, "Label %d", instr->tipoI->label);
+                    int enderecoOriginal = getEnderecoLabel(labelName);
+                    
+                    if (enderecoOriginal != -1 && enderecoOriginal < indiceAssembly) {
+                        int novaLinhaDestino = mapeamentoLinhas[enderecoOriginal];
+                        if (novaLinhaDestino != -1) {
+                            // Calcular offset relativo na nova numeração
+                            int novaLinha = mapeamentoLinhas[i];
+                            int offset = novaLinhaDestino - novaLinha - 1;
+                            fprintf(arquivo, "%s %s %s %d\n",
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   getRegisterName(instr->tipoI->rs),
+                                   offset);
+                        } else {
+                            fprintf(arquivo, "%s %s %s Label_%d_removida\n",
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   getRegisterName(instr->tipoI->rs),
+                                   instr->tipoI->label);
+                        }
+                    }
+                } else {
+                    // Tratar instruções normais
+                    if (strcmp(instr->tipoI->nome, "ori") == 0) {
+                        fprintf(arquivo, "%s %s %s %d\n",
+                               instr->tipoI->nome,
+                               getRegisterName(instr->tipoI->rt),
+                               getRegisterName(instr->tipoI->rs),
+                               instr->tipoI->imediato);
+                    } else {
+                        if (instr->tipoI->imediato == 0) {
+                            fprintf(arquivo, "%s %s 0(%s)\n",
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   getRegisterName(instr->tipoI->rs));
+                        } else {
+                            fprintf(arquivo, "%s %s %d(%s)\n",
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   instr->tipoI->imediato,
+                                   getRegisterName(instr->tipoI->rs));
+                        }
+                    }
+                }
+                break;
+                
+            case typeJ:
+                // Resolver referência de função para número de linha
+                if (instr->tipoJ->labelImediato != NULL) {
+                    // Tratamento especial para halt que não deveria ter referência de label
+                    if (strcmp(instr->tipoJ->nome, "halt") == 0) {
+                        fprintf(arquivo, "%s\n", instr->tipoJ->nome);
+                    } else {
+                        int enderecoOriginal = getEnderecoLabel(instr->tipoJ->labelImediato);
+                        
+                        if (enderecoOriginal != -1 && enderecoOriginal < indiceAssembly) {
+                            int novaLinhaDestino = mapeamentoLinhas[enderecoOriginal];
+                            if (novaLinhaDestino != -1) {
+                                fprintf(arquivo, "%s %d\n",
+                                       instr->tipoJ->nome,
+                                       novaLinhaDestino);
+                            } else {
+                                // A função foi removida, buscar a próxima instrução válida
+                                int proximaInstrucao = -1;
+                                for (int j = enderecoOriginal + 1; j < indiceAssembly; j++) {
+                                    if (mapeamentoLinhas[j] != -1) {
+                                        proximaInstrucao = mapeamentoLinhas[j];
+                                        break;
+                                    }
+                                }
+                                if (proximaInstrucao != -1) {
+                                    fprintf(arquivo, "%s %d\n",
+                                           instr->tipoJ->nome,
+                                           proximaInstrucao);
+                                } else {
+                                    fprintf(arquivo, "%s %s_removida\n",
+                                           instr->tipoJ->nome,
+                                           instr->tipoJ->labelImediato);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    fprintf(arquivo, "%s\n", instr->tipoJ->nome);
+                }
+                break;
+                
+            case typeLabel:
+                // Labels não são salvos nesta função
+                break;
+        }
+    }
+    
+    free(mapeamentoLinhas);
+    fclose(arquivo);
+    printf("Assembly sem labels salvo em: %s\n", nomeArquivo);
 }

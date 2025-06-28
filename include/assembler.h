@@ -156,6 +156,10 @@ void inicializaAssembly();
 ASSEMBLY * criarNoAssembly(tipoInstrucao tipo, char *nome);
 void imprimirAssembly();
 void liberarAssembly();
+void resolverLabels();  // Nova função para resolver referencias de labels
+void imprimirAssemblySemLabels(); // Imprimir assembly sem labels e com referências resolvidas
+void salvarAssemblyLimpo(const char* nomeArquivo); // Salvar assembly em arquivo sem números de linha
+void salvarAssemblySemLabelsArquivo(const char* nomeArquivo); // Salvar assembly sem labels em arquivo
 
 // Funcao para mapear numero do registrador para nome legivel
 const char* getRegisterName(int regNum);

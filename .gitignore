@@ -8,5 +8,7 @@
 /tests/*.txt
 
 /output
+/others
+/helper
 
 *.s
