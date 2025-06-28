@@ -824,7 +824,6 @@ void assembly() {
 
 // Função para imprimir o assembly gerado
 void imprimirAssembly() {
-    printf("============== Assembly ==============\n");
     
     for (int i = 0; i < indiceAssembly; i++) {
         ASSEMBLY* instr = instrucoesAssembly[i];
@@ -889,10 +888,85 @@ void imprimirAssembly() {
                 break;
         }
     }
-    
-    // Imprimir mapeamento de labels
-    printf("\n");
+
+    // Mapeamento de labels
     imprimirLabels();
+}
+
+// Nova função que aceita FILE* como parâmetro para redirecionamento
+void imprimirAssemblyParaArquivo(FILE* arquivo) {
+    if (arquivo == NULL) arquivo = stdout;
+    
+    for (int i = 0; i < indiceAssembly; i++) {
+        ASSEMBLY* instr = instrucoesAssembly[i];
+        if (instr == NULL) continue;
+        
+        switch (instr->tipo) {
+            case typeR:
+                fprintf(arquivo, "%d:  \t%s %s %s %s\n", i,
+                       instr->tipoR->nome,
+                       getRegisterName(instr->tipoR->rd),
+                       getRegisterName(instr->tipoR->rs), 
+                       getRegisterName(instr->tipoR->rt));
+                break;
+                
+            case typeI:
+                if (instr->tipoI->label != 0) {
+                    fprintf(arquivo, "%d:  \t%s %s %s Label %d\n", i,
+                           instr->tipoI->nome,
+                           getRegisterName(instr->tipoI->rt),
+                           getRegisterName(instr->tipoI->rs),
+                           instr->tipoI->label);
+                } else {
+                    // Instruções com imediato
+                    if (strcmp(instr->tipoI->nome, "sw") == 0 || strcmp(instr->tipoI->nome, "lw") == 0) {
+                        fprintf(arquivo, "%d:  \t%s %s %d(%s)\n", i,
+                               instr->tipoI->nome,
+                               getRegisterName(instr->tipoI->rt),
+                               instr->tipoI->imediato,
+                               getRegisterName(instr->tipoI->rs));
+                    } else {
+                        // Outras instruções I
+                        if (strcmp(instr->tipoI->nome, "ori") == 0 || strcmp(instr->tipoI->nome, "xori") == 0 ||
+                            strcmp(instr->tipoI->nome, "addi") == 0 || strcmp(instr->tipoI->nome, "subi") == 0 ||
+                            strcmp(instr->tipoI->nome, "andi") == 0 || strcmp(instr->tipoI->nome, "slti") == 0) {
+                            fprintf(arquivo, "%d:  \t%s %s %s %d\n", i,
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   getRegisterName(instr->tipoI->rs),
+                                   instr->tipoI->imediato);
+                        } else {
+                            fprintf(arquivo, "%d:  \t%s %s %s %d\n", i,
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   getRegisterName(instr->tipoI->rs),
+                                   instr->tipoI->imediato);
+                        }
+                    }
+                }
+                break;
+                
+            case typeJ:
+                fprintf(arquivo, "%d:  \t%s %s\n", i,
+                       instr->tipoJ->nome,
+                       instr->tipoJ->labelImediato);
+                break;
+                
+            case typeLabel:
+                if (strncmp(instr->tipoLabel->nome, "#", 1) == 0) {
+                    fprintf(arquivo, "%s\n", instr->tipoLabel->nome);
+                } else {
+                    fprintf(arquivo, "%d:  %s:\n", i, instr->tipoLabel->nome);
+                }
+                break;
+        }
+    }
+    
+    // Usar a função original de impressão de labels redirecionando stdout temporariamente
+    FILE *original_stdout = stdout;
+    stdout = arquivo;
+    imprimirLabels();
+    stdout = original_stdout;
 }
 
 // Função para liberar memória do assembly
@@ -967,9 +1041,7 @@ void resolverLabels() {
 }
 
 // Função para imprimir assembly sem labels e com referências resolvidas
-void imprimirAssemblySemLabels() {
-    printf("============== Assembly (sem labels) ==============\n");
-    
+void imprimirAssemblySemLabels() {    
     if (instrucoesAssembly == NULL || indiceAssembly == 0) {
         printf("Nenhuma instrucao de assembly para imprimir.\n");
         return;
@@ -1121,7 +1193,88 @@ void imprimirAssemblySemLabels() {
     }
     
     free(mapeamentoLinhas);
-    printf("\n");
+}
+
+// Nova função que aceita FILE* como parâmetro para redirecionamento
+void imprimirAssemblySemLabelsParaArquivo(FILE* arquivo) {
+    if (arquivo == NULL) arquivo = stdout;
+    
+    if (instrucoesAssembly == NULL || indiceAssembly == 0) {
+        fprintf(arquivo, "Nenhuma instrucao de assembly para imprimir.\n");
+        return;
+    }
+    
+    // Criar mapeamento de linha antiga -> linha nova (sem labels)
+    int *mapeamentoLinhas = (int*)malloc(indiceAssembly * sizeof(int));
+    int linhaAtual = 0;
+    
+    // Primeiro passo: mapear linhas, excluindo labels
+    for (int i = 0; i < indiceAssembly; i++) {
+        ASSEMBLY* instr = instrucoesAssembly[i];
+        if (instr != NULL && instr->tipo != typeLabel) {
+            mapeamentoLinhas[i] = linhaAtual++;
+        } else {
+            mapeamentoLinhas[i] = -1; // Labels não têm linha no assembly sem labels
+        }
+    }
+    
+    // Segundo passo: imprimir instruções resolvendo referências de labels
+    for (int i = 0; i < indiceAssembly; i++) {
+        ASSEMBLY* instr = instrucoesAssembly[i];
+        if (instr == NULL || instr->tipo == typeLabel) continue;
+        
+        int novaLinha = mapeamentoLinhas[i];
+        
+        switch (instr->tipo) {
+            case typeR:
+                fprintf(arquivo, "%d:  \t%s %s %s %s\n", novaLinha,
+                       instr->tipoR->nome,
+                       getRegisterName(instr->tipoR->rd),
+                       getRegisterName(instr->tipoR->rs), 
+                       getRegisterName(instr->tipoR->rt));
+                break;
+                
+            case typeI:
+                if (instr->tipoI->label != 0) {
+                    // Resolver referência do label sem usar variáveis indisponíveis
+                    fprintf(arquivo, "%d:  \t%s %s %s Label%d\n", novaLinha,
+                           instr->tipoI->nome,
+                           getRegisterName(instr->tipoI->rt),
+                           getRegisterName(instr->tipoI->rs),
+                           instr->tipoI->label);
+                } else {
+                    // Instruções normais
+                    if (strcmp(instr->tipoI->nome, "sw") == 0 || strcmp(instr->tipoI->nome, "lw") == 0) {
+                        fprintf(arquivo, "%d:  \t%s %s %d(%s)\n", novaLinha,
+                               instr->tipoI->nome,
+                               getRegisterName(instr->tipoI->rt),
+                               instr->tipoI->imediato,
+                               getRegisterName(instr->tipoI->rs));
+                    } else {
+                        fprintf(arquivo, "%d:  \t%s %s %s %d\n", novaLinha,
+                               instr->tipoI->nome,
+                               getRegisterName(instr->tipoI->rt),
+                               getRegisterName(instr->tipoI->rs),
+                               instr->tipoI->imediato);
+                    }
+                }
+                break;
+                
+            case typeJ:
+                if (instr->tipoJ->labelImediato != NULL) {
+                    // Resolver referência do label sem usar getEnderecoLabel
+                    fprintf(arquivo, "%d:  \t%s %s\n", novaLinha,
+                           instr->tipoJ->nome,
+                           instr->tipoJ->labelImediato);
+                } else {
+                    fprintf(arquivo, "%d:  \t%s\n", novaLinha,
+                           instr->tipoJ->nome);
+                }
+                break;
+        }
+    }
+    
+    free(mapeamentoLinhas);
 }
 
 // Função para salvar assembly limpo em arquivo (sem números de linha)
@@ -1197,7 +1350,6 @@ void salvarAssemblyLimpo(const char* nomeArquivo) {
     }
     
     fclose(arquivo);
-    printf("Assembly salvo em: %s\n", nomeArquivo);
 }
 
 // Função para salvar assembly sem labels em arquivo (apenas instruções e números de linha)
@@ -1345,7 +1497,6 @@ void salvarAssemblySemLabelsArquivo(const char* nomeArquivo) {
     
     free(mapeamentoLinhas);
     fclose(arquivo);
-    printf("Assembly sem labels salvo em: %s\n", nomeArquivo);
 }
 
 // Função para salvar assembly puro sem números de linha (estilo Eduardo final)
@@ -1431,5 +1582,4 @@ void salvarAssemblyPuro(const char* nomeArquivo) {
     }
     
     fclose(arquivo);
-    printf("Assembly puro salvo em: %s\n", nomeArquivo);
 }

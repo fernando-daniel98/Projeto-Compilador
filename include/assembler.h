@@ -155,9 +155,11 @@ void assembly();
 void inicializaAssembly();
 ASSEMBLY * criarNoAssembly(tipoInstrucao tipo, char *nome);
 void imprimirAssembly();
+void imprimirAssemblyParaArquivo(FILE* arquivo); // Nova função que aceita FILE*
 void liberarAssembly();
 void resolverLabels();  // Nova função para resolver referencias de labels
 void imprimirAssemblySemLabels(); // Imprimir assembly sem labels e com referências resolvidas
+void imprimirAssemblySemLabelsParaArquivo(FILE* arquivo); // Nova função que aceita FILE*
 void salvarAssemblyLimpo(const char* nomeArquivo); // Salvar assembly em arquivo sem números de linha
 void salvarAssemblySemLabelsArquivo(const char* nomeArquivo); // Salvar assembly sem labels em arquivo
 void salvarAssemblyPuro(const char* nomeArquivo); // Salvar assembly puro sem números de linha (último print CA)

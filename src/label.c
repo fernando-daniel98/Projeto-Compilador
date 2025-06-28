@@ -87,6 +87,7 @@ void imprimirLabels(){
         printf("Nao ha labels para imprimir\n");
         return;
     }
+    printf("\n");
     Label * aux = vetorLabel->vetor;
     printf("Labels:\n");
     while(aux != NULL){

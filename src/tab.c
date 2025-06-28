@@ -216,8 +216,6 @@ const char* getExpTypeName(ExpType type) {
 }
 
 void mostraTabelaSimbolos(PnoIdentificador *tabelaHash) {
-    fprintf(yyout, "\nSYMBOL TABLE\n");
-    fprintf(yyout, "-------------\n");
     for(int i = 0; i < MAXTAMTABELA; i++) {
         PnoIdentificador atual = tabelaHash[i];
         while(atual != NULL) {
@@ -235,7 +233,6 @@ void mostraTabelaSimbolos(PnoIdentificador *tabelaHash) {
             atual = atual->prox;
         }
     }
-    fprintf(yyout, "-------------\n\n");
 }
 
 // Função para verificar se existe pelo menos um comando return em uma função

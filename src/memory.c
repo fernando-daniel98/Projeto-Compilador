@@ -168,7 +168,7 @@ void apagar_temp(MEMORIA_FUNCOES* funcao){
     
     // Caso nao tenha parametros
     if(funcao->tamanho == 0){
-        printf("Nao ha temporarios a serem apagados!\n");
+        // printf("Nao ha temporarios a serem apagados!\n");
         return;
     }
 

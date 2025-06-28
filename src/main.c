@@ -90,9 +90,9 @@ int main(int argc, char **argv) {
 
     if (syntaxTree != NULL) {
         fprintf(stderr, "Syntax analysis completed.\n\n");
-        
-        fprintf(stderr, "Starting semantic analysis...\n");
+    
 
+        fprintf(stderr, "Starting semantic analysis...\n");
         initSymbolTable();
         buildSymTabFromTree(syntaxTree);
         
@@ -100,12 +100,32 @@ int main(int argc, char **argv) {
 
         fprintf(stderr, "Semantic analysis completed.\n\n");
 
-        mostraTabelaSimbolos(symbolTable);
+        // Salvar tabela de símbolos em arquivo separado
+        FILE *symbolFile = fopen("./output/logs/tabela_simbolos.txt", "w");
+        if (symbolFile != NULL) {
+            FILE *original_yyout = yyout;
+            yyout = symbolFile;
 
-        fprintf(yyout, "SYNTAX TREE\n");
-        fprintf(yyout, "-------------\n");
-        printTree(syntaxTree);
-        fprintf(yyout, "-------------\n\n");
+            mostraTabelaSimbolos(symbolTable);
+
+            fclose(symbolFile);
+            yyout = original_yyout;
+            
+            fprintf(stderr, "Symbol table saved to ./output/logs/tabela_simbolos.txt\n");
+        }
+
+        // Salvar árvore sintática em arquivo separado
+        FILE *treeFile = fopen("./output/logs/arvore_sintatica.txt", "w");
+        if (treeFile != NULL) {
+            FILE *original_yyout = yyout;
+            yyout = treeFile;
+            printTree(syntaxTree);
+            yyout = original_yyout;
+            fclose(treeFile);
+            fprintf(stderr, "Syntax tree saved to ./output/logs/arvore_sintatica.txt\n");
+        }
+
+        // printTree(syntaxTree);
         
     } else {
         fprintf(stderr, "Syntax analysis failed. See previous errors.\n\n");
@@ -123,8 +143,8 @@ int main(int argc, char **argv) {
     } else {
         fprintf(stderr, "Starting intermediate code generation...\n");
 
-        fprintf(yyout, "INTERMEDIATE CODE\n");
-        fprintf(yyout, "-------------\n");
+        //fprintf(yyout, "INTERMEDIATE CODE\n");
+        //fprintf(yyout, "-------------\n");
         
         icStatus = createIntermediateCode(syntaxTree, symbolTable);
 
@@ -154,7 +174,18 @@ int main(int argc, char **argv) {
         if (icStatus == 0) {
             fprintf(stderr, "Intermediate code generation completed.\n\n");
             
-            imprimeCodigoIntermediario();
+            // Salvar código intermediário em arquivo separado
+            FILE *icFile = fopen("./output/logs/codigo_intermediario.txt", "w");
+            if (icFile != NULL) {
+                FILE *original_yyout = yyout;
+                yyout = icFile;
+                imprimeCodigoIntermediario();
+                fclose(icFile);
+                yyout = original_yyout;
+            }
+            
+            // Manter saída original para compatibilidade
+            // imprimeCodigoIntermediario();
             
         } else if (icStatus == -1) {
             fprintf(stderr, "Intermediate code generation failed: Memory allocation error.\n");
@@ -164,7 +195,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "Intermediate code generation failed with unknown error code: %d.\n", icStatus);
         }
         
-        fprintf(yyout, "-------------\n\n");
+        // fprintf(yyout, "-------------\n\n");
     }
 
     // Liberação das estruturas que não serão mais utilizadas.
@@ -176,31 +207,71 @@ int main(int argc, char **argv) {
         deleteSymTab();
     }
 
-    fprintf(yyout, "Debug registradores CI:");
-    mostrarReg();
+    // Salvar estado dos registradores antes do assembly
+    FILE *regFileCI = fopen("./output/logs/registradores_CI.txt", "w");
+    if (regFileCI != NULL) {
+        FILE *original_yyout = yyout;
+        yyout = regFileCI;
+        mostrarReg();
+        fclose(regFileCI);
+        yyout = original_yyout;
+    }
 
-    // Testando assembler simples
+    // fprintf(yyout, "Debug registradores CI:");
+    // mostrarReg();
+
+    // Assembly simples
+    fprintf(stderr, "Starting assembly generation...\n");
     assembly();
-    imprimirAssembly();
-    fprintf(yyout, "\n");
+    
+    // Salvar código assembly em arquivo separado
+    FILE *asmFile = fopen("./output/logs/codigo_assembly.txt", "w");
+    if (asmFile != NULL) {
+        imprimirAssemblyParaArquivo(asmFile);
+        fclose(asmFile);
+    }
+    
+    // Salvar assembly sem labels em arquivo separado
+    FILE *asmNoLabelsFile = fopen("./output/logs/assembly_sem_labels.txt", "w");
+    if (asmNoLabelsFile != NULL) {
+        imprimirAssemblySemLabelsParaArquivo(asmNoLabelsFile);
+        fclose(asmNoLabelsFile);
+    }
+    
+    // Manter saída original para compatibilidade
+    // imprimirAssembly();
+    // fprintf(yyout, "\n");
     
     // Assembly sem labels (nova funcionalidade)
-    imprimirAssemblySemLabels();
-    fprintf(yyout, "\n");
-    
+    // imprimirAssemblySemLabels();
+    // fprintf(yyout, "\n");
+
     // Salvar assembly em arquivos separados
-    salvarAssemblyLimpo("./output/assembly_completo.asm");
-    salvarAssemblySemLabelsArquivo("./output/assembly_sem_labels.asm");
-    salvarAssemblyPuro("./output/assembly_puro.asm");
+    //salvarAssemblyLimpo("./output/assembly_completo.asm");
+    //salvarAssemblySemLabelsArquivo("./output/assembly_sem_labels.asm");
+    //salvarAssemblyPuro("./output/assembly_puro.asm");
+
+    fprintf(stderr, "Assembly generation completed.\n\n");
     
     // Gerar código binário
     fprintf(stderr, "Generating binary code...\n");
-    salvarBinario("./output/codigo_binario.bin");
+    salvarBinario("./output/codigo_binario.txt");
     salvarBinarioDebug("./output/codigo_binario_debug.txt");
+    
     fprintf(stderr, "Binary code generation completed.\n\n");
 
-    fprintf(yyout, "Debug registradores CA:");
-    mostrarReg();
+    // Salvar estado dos registradores após assembly
+    FILE *regFileCA = fopen("./output/logs/registradores_CA.txt", "w");
+    if (regFileCA != NULL) {
+        FILE *original_yyout = yyout;
+        yyout = regFileCA;
+        mostrarReg();
+        fclose(regFileCA);
+        yyout = original_yyout;
+    }
+
+    //fprintf(yyout, "Debug registradores CA:");
+    //mostrarReg();
 
     if (intermediateCode != NULL){
         freeIntermediateCode();

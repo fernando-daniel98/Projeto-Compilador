@@ -271,11 +271,8 @@ void binario(FILE* arquivo) {
     BIN_J* binJ;
     BIN_R* binR;
     
-    printf("Gerando código binário para %d instruções...\n", indiceAssembly);
-    
     for (int i = 0; i < indiceAssembly; i++) {
         if (instrucoesAssembly[i] == NULL) {
-            printf("AVISO: Instrução %d é NULL, gerando NOP\n", i);
             binR = binarioNop();
             if (binR != NULL) {
                 printBits(sizeof(*binR), binR, arquivo);
@@ -320,7 +317,6 @@ void binario(FILE* arquivo) {
                 break;
                 
             default:
-                printf("ERRO: Tipo de instrução desconhecido na linha %d\n", i);
                 binR = binarioNop();
                 if (binR != NULL) {
                     printBits(sizeof(*binR), binR, arquivo);
@@ -330,8 +326,6 @@ void binario(FILE* arquivo) {
         }
         fprintf(arquivo, "\n");
     }
-    
-    printf("Código binário gerado com sucesso!\n");
 }
 
 void binario_debug(FILE* arquivo) {
@@ -348,8 +342,6 @@ void binario_debug(FILE* arquivo) {
     BIN_I* binI;
     BIN_J* binJ;
     BIN_R* binR;
-    
-    fprintf(arquivo, "============== Código Binário (Debug) ==============\n");
     
     for (int i = 0; i < indiceAssembly; i++) {
         fprintf(arquivo, "%d:\t", i);
@@ -409,8 +401,6 @@ void binario_debug(FILE* arquivo) {
         }
         fprintf(arquivo, "\n");
     }
-    
-    fprintf(arquivo, "===================================================\n");
 }
 
 void salvarBinario(const char* nomeArquivo) {
@@ -422,7 +412,6 @@ void salvarBinario(const char* nomeArquivo) {
     
     binario(arquivo);
     fclose(arquivo);
-    printf("Código binário salvo em: %s\n", nomeArquivo);
 }
 
 void salvarBinarioDebug(const char* nomeArquivo) {
@@ -434,5 +423,4 @@ void salvarBinarioDebug(const char* nomeArquivo) {
     
     binario_debug(arquivo);
     fclose(arquivo);
-    printf("Código binário (debug) salvo em: %s\n", nomeArquivo);
 }

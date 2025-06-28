@@ -1,0 +1,22 @@
+/* Teste de vetores locais - vários cenários */
+int testeVetorSimples(int tamanho) {
+    int arr[5];
+    int i;
+    int soma;
+    
+    soma = 0;
+    i = 0;
+    while (i < 5) {
+        arr[i] = i + 1;
+        soma = soma + arr[i];
+        i = i + 1;
+    }
+    
+    return soma;
+}
+
+void main(void) {
+    int resultado;
+    resultado = testeVetorSimples(5);
+    output(resultado); /* Deve imprimir 15 (1+2+3+4+5) */
+}

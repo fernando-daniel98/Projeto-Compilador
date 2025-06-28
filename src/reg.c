@@ -82,7 +82,6 @@ int buscarVarReg(char* nomeVar, char* escopo){
 // Funcao para mostrar os registradores e suas informacoes na tela do usuario
 void mostrarReg(){
     int cont = 0;
-    fprintf(yyout, "\n============== Registradores ===============\n");
     for(int i = 0; i < MAX_REG; i++){
         if(listaReg[i].nomeVar != NULL){
             fprintf(yyout, "t%d: %s, %s, uso=%d\n", listaReg[i].numReg, listaReg[i].nomeVar, listaReg[i].escopo, listaReg[i].ultimoUso);
@@ -90,7 +89,6 @@ void mostrarReg(){
     }
     
     fprintf(yyout, "\nRegistradores Livres: %d.\n", MAX_REG - totalRegEmUso);
-    fprintf(yyout, "============================================\n\n");
 }
 
 // Funcao para descartar um registrador usando algoritmo LRU (Least Recently Used)
