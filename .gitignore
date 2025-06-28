@@ -6,6 +6,7 @@
 
 /tests/others
 /tests/*.txt
+/chatCopilot
 
 /output
 /others
