@@ -11,6 +11,7 @@
 #include "../include/semantic.h"
 #include "../include/codeGen.h"
 #include "../include/assembler.h"     // Descomentado para testar assembler simples
+#include "../include/binario.h"       // Gerador de código binário
 
 // Variáveis externas necessárias
 extern FILE *yyin;
@@ -190,6 +191,13 @@ int main(int argc, char **argv) {
     // Salvar assembly em arquivos separados
     salvarAssemblyLimpo("./output/assembly_completo.asm");
     salvarAssemblySemLabelsArquivo("./output/assembly_sem_labels.asm");
+    salvarAssemblyPuro("./output/assembly_puro.asm");
+    
+    // Gerar código binário
+    fprintf(stderr, "Generating binary code...\n");
+    salvarBinario("./output/codigo_binario.bin");
+    salvarBinarioDebug("./output/codigo_binario_debug.txt");
+    fprintf(stderr, "Binary code generation completed.\n\n");
 
     fprintf(yyout, "Debug registradores CA:");
     mostrarReg();

@@ -847,9 +847,9 @@ void imprimirAssembly() {
                            getRegisterName(instr->tipoI->rs),
                            instr->tipoI->label);
                 } else {
-                    // Tratar instruções especiais como ori que têm formato diferente
-                    if (strcmp(instr->tipoI->nome, "ori") == 0) {
-                        // Formato ori: ori $rt $rs imediato  
+                    // Tratar instruções especiais como ori e xori que têm formato diferente
+                    if (strcmp(instr->tipoI->nome, "ori") == 0 || strcmp(instr->tipoI->nome, "xori") == 0) {
+                        // Formato ori/xori: ori $rt $rs imediato  
                         printf("%d:  \t%s %s %s %d\n", i,
                                instr->tipoI->nome,
                                getRegisterName(instr->tipoI->rt),
@@ -1044,7 +1044,9 @@ void imprimirAssemblySemLabels() {
                     }
                 } else {
                     // Tratar instruções normais
-                    if (strcmp(instr->tipoI->nome, "ori") == 0) {
+                    if (strcmp(instr->tipoI->nome, "ori") == 0 || strcmp(instr->tipoI->nome, "xori") == 0 ||
+                        strcmp(instr->tipoI->nome, "addi") == 0 || strcmp(instr->tipoI->nome, "subi") == 0 ||
+                        strcmp(instr->tipoI->nome, "andi") == 0 || strcmp(instr->tipoI->nome, "slti") == 0) {
                         printf("%d:  \t%s %s %s %d\n", novaLinha,
                                instr->tipoI->nome,
                                getRegisterName(instr->tipoI->rt),
@@ -1151,9 +1153,9 @@ void salvarAssemblyLimpo(const char* nomeArquivo) {
                            getRegisterName(instr->tipoI->rs),
                            instr->tipoI->label);
                 } else {
-                    // Tratar instruções especiais como ori que têm formato diferente
-                    if (strcmp(instr->tipoI->nome, "ori") == 0) {
-                        // Formato ori: ori $rt $rs imediato  
+                    // Tratar instruções especiais como ori e xori que têm formato diferente
+                    if (strcmp(instr->tipoI->nome, "ori") == 0 || strcmp(instr->tipoI->nome, "xori") == 0) {
+                        // Formato ori/xori: ori $rt $rs imediato  
                         fprintf(arquivo, "%s %s %s %d\n",
                                instr->tipoI->nome,
                                getRegisterName(instr->tipoI->rt),
@@ -1268,7 +1270,9 @@ void salvarAssemblySemLabelsArquivo(const char* nomeArquivo) {
                     }
                 } else {
                     // Tratar instruções normais
-                    if (strcmp(instr->tipoI->nome, "ori") == 0) {
+                    if (strcmp(instr->tipoI->nome, "ori") == 0 || strcmp(instr->tipoI->nome, "xori") == 0 ||
+                        strcmp(instr->tipoI->nome, "addi") == 0 || strcmp(instr->tipoI->nome, "subi") == 0 ||
+                        strcmp(instr->tipoI->nome, "andi") == 0 || strcmp(instr->tipoI->nome, "slti") == 0) {
                         fprintf(arquivo, "%s %s %s %d\n",
                                instr->tipoI->nome,
                                getRegisterName(instr->tipoI->rt),
@@ -1336,9 +1340,96 @@ void salvarAssemblySemLabelsArquivo(const char* nomeArquivo) {
                 // Labels não são salvos nesta função
                 break;
         }
+        
     }
     
     free(mapeamentoLinhas);
     fclose(arquivo);
     printf("Assembly sem labels salvo em: %s\n", nomeArquivo);
+}
+
+// Função para salvar assembly puro sem números de linha (estilo Eduardo final)
+void salvarAssemblyPuro(const char* nomeArquivo) {
+    FILE* arquivo = fopen(nomeArquivo, "w");
+    if (arquivo == NULL) {
+        printf("Erro: Não foi possível criar o arquivo %s\n", nomeArquivo);
+        return;
+    }
+    
+    for (int i = 0; i < indiceAssembly; i++) {
+        ASSEMBLY* instr = instrucoesAssembly[i];
+        if (instr == NULL) continue;
+        
+        switch (instr->tipo) {
+            case typeR:
+                fprintf(arquivo, "%s %s %s %s\n",
+                       instr->tipoR->nome,
+                       getRegisterName(instr->tipoR->rd),
+                       getRegisterName(instr->tipoR->rs), 
+                       getRegisterName(instr->tipoR->rt));
+                break;
+                
+            case typeI:
+                if (instr->tipoI->label != 0) {
+                    fprintf(arquivo, "%s %s %s Label %d\n",
+                           instr->tipoI->nome,
+                           getRegisterName(instr->tipoI->rt),
+                           getRegisterName(instr->tipoI->rs),
+                           instr->tipoI->label);
+                } else {
+                    // Tratar instruções especiais como ori e xori que têm formato diferente
+                    if (strcmp(instr->tipoI->nome, "ori") == 0 || strcmp(instr->tipoI->nome, "xori") == 0) {
+                        // Formato ori/xori: ori $rt $rs imediato  
+                        fprintf(arquivo, "%s %s %s %d\n",
+                               instr->tipoI->nome,
+                               getRegisterName(instr->tipoI->rt),
+                               getRegisterName(instr->tipoI->rs),
+                               instr->tipoI->imediato);
+                    } else {
+                        // Formato padrão: instrução reg offset($reg)
+                        if (instr->tipoI->imediato == 0) {
+                            fprintf(arquivo, "%s %s 0(%s)\n",
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   getRegisterName(instr->tipoI->rs));
+                        } else {
+                            fprintf(arquivo, "%s %s %d(%s)\n",
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   instr->tipoI->imediato,
+                                   getRegisterName(instr->tipoI->rs));
+                        }
+                    }
+                }
+                break;
+                
+            case typeJ:
+                if (instr->tipoJ->labelImediato != NULL) {
+                    // Tratamento especial para halt que não deveria ter referência de label
+                    if (strcmp(instr->tipoJ->nome, "halt") == 0) {
+                        fprintf(arquivo, "%s\n", instr->tipoJ->nome);
+                    } else {
+                        fprintf(arquivo, "%s %s\n",
+                               instr->tipoJ->nome,
+                               instr->tipoJ->labelImediato);
+                    }
+                } else {
+                    fprintf(arquivo, "%s\n", instr->tipoJ->nome);
+                }
+                break;
+                
+            case typeLabel:
+                // Labels são incluídos no assembly puro (diferente do assembly sem labels)
+                if (strncmp(instr->tipoLabel->nome, "#", 1) == 0) {
+                    fprintf(arquivo, "%s\n", instr->tipoLabel->nome);
+                } else {
+                    // Formato: nome: (sem número da linha)
+                    fprintf(arquivo, "%s:\n", instr->tipoLabel->nome);
+                }
+                break;
+        }
+    }
+    
+    fclose(arquivo);
+    printf("Assembly puro salvo em: %s\n", nomeArquivo);
 }

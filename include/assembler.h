@@ -160,6 +160,7 @@ void resolverLabels();  // Nova função para resolver referencias de labels
 void imprimirAssemblySemLabels(); // Imprimir assembly sem labels e com referências resolvidas
 void salvarAssemblyLimpo(const char* nomeArquivo); // Salvar assembly em arquivo sem números de linha
 void salvarAssemblySemLabelsArquivo(const char* nomeArquivo); // Salvar assembly sem labels em arquivo
+void salvarAssemblyPuro(const char* nomeArquivo); // Salvar assembly puro sem números de linha (último print CA)
 
 // Funcao para mapear numero do registrador para nome legivel
 const char* getRegisterName(int regNum);
