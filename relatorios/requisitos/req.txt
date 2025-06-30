@@ -1,0 +1,91 @@
+1. Capa
+A capa do relatório deve conter os seguintes elementos:
+
+
+Título do Projeto: Implementação do Compilador C-.
+
+Nome do aluno.
+
+Nome do professor.
+
+
+Texto de capa: "Relatório apresentado à Universidade Federal de São Paulo como parte dos requisitos para aprovação na disciplina de Laboratório de Sistemas Computacionais: Compiladores.".
+
+Local.
+
+Data.
+
+2. Índice 
+
+O relatório deve incluir um índice para a navegação de suas seções.
+
+3. Introdução
+Esta seção deve:
+
+Contextualizar a relevância dos compiladores, o propósito do projeto final da disciplina e a sua conexão com o processador para o qual o compilador foi desenvolvido.
+
+Apresentar a organização dos capítulos subsequentes do relatório.
+
+4. O Processador
+Neste capítulo, é necessário abordar:
+
+Um diagrama de blocos do processador.
+
+Uma explicação sobre os componentes do processador.
+
+O conjunto de instruções do processador.
+
+A organização da memória.
+
+5. Compilador: Fase de Análise
+Esta seção deve detalhar a fase de análise do compilador, incluindo:
+
+Modelagem: Com diagramas de blocos (SysML), diagramas de atividades (SysML) e outros diagramas pertinentes.
+
+
+Análise Léxica.
+
+Análise Sintática.
+
+Análise Semântica.
+
+6. Compilador: Fase de Síntese
+Este capítulo foca na fase de síntese do compilador e deve conter:
+
+Modelagem: Com diagramas de blocos (SysML), diagramas de atividades (SysML) e outros.
+
+
+Geração do código intermediário, explicando os tipos de quádruplas que foram definidos.
+
+Geração do código Assembly.
+
+Geração do código executável.
+
+
+Gerenciamento de memória.
+
+7. Exemplos
+É exigido a apresentação de, no mínimo, três exemplos de utilização do compilador, detalhando para cada um:
+
+Código Fonte.
+
+Código Intermediário.
+
+Código Assembly.
+
+
+Código executável.
+
+A correspondência entre o código fonte e o código intermediário.
+
+A correspondência entre o código intermediário e o código assembly.
+
+8. Conclusão
+A conclusão deve refletir sobre o projeto, incluindo:
+
+As dificuldades encontradas durante o desenvolvimento.
+
+Os destaques do projeto.
+
+9. Referências
+O relatório deve finalizar com uma seção de referências bibliográficas.
