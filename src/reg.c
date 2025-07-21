@@ -6,8 +6,9 @@
 #include "../include/codeGen.h"
 #include "../include/reg.h"
 
-#define MAX_REG 55 // Registradores t0-t54
-#define MAX_REG_DESCARTE 10000000 // Numero maximo de registradores que podem ser descartados
+// IMPORTANTE: Usar valores do reg.h (COMPATÍVEL COM EDUARDO)
+// #define MAX_REG 23 // Já definido em reg.h - Registradores t0-t22 IGUAL AO EDUARDO
+// #define MAX_REG_DESCARTE 10000000 // Já definido em reg.h
 
 // CORREÇÃO: Usar MAXTOKENLEN
 char stringTemp[MAXTOKENLEN] = "Temporario"; // Nome para identificar variaveis temporarias
@@ -57,6 +58,7 @@ int adicionaTempReg(){
             listaReg[i].nomeVar = stringTemp;
             strcpy(listaReg[i].escopo, funcName); // funcName é global do codeGen.h
             listaReg[i].descarte = totalReg;
+            listaReg[i].ultimoUso = totalReg; // CORRIGIDO: usar tempo atual, não antigo
             totalReg++;
             totalRegEmUso++;
             return i;
@@ -168,7 +170,8 @@ int verificacaoRegistradores(char *lexema, char* escopo, int boolTemp){
             return -1;
         }
     }
-    if((reg = adicionaTempReg()) == -1){
+    reg = adicionaTempReg();  // CORRIGIDO: sempre salva o resultado
+    if(reg == -1){
         fprintf(stderr, ANSI_COLOR_RED "Erro ao adicionar variavel no vetor de registradores\n" ANSI_COLOR_RESET);
     }
 

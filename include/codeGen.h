@@ -24,8 +24,8 @@ typedef enum {
     LABEL,          // etiqueta
     GOTO,           // desvio incondicional
     IF,             // if-goto
-    IFFALSE,        // iffalse-goto
-    RETURN,         // return
+    IFF,            // if-false-goto (COMPATÍVEL COM EDUARDO)
+    RET,            // return (COMPATÍVEL COM EDUARDO)
     PARAM,          // parâmetro
     CALL,           // chamada de função
     ARG,            // argumento

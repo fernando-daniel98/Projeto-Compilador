@@ -1,80 +1,6 @@
 #ifndef Assembly_H
 #define Assembly_H 1
 
-/*
- * ==========================================
- * PROCESSADOR MIPS-64 - REGISTRADORES ESPECIAIS
- * ==========================================
- * 
- * REGISTRADORES RESERVADOS (Sistema):
- * - $zero (63): Sempre contém 0 (0x3F em hex, 111111 em binário)
- * - $ra   (62): Return Address - endereço de retorno (0x3E em hex, 111110 em binário)
- * - $fp   (61): Frame Pointer - início do frame da função (0x3D em hex, 111101 em binário)
- * - $sp   (60): Stack Pointer - fim/topo da pilha (0x3C em hex, 111100 em binário)
- * - $temp (59): Temporário do compilador (0x3B em hex, 111011 em binário)
- * - $pilha(58): Ponteiro para pilha de parâmetros (0x3A em hex, 111010 em binário)
- * - $s2   (57): Registrador salvo (0x39 em hex, 111001 em binário)
- * - $s1   (56): Registrador salvo (0x38 em hex, 111000 em binário)
- * - $s0   (55): Registrador salvo (0x37 em hex, 110111 em binário)
- * 
- * REGISTRADORES DE USO GERAL:
- * - $t0-$t54 (0-54): Registradores temporários para uso geral
- * 
- * CONVENÇÕES DE FRAME DE FUNÇÃO:
- * Offsets relativos ao $fp (Frame Pointer):
- * 0($fp): parâmetro 1 da função
- * 1($fp): parâmetro 2 da função
- * 2($fp): parâmetro 3 da função
- * 3($fp): endereço onde armazenar valor de retorno (ponteiro)
- * 4($fp): return address ($ra) - SEMPRE salvo aqui
- * 5($fp): valor de retorno da função (se aplicável)
- * 6-8($fp): variáveis locais adicionais
- * 9-11($fp): variáveis locais temporárias
- * 
- * PADRÃO DE GERENCIAMENTO DA PILHA:
- * - Tamanho padrão do frame: 25 posições
- * - Crescimento da pilha: 
- *   addi $fp $fp 25  (cresce frame pointer)
- *   addi $sp $sp 25  (cresce stack pointer)
- * - Redução da pilha:
- *   subi $fp $fp 25  (reduz frame pointer)
- *   subi $sp $sp 25  (reduz stack pointer)
- * 
- * SEQUÊNCIA PADRÃO DE CHAMADA DE FUNÇÃO:
- * 1. Preparar parâmetros na $pilha (reg 58):
- *    sw $param1 0($pilha)
- *    sw $param2 1($pilha)
- *    sw $param3 2($pilha)
- * 
- * 2. Transferir parâmetros para a stack:
- *    lw $temp 2($pilha); sw $temp 3($sp)  # param 3
- *    lw $temp 1($pilha); sw $temp 2($sp)  # param 2
- *    lw $temp 0($pilha); sw $temp 1($sp)  # param 1
- * 
- * 3. Salvar endereço do frame anterior:
- *    add $temp $fp $zero; addi $temp $temp 3
- *    sw $temp 4($sp)
- * 
- * 4. Crescer a pilha e chamar:
- *    addi $fp $fp 25; addi $sp $sp 25
- *    jal função
- * 
- * 5. Restaurar após retorno:
- *    subi $fp $fp 25; subi $sp $sp 25
- * 
- * SEQUÊNCIA PADRÃO DE RETORNO DE FUNÇÃO:
- * 1. Salvar $ra no início da função:
- *    sw $ra 4($fp)
- * 
- * 2. Preparar valor de retorno (se aplicável):
- *    lw $temp 3($fp)          # endereço onde salvar
- *    sw $valor_retorno 2($temp)
- * 
- * 3. Restaurar $ra e retornar:
- *    lw $ra 4($fp)
- *    jr $zero $ra $zero
- */
-
 // Inclusao de bibliotecas
 #include "label.h" // Mantido, pode ser necessário para TIPO_LABEL ou outros usos futuros
 #include "globals.h" // Adicionado para yyout, caso seja usado aqui no futuro, e para consistência
@@ -83,20 +9,21 @@
 #define MAX_CHAR_NOME 5
 #define MAX_ASSEMBLY 10000
 
-// Definições de registradores para sua arquitetura (64 registradores)
-// Mapeamento baseado na lógica do Eduardo, mas ajustado para 64 regs
-#define $zero 63   // Registrador sempre zero (Eduardo: 31)
-#define $ra 62     // Return Address (Eduardo: 30)
-#define $fp 61     // Frame Pointer (Eduardo: 29)
-#define $sp 60     // Stack Pointer (Eduardo: 28)
-#define $temp 59   // Registrador temporário especial (Eduardo: 27)
-#define $pilha 58  // Registrador para pilha de parâmetros (Eduardo: 26)
-#define $s2 57     // Saved register 2 (Eduardo: 25)
-#define $s1 56     // Saved register 1 (Eduardo: 24)
-#define $s0 55     // Saved register 0 (Eduardo: 23)
+// Definições de registradores COMPATÍVEIS com o Eduardo (32 registradores)
+// Mapeamento EXATO da arquitetura MIPS-like do Eduardo
+#define $zero 31   // Registrador sempre zero (read-only)
+#define $ra 30     // Return Address (endereço de retorno)
+#define $fp 29     // Frame Pointer (ponteiro do frame atual)
+#define $sp 28     // Stack Pointer (ponteiro da pilha)
+#define $temp 27   // Registrador temporário especial
+#define $pilha 26  // Registrador para pilha de parâmetros
+#define $s2 25     // Saved register 2
+#define $s1 24     // Saved register 1
+#define $s0 23     // Saved register 0 (BASE DE MEMÓRIA - Eduardo usa $t23)
 
-// Registradores temporários t0-t54 (Eduardo tinha t0-t22)
-// Mapeamento direto: $t{n} = n (para n de 0 até 54)
+// Registradores temporários t0-t22 (EXATO como Eduardo)
+// Mapeamento direto: $t{n} = n (para n de 0 até 22)
+// IMPORTANTE: Eduardo usa $t23 como base de memória!
 
 typedef enum{
     typeR, // Instrucoes do tipo R

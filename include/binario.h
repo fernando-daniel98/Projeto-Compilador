@@ -5,35 +5,25 @@
 #include <stdlib.h>
 #include "assembler.h"
 
-/* Estruturas binárias otimizadas para o processador MIPS-64 modificado
-   As structs são declaradas com bit fields para economizar memória
-   e facilitar a escrita binária direta no arquivo */
-
-/* Formato R-Type: 32 bits
-   opcode(6) | rs(6) | rt(6) | rd(6) | shamt(2) | funct(6) */
 typedef struct {
-    unsigned int funct:6;    // bits 5-0: função específica
-    unsigned int shamt:2;    // bits 7-6: shift amount (reduzido para 2 bits)
-    unsigned int rd:6;       // bits 13-8: registrador destino
-    unsigned int rt:6;       // bits 19-14: registrador fonte 2
-    unsigned int rs:6;       // bits 25-20: registrador fonte 1
-    unsigned int opcode:6;   // bits 31-26: código da operação
+    unsigned int funct:6;
+    unsigned int shamt:5;
+    unsigned int rd:5;
+    unsigned int rt:5;
+    unsigned int rs:5;
+    unsigned int opcode:6;
 } BIN_R;
 
-/* Formato I-Type: 32 bits
-   opcode(6) | rs(6) | rt(6) | immediate(14) */
 typedef struct {
-    unsigned int immediate:14; // bits 13-0: valor imediato ou offset (expandido para 14 bits)
-    unsigned int rt:6;         // bits 19-14: registrador destino/fonte
-    unsigned int rs:6;         // bits 25-20: registrador base
-    unsigned int opcode:6;     // bits 31-26: código da operação
+    unsigned int immediate:16;
+    unsigned int rt:5;
+    unsigned int rs:5;
+    unsigned int opcode:6;
 } BIN_I;
 
-/* Formato J-Type: 32 bits
-   opcode(6) | address(26) */
 typedef struct {
-    unsigned int address:26;   // bits 25-0: endereço de salto (expandido para 26 bits)
-    unsigned int opcode:6;     // bits 31-26: código da operação
+    unsigned int address:26;
+    unsigned int opcode:6;
 } BIN_J;
 
 // Funções de conversão

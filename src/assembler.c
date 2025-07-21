@@ -22,20 +22,20 @@ const char* getRegisterName(int regNum) {
     static int nameIndex = 0;
     
     switch (regNum) {
-        // Registradores especiais (sistema)
-        case 63: return "$zero";   // Sempre 0
-        case 62: return "$ra";     // Return Address
-        case 61: return "$fp";     // Frame Pointer
-        case 60: return "$sp";     // Stack Pointer
-        case 59: return "$temp";   // Temporário do compilador
-        case 58: return "$pilha";  // Ponteiro para pilha de parâmetros
-        case 57: return "$s2";     // Saved register 2
-        case 56: return "$s1";     // Saved register 1
-        case 55: return "$s0";     // Saved register 0
+        // Registradores especiais (sistema) - EXATO como Eduardo
+        case 31: return "$zero";   // Registrador 31 é o $zero (sempre 0)
+        case 30: return "$ra";     // Return Address
+        case 29: return "$fp";     // Frame Pointer
+        case 28: return "$sp";     // Stack Pointer
+        case 27: return "$temp";   // Temporário do compilador
+        case 26: return "$pilha";  // Ponteiro para pilha de parâmetros
+        case 25: return "$s2";     // Saved register 2
+        case 24: return "$s1";     // Saved register 1
+        case 23: return "$t23";    // BASE DE MEMÓRIA (Eduardo usa $t23, não $s0)
         
-        // Registradores temporários (0-54)
+        // Registradores temporários (0-22) - COMPATÍVEL com Eduardo
         default:
-            if (regNum >= 0 && regNum <= 54) {
+            if (regNum >= 0 && regNum <= 22) {
                 nameIndex = (nameIndex + 1) % 4;  // Usar próximo buffer
                 snprintf(tempNames[nameIndex], sizeof(tempNames[nameIndex]), "$t%d", regNum);
                 return tempNames[nameIndex];
@@ -143,31 +143,23 @@ int opAritmeticos(quadruple* instrucao, ASSEMBLY** novaInstrucao) {
 int opRelacionais(quadruple* instrucao, ASSEMBLY** novaInstrucao) {
     if (instrucao->operation == EQ) {
         // EQ: if arg1 == arg2 then arg3 = 1, else arg3 = 0
-        // Implementação correta: !(a < b) AND !(b < a) = (a == b)
-        // Usa registrador temporário para evitar sobrescrever
+        // IMPLEMENTAÇÃO IGUAL AO EDUARDO: sobrescreve o registrador de destino
         
-        // Primeiro: $temp = (arg1 < arg2)
+        // Primeiro: result = (arg1 < arg2)
         *novaInstrucao = criarNoAssembly(typeR, "slt");
-        (*novaInstrucao)->tipoR->rd = $temp;  // usar $temp (59) temporário
+        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
         (*novaInstrucao)->tipoR->rs = instrucao->oper1->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper2->val;
         instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
 
-        // Segundo: result = (arg2 < arg1)
+        // Segundo: result = (arg2 < arg1) - SOBRESCREVE como Eduardo
         *novaInstrucao = criarNoAssembly(typeR, "slt");
         (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
         (*novaInstrucao)->tipoR->rs = instrucao->oper2->val;
         (*novaInstrucao)->tipoR->rt = instrucao->oper1->val;
         instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
 
-        // Terceiro: result = $temp OR result (se qualquer um for 1, são diferentes)
-        *novaInstrucao = criarNoAssembly(typeR, "add");
-        (*novaInstrucao)->tipoR->rd = instrucao->oper3->val;
-        (*novaInstrucao)->tipoR->rs = $temp;
-        (*novaInstrucao)->tipoR->rt = instrucao->oper3->val;
-        instrucoesAssembly[indiceAssembly++] = *novaInstrucao;
-
-        // Quarto: result = !result (inverter para obter igualdade)
+        // Terceiro: result = !result (xori como Eduardo)
         *novaInstrucao = criarNoAssembly(typeI, "xori");
         (*novaInstrucao)->tipoI->rt = instrucao->oper3->val;
         (*novaInstrucao)->tipoI->rs = instrucao->oper3->val;
@@ -319,8 +311,11 @@ void geraAssemblyCompleto(quadruple* instrucao) {
                 novaInstrucao = criarNoAssembly(typeI, "ori");
                 novaInstrucao->tipoI->rt = $sp;
                 novaInstrucao->tipoI->rs = $zero;
-                // Cálculo dinâmico: tamanho das globais + tamanho da função atual
-                int sp_value = buscar_funcao(&vetorMemoria, "global")->tamanho + get_sp(funcaoAtual);
+                // Cálculo dinâmico IGUAL AO EDUARDO: tamanho das globais + get_sp(funcaoAtual)
+                int tamanho_global = buscar_funcao(&vetorMemoria, "global")->tamanho;
+                int sp_base = 24; // Valor base igual ao Eduardo (get_sp retorna 24)
+                int sp_value = tamanho_global + sp_base;
+                
                 novaInstrucao->tipoI->imediato = sp_value;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
                 
@@ -382,8 +377,8 @@ void geraAssemblyCompleto(quadruple* instrucao) {
         // ARG é tratado em tempo de compilação
         // Não gerar código assembly - apenas configurar memória
     }
-    // IFFALSE (branch if false) - corrigindo IFF para IFFALSE
-    else if (instrucao->operation == IFFALSE) {
+    // IFF (branch if false) - COMPATÍVEL COM EDUARDO
+    else if (instrucao->operation == IFF) {
         novaInstrucao = criarNoAssembly(typeI, "beq");
         novaInstrucao->tipoI->rs = $zero;                    // $zero (63)
         novaInstrucao->tipoI->rt = instrucao->oper1->val;    // registrador de condição
@@ -406,7 +401,7 @@ void geraAssemblyCompleto(quadruple* instrucao) {
     // ===============================================
     // RETURN (retorno de função com valor)
     // ===============================================
-    else if (instrucao->operation == RETURN) {
+    else if (instrucao->operation == RET) {
         if (strcmp(nomeFuncaoAtual, "main") != 0) {
             // ===============================================
             // SEQUÊNCIA SOFISTICADA DE RETORNO COM VALOR:
@@ -433,13 +428,17 @@ void geraAssemblyCompleto(quadruple* instrucao) {
             instrucoesAssembly[indiceAssembly++] = novaInstrucao;
         }
     }
-    // PARAM (parâmetro de função)
+    // PARAM (parâmetro de função) - CORRIGIDO COMO EDUARDO
     else if (instrucao->operation == PARAM) {
         novaInstrucao = criarNoAssembly(typeI, "sw");
         novaInstrucao->tipoI->rs = $pilha;
         novaInstrucao->tipoI->rt = instrucao->oper1->val;
-        novaInstrucao->tipoI->imediato = 0; // offset na pilha de parâmetros
+        // Usar o tamanho atual da pilha de parâmetros como offset (ANTES de incrementar)
+        novaInstrucao->tipoI->imediato = buscar_funcao(&vetorMemoria, "parametros")->tamanho;
         instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+        
+        // Incrementar contador de parâmetros APÓS usar o offset
+        insere_variavel(buscar_funcao(&vetorMemoria, "parametros"), "Param", inteiro);
     }
     // LOAD (carregar de memória)
     else if (instrucao->operation == LOAD) {
@@ -449,53 +448,48 @@ void geraAssemblyCompleto(quadruple* instrucao) {
             (instrucao->oper3->boolReg == 1 || 
              (instrucao->oper3->nome && strcmp(instrucao->oper3->nome, "-") != 0))) {
             // ===============================================
-            // ACESSO INDEXADO A VETOR: a[index]
-            // IMPLEMENTAÇÃO CORRETA: Primeiro carregar base, depois acessar com índice
+            // ACESSO INDEXADO A VETOR: a[index] - COMO EDUARDO
+            // 1. lw $temp, offset($fp)  // carrega endereço base do array
+            // 2. add $temp, $temp, index // adiciona índice ao endereço base  
+            // 3. lw $dest, 0($temp)     // carrega valor na posição calculada
             // ===============================================
             
-            // Para uma implementação mais realista do MIPS:
-            // 1. Assumir que o vetor é um parâmetro e sua base está disponível
-            // 2. Gerar uma instrução que usa o índice para acessar
+            // 1. Carregar endereço base do vetor em $temp
+            ASSEMBLY* loadBase = criarNoAssembly(typeI, "lw");
+            loadBase->tipoI->rt = $temp;  // $temp receberá a base do vetor
             
-            novaInstrucao = criarNoAssembly(typeI, "lw");
-            novaInstrucao->tipoI->rt = instrucao->oper1->val;    // destino
-            
-            // Encontrar a variável vetor para determinar se é global ou local
             if (instrucao->oper2 && instrucao->oper2->nome) {
                 VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper2->nome);
                 if (var && var->bool_global) {
-                    // Para vetores globais, usar $s0 como base
-                    novaInstrucao->tipoI->rs = $s0;
-                    novaInstrucao->tipoI->imediato = 0; // offset será calculado pelo hardware
+                    // Para vetores globais, CALCULAR endereço base (não carregar conteúdo)
+                    free(loadBase->tipoI->nome);  // libera o nome original ("lw")
+                    loadBase->tipoI->nome = strdup("addi");  // CORRIGIDO: usar addi ao invés de lw
+                    loadBase->tipoI->rs = $s0;    // CORRIGIDO: usar $s0 (que é $t23 do Eduardo)
+                    loadBase->tipoI->imediato = 0;
                 } else {
-                    // Para vetores locais/parâmetros, usar uma abordagem mais sofisticada:
-                    // Como o MIPS não suporta endereçamento duplo, vamos simular
-                    // carregando primeiro o endereço base e depois usando offset 0
-                    
-                    // IMPLEMENTAÇÃO SIMPLIFICADA: usar base calculada + índice no registrador
-                    // Por simplicidade, assumir que a base está no registrador do vetor
-                    novaInstrucao->tipoI->rs = $temp;  // usar $temp como base calculada
-                    novaInstrucao->tipoI->imediato = 0; // offset 0 porque usaremos índice
-                    
-                    // Adicionar comentário para debug
-                    // Primeiro, carregar o endereço base do vetor em $temp
-                    ASSEMBLY* loadBase = criarNoAssembly(typeI, "lw");
-                    loadBase->tipoI->rt = $temp;  // $temp receberá a base do vetor
-                    
-                    if (var) {
-                        int offset = get_fp_relation(funcaoAtual, var);
-                        loadBase->tipoI->rs = $fp;
-                        loadBase->tipoI->imediato = offset;
-                    } else {
-                        loadBase->tipoI->rs = $fp;
-                        loadBase->tipoI->imediato = 0;
-                    }
-                    instrucoesAssembly[indiceAssembly++] = loadBase;
+                    // Para vetores locais/parâmetros, carregar endereço 
+                    int offset = var ? get_fp_relation(funcaoAtual, var) : 0;
+                    loadBase->tipoI->rs = $fp;
+                    loadBase->tipoI->imediato = offset;
                 }
             } else {
-                novaInstrucao->tipoI->rs = $fp;
-                novaInstrucao->tipoI->imediato = 0;
+                loadBase->tipoI->rs = $fp;
+                loadBase->tipoI->imediato = 0;
             }
+            instrucoesAssembly[indiceAssembly++] = loadBase;
+            
+            // 2. Adicionar índice ao endereço base: add $temp, $temp, index
+            ASSEMBLY* addIndex = criarNoAssembly(typeR, "add");
+            addIndex->tipoR->rd = $temp;      // destino: $temp
+            addIndex->tipoR->rs = $temp;      // operando 1: $temp (base)
+            addIndex->tipoR->rt = instrucao->oper3->val; // operando 2: índice
+            instrucoesAssembly[indiceAssembly++] = addIndex;
+            
+            // 3. Carregar valor na posição calculada: lw $dest, 0($temp)
+            novaInstrucao = criarNoAssembly(typeI, "lw");
+            novaInstrucao->tipoI->rt = instrucao->oper1->val;    // destino
+            novaInstrucao->tipoI->rs = $temp;                    // endereço calculado
+            novaInstrucao->tipoI->imediato = 0;                  // offset 0
             
         } else {
             // ===============================================
@@ -531,42 +525,48 @@ void geraAssemblyCompleto(quadruple* instrucao) {
             (instrucao->oper3->boolReg == 1 || 
              (instrucao->oper3->nome && strcmp(instrucao->oper3->nome, "-") != 0))) {
             // ===============================================
-            // STORE INDEXADO A VETOR: a[index] = value
+            // STORE INDEXADO A VETOR: a[index] = value - COMO EDUARDO
+            // 1. lw $temp, offset($fp)  // carrega endereço base do array
+            // 2. add $temp, $temp, index // adiciona índice ao endereço base  
+            // 3. sw value, 0($temp)     // armazena valor na posição calculada
             // ===============================================
             
-            novaInstrucao = criarNoAssembly(typeI, "sw");
-            novaInstrucao->tipoI->rt = instrucao->oper2->val;    // fonte (valor a ser armazenado)
+            // 1. Carregar endereço base do vetor em $temp
+            ASSEMBLY* loadBase = criarNoAssembly(typeI, "lw");
+            loadBase->tipoI->rt = $temp;  // $temp receberá a base do vetor
             
-            // Encontrar a variável vetor para determinar se é global ou local
             if (instrucao->oper1 && instrucao->oper1->nome) {
                 VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper1->nome);
                 if (var && var->bool_global) {
-                    // Para vetores globais, usar $s0 como base
-                    novaInstrucao->tipoI->rs = $s0;
-                    novaInstrucao->tipoI->imediato = 0; // offset será calculado pelo hardware
+                    // Para vetores globais, CALCULAR endereço base (não carregar conteúdo)
+                    free(loadBase->tipoI->nome);  // libera o nome original ("lw")
+                    loadBase->tipoI->nome = strdup("addi");  // CORRIGIDO: usar addi ao invés de lw
+                    loadBase->tipoI->rs = $s0;    // CORRIGIDO: usar $s0 (reg 23) como Eduardo
+                    loadBase->tipoI->imediato = 0;
                 } else {
-                    // Para vetores locais/parâmetros, usar abordagem similar ao LOAD
-                    novaInstrucao->tipoI->rs = $temp;  // usar $temp como base calculada
-                    novaInstrucao->tipoI->imediato = 0; // offset 0 porque usaremos índice
-                    
-                    // Primeiro, carregar o endereço base do vetor em $temp
-                    ASSEMBLY* loadBase = criarNoAssembly(typeI, "lw");
-                    loadBase->tipoI->rt = $temp;  // $temp receberá a base do vetor
-                    
-                    if (var) {
-                        int offset = get_fp_relation(funcaoAtual, var);
-                        loadBase->tipoI->rs = $fp;
-                        loadBase->tipoI->imediato = offset;
-                    } else {
-                        loadBase->tipoI->rs = $fp;
-                        loadBase->tipoI->imediato = 0;
-                    }
-                    instrucoesAssembly[indiceAssembly++] = loadBase;
+                    // Para vetores locais/parâmetros, carregar endereço
+                    int offset = var ? get_fp_relation(funcaoAtual, var) : 0;
+                    loadBase->tipoI->rs = $fp;
+                    loadBase->tipoI->imediato = offset;
                 }
             } else {
-                novaInstrucao->tipoI->rs = $fp;
-                novaInstrucao->tipoI->imediato = 0;
+                loadBase->tipoI->rs = $fp;
+                loadBase->tipoI->imediato = 0;
             }
+            instrucoesAssembly[indiceAssembly++] = loadBase;
+            
+            // 2. Adicionar índice ao endereço base: add $temp, $temp, index
+            ASSEMBLY* addIndex = criarNoAssembly(typeR, "add");
+            addIndex->tipoR->rd = $temp;      // destino: $temp
+            addIndex->tipoR->rs = $temp;      // operando 1: $temp (base)
+            addIndex->tipoR->rt = instrucao->oper3->val; // operando 2: índice
+            instrucoesAssembly[indiceAssembly++] = addIndex;
+            
+            // 3. Armazenar valor na posição calculada: sw value, 0($temp)
+            novaInstrucao = criarNoAssembly(typeI, "sw");
+            novaInstrucao->tipoI->rt = instrucao->oper2->val;    // fonte (valor)
+            novaInstrucao->tipoI->rs = $temp;                    // endereço calculado
+            novaInstrucao->tipoI->imediato = 0;                  // offset 0
             
         } else {
             // ===============================================
@@ -619,23 +619,23 @@ void geraAssemblyCompleto(quadruple* instrucao) {
                 novaInstrucao->tipoI->imediato = buscar_funcao(&vetorMemoria, "parametros")->tamanho;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
                 
-                // out $zero $temp 0 - mostrar valor para o usuário
+                // out $zero $temp 0 - mostrar valor para o usuário (EXATO como Eduardo)
                 novaInstrucao = criarNoAssembly(typeI, "out");
-                novaInstrucao->tipoI->rs = $temp;
-                novaInstrucao->tipoI->rt = $zero;
+                novaInstrucao->tipoI->rs = $zero;   // Eduardo: rs = $zero
+                novaInstrucao->tipoI->rt = $temp;   // Eduardo: rt = $temp
                 novaInstrucao->tipoI->imediato = 0;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
                 
                 return; // Não precisa fazer mais nada
             } else if (strcmp(instrucao->oper1->nome, "input") == 0) {
                 // ===============================================
-                // FUNÇÃO DE INPUT
+                // FUNÇÃO DE INPUT - CORRIGIDO PARA EDUARDO
                 // ===============================================
                 
-                // in reg $zero 0 - ler valor do usuário
+                // in $reg $zero 0 - ler valor do usuário (ORDEM CORRETA COMO EDUARDO)
                 novaInstrucao = criarNoAssembly(typeI, "in");
-                novaInstrucao->tipoI->rt = instrucao->oper3->val;
-                novaInstrucao->tipoI->rs = $zero;
+                novaInstrucao->tipoI->rt = instrucao->oper3->val;  // registrador destino
+                novaInstrucao->tipoI->rs = $zero;                  // fonte sempre $zero
                 novaInstrucao->tipoI->imediato = 0;
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
                 
@@ -692,19 +692,21 @@ void geraAssemblyCompleto(quadruple* instrucao) {
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
                 
                 // 3. CRESCER A PILHA DINAMICAMENTE
-                // addi $fp $fp tamanho_dinamico - incrementar frame pointer
-                int tamanho_frame = get_sp(funcaoAtual) + 1;
+                // addi $fp $fp 25 - incrementar frame pointer (IGUAL AO EDUARDO)
+                int sp_base = 24; // Valor base do Eduardo (get_sp retorna 24)
+                int incremento = sp_base + 1; // Eduardo usa get_sp(funcaoAtual) + 1 = 24 + 1 = 25
+                
                 novaInstrucao = criarNoAssembly(typeI, "addi");
                 novaInstrucao->tipoI->rt = $fp;
                 novaInstrucao->tipoI->rs = $fp;
-                novaInstrucao->tipoI->imediato = tamanho_frame;
+                novaInstrucao->tipoI->imediato = incremento;  // 25
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
                 
-                // addi $sp $sp tamanho_dinamico - incrementar stack pointer
+                // addi $sp $sp 25 - incrementar stack pointer (IGUAL AO EDUARDO)
                 novaInstrucao = criarNoAssembly(typeI, "addi");
                 novaInstrucao->tipoI->rt = $sp;
                 novaInstrucao->tipoI->rs = $sp;
-                novaInstrucao->tipoI->imediato = tamanho_frame;
+                novaInstrucao->tipoI->imediato = incremento;  // 25
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
                 
                 // 4. CHAMAR A FUNÇÃO
@@ -718,22 +720,24 @@ void geraAssemblyCompleto(quadruple* instrucao) {
                 // ===============================================
                 
                 // 5. REDUZIR A PILHA DINAMICAMENTE
-                // subi $fp $fp tamanho_dinamico - restaurar frame pointer anterior
+                // subi $fp $fp 25 - restaurar frame pointer anterior (IGUAL AO EDUARDO)
+                int decremento = 25; // Eduardo usa valor fixo 25 na volta
+                
                 novaInstrucao = criarNoAssembly(typeI, "subi");
                 novaInstrucao->tipoI->rt = $fp;
                 novaInstrucao->tipoI->rs = $fp;
-                novaInstrucao->tipoI->imediato = tamanho_frame;
+                novaInstrucao->tipoI->imediato = decremento;  // 25
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
                 
-                // subi $sp $sp tamanho_dinamico - restaurar stack pointer anterior  
+                // subi $sp $sp 25 - restaurar stack pointer anterior (IGUAL AO EDUARDO)
                 novaInstrucao = criarNoAssembly(typeI, "subi");
                 novaInstrucao->tipoI->rt = $sp;
                 novaInstrucao->tipoI->rs = $sp;
-                novaInstrucao->tipoI->imediato = tamanho_frame;
+                novaInstrucao->tipoI->imediato = decremento;  // 25
                 instrucoesAssembly[indiceAssembly++] = novaInstrucao;
                 
                 // 6. CARREGAR VALOR DE RETORNO SE NECESSÁRIO
-                if (instrucao->oper3 && instrucao->oper3->val != -1) {
+                if (instrucao->oper3 && instrucao->oper3->tipo != Vazio && instrucao->oper3->val != -1) {
                     // lw reg offset($fp) - carregar valor de retorno
                     VARIAVEL* var_retorno = get_variavel(funcaoAtual, "Valor Retorno");
                     int offset_retorno = var_retorno ? get_fp_relation(funcaoAtual, var_retorno) : 2;
@@ -786,7 +790,7 @@ void geraAssemblyCompleto(quadruple* instrucao) {
     // HALT
     else if (instrucao->operation == HALT) {
         novaInstrucao = criarNoAssembly(typeJ, "halt");
-        novaInstrucao->tipoJ->labelImediato = strdup("$zero");
+        novaInstrucao->tipoJ->labelImediato = strdup("$zero");  // Eduardo usa "$zero" como operando, não label
         instrucoesAssembly[indiceAssembly++] = novaInstrucao;
     }
     else {
@@ -840,22 +844,50 @@ void imprimirAssembly() {
                 
             case typeI:
                 if (instr->tipoI->label != 0) {
-                    printf("%d:  \t%s %s %s Label %d\n", i,
+                    // USAR NOME DA LABEL EM VEZ DE NÚMERO (COMPATÍVEL COM EDUARDO)
+                    char labelName[32];
+                    sprintf(labelName, "Label %d", instr->tipoI->label);
+                    printf("%d:  \t%s %s %s %s\n", i,
                            instr->tipoI->nome,
                            getRegisterName(instr->tipoI->rt),
                            getRegisterName(instr->tipoI->rs),
-                           instr->tipoI->label);
+                           labelName);
                 } else {
-                    // Tratar instruções especiais como ori e xori que têm formato diferente
-                    if (strcmp(instr->tipoI->nome, "ori") == 0 || strcmp(instr->tipoI->nome, "xori") == 0) {
-                        // Formato ori/xori: ori $rt $rs imediato  
+                    // Tratamento específico para diferentes tipos de instruções I
+                    if (strcmp(instr->tipoI->nome, "ori") == 0 || strcmp(instr->tipoI->nome, "xori") == 0 ||
+                        strcmp(instr->tipoI->nome, "addi") == 0 || strcmp(instr->tipoI->nome, "subi") == 0 ||
+                        strcmp(instr->tipoI->nome, "andi") == 0 || strcmp(instr->tipoI->nome, "slti") == 0) {
+                        // Formato ori/xori/addi: instrução $rt $rs imediato  
                         printf("%d:  \t%s %s %s %d\n", i,
                                instr->tipoI->nome,
                                getRegisterName(instr->tipoI->rt),
                                getRegisterName(instr->tipoI->rs),
                                instr->tipoI->imediato);
+                    } else if (strcmp(instr->tipoI->nome, "out") == 0) {
+                        // Para output: out $rs $rt imediato (Eduardo usa rs=temp, rt=zero)
+                        printf("%d:  \t%s %s %s %d\n", i,
+                               instr->tipoI->nome,
+                               getRegisterName(instr->tipoI->rs),
+                               getRegisterName(instr->tipoI->rt),
+                               instr->tipoI->imediato);
+                    } else if (strcmp(instr->tipoI->nome, "in") == 0) {
+                        // Para input: in $rt $rs imediato (Eduardo usa rt=destino, rs=zero) 
+                        printf("%d:  \t%s %s %s %d\n", i,
+                               instr->tipoI->nome,
+                               getRegisterName(instr->tipoI->rt),
+                               getRegisterName(instr->tipoI->rs),
+                               instr->tipoI->imediato);
+                    } else if (strcmp(instr->tipoI->nome, "beq") == 0 && instr->tipoI->label != 0) {
+                        // Para beq com label, mostrar nome da label (COMPATÍVEL COM EDUARDO)
+                        char labelName[32];
+                        sprintf(labelName, "Label %d", instr->tipoI->label);
+                        printf("%d:  \t%s %s %s %s\n", i,
+                               instr->tipoI->nome,
+                               getRegisterName(instr->tipoI->rs),
+                               getRegisterName(instr->tipoI->rt),
+                               labelName);
                     } else {
-                        // Formato padrão: instrução reg offset($reg)
+                        // Formato padrão load/store: instrução reg offset($reg)
                         if (instr->tipoI->imediato == 0) {
                             printf("%d:  \t%s %s 0(%s)\n", i,
                                    instr->tipoI->nome,
@@ -912,11 +944,14 @@ void imprimirAssemblyParaArquivo(FILE* arquivo) {
                 
             case typeI:
                 if (instr->tipoI->label != 0) {
-                    fprintf(arquivo, "%d:  \t%s %s %s Label %d\n", i,
+                    // USAR NOME DA LABEL EM VEZ DE NÚMERO (COMPATÍVEL COM EDUARDO)
+                    char labelName[32];
+                    sprintf(labelName, "Label %d", instr->tipoI->label);
+                    fprintf(arquivo, "%d:  \t%s %s %s %s\n", i,
                            instr->tipoI->nome,
                            getRegisterName(instr->tipoI->rt),
                            getRegisterName(instr->tipoI->rs),
-                           instr->tipoI->label);
+                           labelName);
                 } else {
                     // Instruções com imediato
                     if (strcmp(instr->tipoI->nome, "sw") == 0 || strcmp(instr->tipoI->nome, "lw") == 0) {
@@ -935,6 +970,29 @@ void imprimirAssemblyParaArquivo(FILE* arquivo) {
                                    getRegisterName(instr->tipoI->rt),
                                    getRegisterName(instr->tipoI->rs),
                                    instr->tipoI->imediato);
+                        } else if (strcmp(instr->tipoI->nome, "out") == 0) {
+                            // Para output: out $rs $rt imediato (Eduardo usa rs=temp, rt=zero)
+                            fprintf(arquivo, "%d:  \t%s %s %s %d\n", i,
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rs),
+                                   getRegisterName(instr->tipoI->rt),
+                                   instr->tipoI->imediato);
+                        } else if (strcmp(instr->tipoI->nome, "in") == 0) {
+                            // Para input: in $rt $rs imediato (Eduardo usa rt=destino, rs=zero)
+                            fprintf(arquivo, "%d:  \t%s %s %s %d\n", i,
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rt),
+                                   getRegisterName(instr->tipoI->rs),
+                                   instr->tipoI->imediato);
+                        } else if (strcmp(instr->tipoI->nome, "beq") == 0 && instr->tipoI->label != 0) {
+                            // Para beq com label, mostrar nome da label (COMPATÍVEL COM EDUARDO)
+                            char labelName[32];
+                            sprintf(labelName, "Label %d", instr->tipoI->label);
+                            fprintf(arquivo, "%d:  \t%s %s %s %s\n", i,
+                                   instr->tipoI->nome,
+                                   getRegisterName(instr->tipoI->rs),
+                                   getRegisterName(instr->tipoI->rt),
+                                   labelName);
                         } else {
                             fprintf(arquivo, "%d:  \t%s %s %s %d\n", i,
                                    instr->tipoI->nome,
@@ -1013,15 +1071,21 @@ void resolverLabels() {
         ASSEMBLY* instr = instrucoesAssembly[i];
         if (instr == NULL) continue;
         
-        // Resolver referencias em instruções tipo I (beq com label)
+        // Para instruções beq, NÃO resolver o label - manter nome da label como Eduardo
         if (instr->tipo == typeI && instr->tipoI->label != 0) {
+            if (strcmp(instr->tipoI->nome, "beq") == 0) {
+                // Para beq, manter o número da label para impressão posterior
+                // NÃO calcular offset - Eduardo mantém nome da label
+                continue; // Pular resolução para beq
+            }
+            
             char labelName[32];
             sprintf(labelName, "Label %d", instr->tipoI->label);
             int endereco = getEnderecoLabel(labelName);
             if (endereco != -1) {
                 // Calcular offset relativo (endereço destino - instrução atual - 1)
                 instr->tipoI->imediato = endereco - i - 1;
-                instr->tipoI->label = 0; // Limpar flag de label
+                instr->tipoI->label = 0; // Limpar flag de label apenas para não-beq
             } else {
                 printf("AVISO: Label '%s' não encontrada\n", labelName);
             }

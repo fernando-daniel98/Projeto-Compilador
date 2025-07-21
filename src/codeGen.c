@@ -177,7 +177,7 @@ void insertDeclarationWhile(TreeNode *tree, PnoIdentificador* symbTable){
     criarCodigoIntermediario(tree->child[0], symbTable, 1);
     reg_cond_result = numReg; 
 
-    iff_quad = criaInstrucao(IFFALSE); 
+    iff_quad = criaInstrucao(IFF); 
     iff_quad->oper1 = criaEndereco(IntConst, reg_cond_result, NULL, 1); 
     iff_quad->oper2 = criaEndereco(IntConst, label_fim_loop_num, NULL, 2); 
     iff_quad->oper3 = criaEndereco(Vazio, 0, NULL, 0);
@@ -201,7 +201,7 @@ void insertDeclarationWhile(TreeNode *tree, PnoIdentificador* symbTable){
 void insertDeclarationReturn(TreeNode *tree, PnoIdentificador* symbTable) {
     quadruple* instrucaoReturn = NULL;
 
-    instrucaoReturn = criaInstrucao(RETURN);
+    instrucaoReturn = criaInstrucao(RET);
     
     if(tree->kind.stmt == ReturnINT) {
         criarCodigoIntermediario(tree->child[0], symbTable, 1);
@@ -298,7 +298,7 @@ void insertDeclarationIf(TreeNode *tree, PnoIdentificador* symbTable){
 
     else_inicio_label_num = numLabel++; 
 
-    instrucaoIFF = criaInstrucao(IFFALSE);
+    instrucaoIFF = criaInstrucao(IFF);
     instrucaoIFF->oper1 = criaEndereco(IntConst, numReg, NULL, 1); 
     instrucaoIFF->oper2 = criaEndereco(IntConst, else_inicio_label_num, NULL, 2); 
     instrucaoIFF->oper3 = criaEndereco(Vazio, 0, NULL, 0);
@@ -346,78 +346,169 @@ void insertDeclarationAssign(TreeNode *tree, PnoIdentificador* symbTable){
 
     TreeNode *lhs = tree->child[0]; 
     TreeNode *rhs = tree->child[1]; 
+    quadruple* instrucaoLoad = NULL;
+    quadruple* instrucaoAssign = NULL;
     quadruple* instrucaoStore = NULL;
+    ENDERECO *op1_load = NULL, *op2_load = NULL, *op3_load = NULL;
+    ENDERECO *op1_assign = NULL, *op2_assign = NULL, *op3_assign = NULL;
     ENDERECO *op1_store = NULL, *op2_store = NULL, *op3_store = NULL;
-    int reg_rhs_val;    
-    int reg_index_val;  
+    int reg_var_val;    // registrador da variável (conforme Eduardo)
+    int reg_rhs_val;    // registrador do resultado da expressão
+    int reg_index_val;  // registrador do índice (para vetores)
 
+    // ===============================================
+    // PADRÃO EDUARDO - PARTE 1: LOAD da variável
+    // ===============================================
+    
+    if (lhs->kind.exp == IdK) { 
+        // Alocar registrador para a variável (como Eduardo faz)
+        reg_var_val = verificacaoRegistradores(NULL, NULL, 1);
+        
+        // LOAD $reg_var, variavel, -
+        instrucaoLoad = criaInstrucao(LOAD);
+        if (instrucaoLoad == NULL) {
+            fprintf(stderr, "Falha ao criar instrução LOAD para variável '%s', linha %d.\n", lhs->attr.name, tree->lineno);
+            return;
+        }
+        
+        op1_load = criaEndereco(IntConst, reg_var_val, NULL, 1);  // destino
+        op2_load = criaEndereco(String, 0, lhs->attr.name, 0);   // nome da variável  
+        op3_load = criaEndereco(Vazio, 0, NULL, 0);              // vazio
+        
+        if (op1_load == NULL || op2_load == NULL || op3_load == NULL) {
+            fprintf(stderr, "Falha ao criar endereços para LOAD na atribuição, linha %d.\n", tree->lineno);
+            // Cleanup
+            if(op1_load) free(op1_load);
+            if(op2_load && op2_load->nome) free(op2_load->nome); if(op2_load) free(op2_load);
+            if(op3_load) free(op3_load);
+            if(instrucaoLoad) free(instrucaoLoad);
+            return;
+        }
+        
+        instrucaoLoad->oper1 = op1_load;
+        instrucaoLoad->oper2 = op2_load; 
+        instrucaoLoad->oper3 = op3_load;
+        
+        if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
+            fprintf(stderr, "Limite do código intermediário atingido em LOAD, linha %d.\n", tree->lineno);
+            return;
+        }
+        intermediateCode[adressCounter++] = instrucaoLoad;
+        
+    } else if (lhs->kind.exp == VetorK) {
+        // Para vetores: PADRÃO EDUARDO - PRIMEIRO calcular índice, DEPOIS alocar registrador para destino
+        // 1. Primeiro calcular o índice
+        criarCodigoIntermediario(lhs->child[0], symbTable, 1);
+        reg_index_val = numReg;  // Salva o registrador do índice
+        
+        // 2. DEPOIS alocar um registrador DIFERENTE para o destino do LOAD
+        reg_var_val = verificacaoRegistradores(NULL, NULL, 1);
+        
+        // 3. LOAD $reg_var, vetor, $reg_index (usando registradores diferentes!)
+        instrucaoLoad = criaInstrucao(LOAD);
+        if (instrucaoLoad == NULL) {
+            fprintf(stderr, "Falha ao criar instrução LOAD para vetor '%s', linha %d.\n", lhs->attr.name, tree->lineno);
+            return;
+        }
+        
+        op1_load = criaEndereco(IntConst, reg_var_val, NULL, 1);    // destino (registrador diferente)
+        op2_load = criaEndereco(String, 0, lhs->attr.name, 0);     // nome do vetor  
+        op3_load = criaEndereco(IntConst, reg_index_val, NULL, 1);  // índice (registrador do índice)
+        
+        if (op1_load == NULL || op2_load == NULL || op3_load == NULL) {
+            fprintf(stderr, "Falha ao criar endereços para LOAD de vetor na atribuição, linha %d.\n", tree->lineno);
+            // Cleanup
+            if(op1_load) free(op1_load);
+            if(op2_load && op2_load->nome) free(op2_load->nome); if(op2_load) free(op2_load);
+            if(op3_load) free(op3_load);
+            if(instrucaoLoad) free(instrucaoLoad);
+            return;
+        }
+        
+        instrucaoLoad->oper1 = op1_load;
+        instrucaoLoad->oper2 = op2_load; 
+        instrucaoLoad->oper3 = op3_load;
+        
+        if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
+            fprintf(stderr, "Limite do código intermediário atingido em LOAD de vetor, linha %d.\n", tree->lineno);
+            return;
+        }
+        intermediateCode[adressCounter++] = instrucaoLoad;
+        
+    } else {
+        fprintf(stderr, "Lado esquerdo inválido na atribuição, linha %d.\n", tree->lineno);
+        return;
+    }
+    
+    // ===============================================
+    // PADRÃO EDUARDO - PARTE 2: Processar RHS
+    // ===============================================
+    
     criarCodigoIntermediario(rhs, symbTable, 1); 
     reg_rhs_val = numReg; 
-
-    op2_store = criaEndereco(IntConst, reg_rhs_val, NULL, 1); 
-    if (op2_store == NULL) {
-        fprintf(stderr, "Falha ao criar endereço para o valor do RHS na atribuição, linha %d.\n", tree->lineno);
+    
+    // ===============================================
+    // PADRÃO EDUARDO - PARTE 3: ASSIGN $reg_var, $reg_rhs, -
+    // ===============================================
+    
+    instrucaoAssign = criaInstrucao(ASSIGN);
+    if (instrucaoAssign == NULL) {
+        fprintf(stderr, "Falha ao criar instrução ASSIGN, linha %d.\n", tree->lineno);
         return;
     }
-
-    if (lhs->kind.exp == IdK) { 
-        op1_store = criaEndereco(String, 0, lhs->attr.name, 0); 
-        if (op1_store == NULL) {
-            fprintf(stderr, "Falha ao criar endereço para variável LHS '%s' na atribuição, linha %d.\n", lhs->attr.name, tree->lineno);
-            if(op2_store->nome) free(op2_store->nome); free(op2_store); 
-            return;
-        }
-        op3_store = criaEndereco(Vazio, 0, NULL, 0);
-        if (op3_store == NULL) {
-            fprintf(stderr, "Falha ao criar endereço vazio para LHS (IdK) na atribuição, linha %d.\n", tree->lineno);
-            if(op1_store->nome) free(op1_store->nome); free(op1_store);
-            if(op2_store->nome) free(op2_store->nome); free(op2_store);
-            return;
-        }
-    } else if (lhs->kind.exp == VetorK) { 
-        op1_store = criaEndereco(String, 0, lhs->attr.name, 0); 
-        if (op1_store == NULL) {
-            fprintf(stderr, "Falha ao criar endereço para vetor LHS '%s' na atribuição, linha %d.\n", lhs->attr.name, tree->lineno);
-            if(op2_store->nome) free(op2_store->nome); free(op2_store);
-            return;
-        }
-        criarCodigoIntermediario(lhs->child[0], symbTable, 1);
-        reg_index_val = numReg; 
-
-        op3_store = criaEndereco(IntConst, reg_index_val, NULL, 1); 
-        if (op3_store == NULL) {
-            fprintf(stderr, "Falha ao criar endereço para o índice do vetor LHS '%s' na atribuição, linha %d.\n", lhs->attr.name, tree->lineno);
-            if(op1_store->nome) free(op1_store->nome); free(op1_store);
-            if(op2_store->nome) free(op2_store->nome); free(op2_store);
-            return;
-        }
-    } else {
-        fprintf(stderr, "Lado esquerdo inválido (não é IdK nem VetorK) na atribuição, linha %d.\n", tree->lineno);
-        if(op2_store->nome) free(op2_store->nome); free(op2_store); 
+    
+    op1_assign = criaEndereco(IntConst, reg_var_val, NULL, 1);   // destino (registrador da variável)
+    op2_assign = criaEndereco(IntConst, reg_rhs_val, NULL, 1);  // fonte (resultado do RHS)
+    op3_assign = criaEndereco(Vazio, 0, NULL, 0);               // vazio
+    
+    if (op1_assign == NULL || op2_assign == NULL || op3_assign == NULL) {
+        fprintf(stderr, "Falha ao criar endereços para ASSIGN, linha %d.\n", tree->lineno);
         return;
     }
-
+    
+    instrucaoAssign->oper1 = op1_assign;
+    instrucaoAssign->oper2 = op2_assign;
+    instrucaoAssign->oper3 = op3_assign;
+    
     if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-        fprintf(stderr, "Limite do código intermediário atingido antes de adicionar instrução STORE, linha %d.\n", tree->lineno);
-        if(op1_store) { if(op1_store->nome) free(op1_store->nome); free(op1_store); }
-        if(op2_store) { if(op2_store->nome) free(op2_store->nome); free(op2_store); } 
-        if(op3_store) { if(op3_store->nome) free(op3_store->nome); free(op3_store); } 
+        fprintf(stderr, "Limite do código intermediário atingido em ASSIGN, linha %d.\n", tree->lineno);
         return;
     }
-
+    intermediateCode[adressCounter++] = instrucaoAssign;
+    
+    // ===============================================
+    // PADRÃO EDUARDO - PARTE 4: STORE variavel, $reg_var, -
+    // ===============================================
+    
     instrucaoStore = criaInstrucao(STORE);
     if (instrucaoStore == NULL) {
-        fprintf(stderr, "Falha ao criar instrução STORE na atribuição, linha %d.\n", tree->lineno);
-        if(op1_store) { if(op1_store->nome) free(op1_store->nome); free(op1_store); }
-        if(op2_store) { if(op2_store->nome) free(op2_store->nome); free(op2_store); }
-        if(op3_store) { if(op3_store->nome) free(op3_store->nome); free(op3_store); }
+        fprintf(stderr, "Falha ao criar instrução STORE, linha %d.\n", tree->lineno);
         return;
     }
+    
+    if (lhs->kind.exp == IdK) {
+        op1_store = criaEndereco(String, 0, lhs->attr.name, 0);      // nome da variável
+        op2_store = criaEndereco(IntConst, reg_var_val, NULL, 1);    // registrador da variável
+        op3_store = criaEndereco(Vazio, 0, NULL, 0);                 // vazio
+    } else if (lhs->kind.exp == VetorK) {
+        op1_store = criaEndereco(String, 0, lhs->attr.name, 0);      // nome do vetor
+        op2_store = criaEndereco(IntConst, reg_var_val, NULL, 1);    // registrador da variável
+        op3_store = criaEndereco(IntConst, reg_index_val, NULL, 1);  // índice
+    }
+    
+    if (op1_store == NULL || op2_store == NULL || op3_store == NULL) {
+        fprintf(stderr, "Falha ao criar endereços para STORE, linha %d.\n", tree->lineno);
+        return;
+    }
+    
+    instrucaoStore->oper1 = op1_store;
+    instrucaoStore->oper2 = op2_store;
+    instrucaoStore->oper3 = op3_store;
 
-    instrucaoStore->oper1 = op1_store; 
-    instrucaoStore->oper2 = op2_store; 
-    instrucaoStore->oper3 = op3_store; 
-
+    if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
+        fprintf(stderr, "Limite do código intermediário atingido em STORE, linha %d.\n", tree->lineno);
+        return;
+    }
     intermediateCode[adressCounter++] = instrucaoStore;
 }
 
@@ -710,9 +801,9 @@ void insertExpressionRel(TreeNode *tree, PnoIdentificador* symbTable){
 void insertExpressionConst(TreeNode *tree, PnoIdentificador* symbTable){
     quadruple* constant = NULL;
 
-    // Para o caso da constante ser zero, reservei o endereço 63 do registrador
+    // Para o caso da constante ser zero, usar registrador 31 (COMPATÍVEL COM EDUARDO)
     if (tree->attr.val == 0) {
-        numReg = 63; // Registrador 31 é reservado para zero
+        numReg = 31; // Registrador 31 é reservado para zero (IGUAL AO EDUARDO)
         return;
     }
     
@@ -1152,8 +1243,8 @@ const char* getTACOperationName(typeOperations op) {
         case LABEL: return "LABEL";
         case GOTO: return "GOTO";
         case IF: return "IF";
-        case IFFALSE: return "IFFALSE";
-        case RETURN: return "RETURN";
+        case IFF: return "IFF";
+        case RET: return "RET";
         case PARAM: return "PARAM";
         case CALL: return "CALL";
         case ARG: return "ARG";

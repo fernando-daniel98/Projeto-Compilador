@@ -229,7 +229,7 @@
 \setlength{\absparsep}{18pt}
 \begin{resumo}
 
-Este relatório apresenta o desenvolvimento completo de um compilador para a linguagem C-, uma versão simplificada da linguagem C, direcionado ao processador MIPS-64. O projeto implementa todas as fases da compilação, desde a análise léxica até a geração de código binário executável. A fase de análise compreende análise léxica implementada em Flex, análise sintática em Bison com construção de árvore sintática abstrata, e análise semântica com verificação de tipos e escopo. A fase de síntese inclui geração de código intermediário através de quádruplas, tradução para assembly MIPS-64 e geração de código binário. O compilador suporta completamente a linguagem C-, incluindo declarações de variáveis e arrays, estruturas de controle, funções com recursão, operações aritméticas e lógicas, e funções de entrada e saída. Os testes realizados demonstram a corretude funcional do compilador através de exemplos práticos que mostram a correspondência entre código fonte, código intermediário, assembly e código executável. O sistema gera código compatível com a arquitetura MIPS-64, validando a implementação através de programas que incluem operações aritméticas, algoritmos recursivos e manipulação de arrays interativa.
+Este relatório apresenta o desenvolvimento completo de um compilador para a linguagem C-, uma versão simplificada da linguagem C, direcionado ao processador MIPS-64. O projeto implementa todas as fases da compilação, desde a análise léxica até a geração de código binário executável. A fase de análise compreende análise léxica implementada em Flex, análise sintática em Bison com construção de árvore sintática abstrata, e análise semântica com verificação de tipos e escopo. A fase de síntese inclui geração de código intermediário através de quádruplas, tradução para assembly MIPS-64 e geração de código binário. O compilador suporta completamente a linguagem C-, incluindo declarações de variáveis e arrays, estruturas de controle, funções com recursão, operações aritméticas e lógicas, e funções de entrada e saída. Os testes realizados demonstram a corretude funcional do compilador através de exemplos práticos que mostram a correspondência entre código fonte, código intermediário, assembly e código executável. O sistema gera código compatível com a arquitetura MIPS-64, demonstrando sua eficiência através de programas que incluem operações aritméticas, algoritmos recursivos e manipulação de arrays interativa.
 
 \noindent
 \textbf{Palavras-chave}: Compilador. Linguagem C-. MIPS-64. Análise léxica. Análise sintática. Geração de código assembly.
@@ -285,20 +285,50 @@ Este relatório está organizado nos seguintes capítulos:
 % ---------------- O Processador -------------------------------------
 \chapter{O Processador}
 
-O processador MIPS-64 desenvolvido para este projeto representa uma extensão da arquitetura MIPS clássica, adaptada para trabalhar com palavras de 64 bits. Esta seção descreve a arquitetura do processador, seus componentes principais e o conjunto de instruções suportado.
+O processador MIPS-64 utilizado neste projeto representa uma extensão da arquitetura MIPS clássica, trabalhando com palavras de 64 bits. Esta seção descreve a arquitetura do processador, seus componentes principais e o conjunto de instruções suportado.
 
 \section{Diagrama de Blocos do Processador}
 
-A arquitetura geral do processador MIPS-64 segue o modelo Harvard, com memórias separadas para instruções e dados. A organização dos componentes principais inclui:
+A arquitetura geral do processador MIPS-64 segue o modelo Harvard, com memórias separadas para instruções e dados. A \autoref{fig:diagrama-processador} apresenta a organização dos componentes principais:
 
+\begin{figure}[H]
+\centering
+\caption{Diagrama de blocos do processador MIPS-64}
+\label{fig:diagrama-processador}
+\begin{minipage}{0.9\textwidth}
+\textbf{Componentes Principais do Processador:}
 \begin{itemize}
-    \item \textbf{Unidade de Controle}: Coordena a execução das instruções
-    \item \textbf{ULA}: Realiza operações aritméticas e lógicas
-    \item \textbf{Banco de Registradores}: 64 registradores de 64 bits
-    \item \textbf{Memória de Instruções}: Armazena o programa (Harvard)
-    \item \textbf{Memória de Dados}: Armazena variáveis e dados
-    \item \textbf{Program Counter}: Controla sequência de execução
+    \item \textbf{Unidade de Controle} $\rightarrow$ Coordena a execução das instruções
+    \item \textbf{ULA (64 bits)} $\rightarrow$ Realiza operações aritméticas e lógicas
+    \item \textbf{Banco de Registradores} $\rightarrow$ 32 registradores de 64 bits (numerados 0-31)
+    \item \textbf{Memória de Instruções} $\rightarrow$ Armazena o programa (Harvard, ROM)
+    \item \textbf{Memória de Dados} $\rightarrow$ Armazena variáveis e dados (RAM)
+    \item \textbf{Program Counter (PC)} $\rightarrow$ Controla sequência de execução
+    \item \textbf{Multiplexadores} $\rightarrow$ Seleção de fontes de dados
+    \item \textbf{Extensor de Sinal} $\rightarrow$ Extensão de imediatos de 16 para 64 bits
 \end{itemize}
+
+\textbf{Barramentos:}
+\begin{itemize}
+    \item \textbf{Barramento de Instruções} $\rightarrow$ 32 bits (Memória de Instruções → UC)
+    \item \textbf{Barramento de Dados} $\rightarrow$ 64 bits (Registradores ↔ ULA ↔ Memória)
+    \item \textbf{Barramento de Endereços} $\rightarrow$ 32 bits (PC → Memória de Instruções)
+    \item \textbf{Barramento de Controle} $\rightarrow$ Sinais de controle da UC
+\end{itemize}
+\end{minipage}
+\\
+\textit{Fonte: O Autor}
+\end{figure}
+
+\textbf{Fluxo de Execução:}
+\begin{enumerate}
+    \item PC aponta para endereço da instrução na Memória de Instruções
+    \item Instrução é decodificada pela Unidade de Controle  
+    \item Operandos são lidos do Banco de Registradores
+    \item ULA executa a operação especificada
+    \item Resultado é escrito de volta no registrador destino
+    \item PC é atualizado para próxima instrução
+\end{enumerate}
 
 \section{Componentes do Processador}
 
@@ -311,12 +341,15 @@ Responsável pela decodificação das instruções e geração dos sinais de con
 Executa todas as operações aritméticas e lógicas do processador, incluindo adição, subtração, multiplicação, divisão, operações AND, OR, e comparações. A ULA produz também sinais de status, como zero e overflow.
 
 \subsection{Banco de Registradores}
-O processador possui 64 registradores de 64 bits cada, numerados de 0 a 63. Alguns registradores têm funções especiais:
+O processador possui 32 registradores de 64 bits cada, numerados de 0 a 31. A convenção utilizada neste projeto define funções especiais para alguns registradores:
 \begin{itemize}
-    \item \textbf{\$zero (\$0)}: Sempre contém o valor zero
-    \item \textbf{\$ra (\$31)}: Registrador de endereço de retorno
-    \item \textbf{\$sp (\$29)}: Ponteiro de pilha
-    \item \textbf{\$fp (\$30)}: Ponteiro de frame
+    \item \textbf{\$zero (\$31)}: Sempre contém o valor zero
+    \item \textbf{\$ra (\$30)}: Registrador de endereço de retorno
+    \item \textbf{\$fp (\$29)}: Ponteiro de frame
+    \item \textbf{\$sp (\$28)}: Ponteiro de pilha  
+    \item \textbf{\$temp (\$27)}: Registrador temporário especial
+    \item \textbf{\$t0-\$t22 (\$0-\$22)}: Registradores temporários
+    \item \textbf{\$s0-\$s2 (\$23-\$25)}: Registradores salvos
 \end{itemize}
 
 \subsection{Memória de Instruções (ROM)}
@@ -478,19 +511,21 @@ Heap & 0x300 - 0x3FF & Espaço para arrays e dados dinâmicos \\
 \hline
 \textbf{Registrador} & \textbf{Nome} & \textbf{Uso} \\
 \hline
-\$0 & \$zero & Constante zero \\
+\$31 & \$zero & Constante zero \\
 \hline
-\$1-\$15 & \$t0-\$t15 & Registradores temporários \\
+\$0-\$22 & \$t0-\$t22 & Registradores temporários \\
 \hline
-\$16-\$27 & \$s0-\$s11 & Registradores salvos \\
+\$23-\$25 & \$s0-\$s2 & Registradores salvos \\
 \hline
-\$28 & \$gp & Ponteiro global \\
+\$26 & \$pilha & Ponteiro para pilha de parâmetros \\
 \hline
-\$29 & \$sp & Ponteiro de pilha \\
+\$27 & \$temp & Registrador temporário especial \\
 \hline
-\$30 & \$fp & Ponteiro de frame \\
+\$28 & \$sp & Ponteiro de pilha \\
 \hline
-\$31 & \$ra & Endereço de retorno \\
+\$29 & \$fp & Ponteiro de frame \\
+\hline
+\$30 & \$ra & Endereço de retorno \\
 \hline
 \end{tabular}
 \end{table}
@@ -669,27 +704,50 @@ A fase de análise do compilador é responsável por processar o código fonte e
 
 \subsection{Diagrama de Blocos}
 
-\subsection{Diagrama de Blocos}
-
 A fase de análise do compilador segue uma estrutura sequencial onde cada componente processa a saída do anterior:
 
+\begin{figure}[H]
+\centering
+\caption{Diagrama de blocos da fase de análise}
+\label{fig:diagrama-analise}
+\begin{minipage}{0.8\textwidth}
+\textbf{Fluxo da Fase de Análise:}
 \begin{enumerate}
-    \item \textbf{Analisador Léxico}: Código fonte → Tokens
-    \item \textbf{Analisador Sintático}: Tokens → AST
-    \item \textbf{Analisador Semântico}: AST → AST anotada
-    \item \textbf{Tabela de Símbolos}: Armazena informações de identificadores
+    \item \textbf{Analisador Léxico} $\rightarrow$ Código fonte em caracteres para sequência de tokens
+    \item \textbf{Analisador Sintático} $\rightarrow$ Tokens para Árvore Sintática Abstrata (AST)
+    \item \textbf{Analisador Semântico} $\rightarrow$ AST para AST anotada com informações de tipos
+    \item \textbf{Tabela de Símbolos} $\rightarrow$ Armazena e gerencia informações de identificadores
 \end{enumerate}
+\end{minipage}
+\\
+\textit{Fonte: O Autor}
+\end{figure}
 
 \subsection{Diagrama de Atividades}
 
-O processo de análise segue o seguinte fluxo:
+\subsection{Diagrama de Atividades}
+
+O processo de análise segue o fluxo apresentado na \autoref{fig:atividade-analise}:
+
+\begin{figure}[H]
+\centering
+\caption{Diagrama de atividades da fase de análise}
+\label{fig:atividade-analise}
+\begin{minipage}{0.7\textwidth}
+\textbf{Sequência de Atividades na Análise:}
 \begin{enumerate}
-    \item Ler arquivo fonte
-    \item Análise léxica (tokenização)
-    \item Análise sintática (construção da AST)
-    \item Análise semântica (verificação de tipos e escopo)
-    \item Geração da AST anotada final
+    \item \textbf{Início} $\rightarrow$ Receber arquivo fonte
+    \item \textbf{Análise Léxica} $\rightarrow$ Tokenização do código
+    \item \textbf{Análise Sintática} $\rightarrow$ Construção da AST
+    \item \textbf{Verificação de Escopo} $\rightarrow$ Validação de declarações
+    \item \textbf{Análise Semântica} $\rightarrow$ Verificação de tipos
+    \item \textbf{AST Anotada} $\rightarrow$ Estrutura pronta para síntese
+    \item \textbf{Fim}
 \end{enumerate}
+\end{minipage}
+\\
+\textit{Fonte: O Autor}
+\end{figure}
 
 \section{Análise Léxica}
 
@@ -804,51 +862,53 @@ A análise sintática verifica se a sequência de tokens está em conformidade c
 A gramática da linguagem C- foi implementada utilizando Bison (GNU Yacc) com as seguintes produções principais:
 
 \begin{lstlisting}[style=cstyle, caption=Gramática BNF da linguagem C-]
-programa → declaracao-lista
+programa -> declaracao-lista
 
-declaracao-lista → declaracao-lista declaracao
+call -> ID ( args )
+
+declaracao-lista -> declaracao-lista declaracao
                  | declaracao
 
-declaracao → var-declaracao
+declaracao -> var-declaracao
            | fun-declaracao
 
-var-declaracao → tipo-especificador ID ;
+var-declaracao -> tipo-especificador ID ;
                | tipo-especificador ID [ NUM ] ;
 
-fun-declaracao → tipo-especificador ID ( params ) compound-stmt
+fun-declaracao -> tipo-especificador ID ( params ) compound-stmt
 
-compound-stmt → { local-declaracoes statement-lista }
+compound-stmt -> { local-declaracoes statement-lista }
 
-statement → expression-stmt
+statement -> expression-stmt
           | compound-stmt  
           | selection-stmt
           | iteration-stmt
           | return-stmt
 
-selection-stmt → if ( expression ) statement
+selection-stmt -> if ( expression ) statement
                | if ( expression ) statement else statement
 
-iteration-stmt → while ( expression ) statement
+iteration-stmt -> while ( expression ) statement
 
-expression → var = expression
+expression -> var = expression
            | simple-expression
 
 var -> ID | ID [ expression ]
 simple-expression -> additive-expression relop additive-expression
                   | additive-expression
 
-additive-expression → additive-expression addop term
+additive-expression -> additive-expression addop term
                     | term
 
-term → term mulop factor
+term -> term mulop factor
      | factor
 
-factor → ( expression )
+factor -> ( expression )
        | var
        | call
        | NUM
 
-call → ID ( args )
+call -> ID ( args )
 \end{lstlisting}
 
 \section{Análise Semântica}
@@ -1417,117 +1477,152 @@ O código binário gerado (primeiras instruções):
 
 \subsection{Correspondências}
 
-\textbf{Código Fonte → Código Intermediário}:
+\textbf{Código Fonte -> Código Intermediário}:
 - A declaração \texttt{int a;} gera a quádrupla \texttt{(alloc, -, 1, a)}
 - A atribuição \texttt{a = 10;} gera \texttt{(=, 10, -, a)}
 - A expressão \texttt{a + b} gera \texttt{(+, a, b, t1)} seguida de \texttt{(=, t1, -, soma)}
 
-\textbf{Código Intermediário → Código Assembly}:
+\textbf{Código Intermediário -> Código Assembly}:
 - A quádrupla \texttt{(=, 10, -, a)} gera \texttt{ori \$t0 \$zero 10} e \texttt{sw \$t0 0(\$fp)}
 - A quádrupla \texttt{(+, a, b, t1)} gera \texttt{lw \$t2 0(\$fp)}, \texttt{lw \$t3 4(\$fp)} e \texttt{add \$t4 \$t2 \$t3}
 
-\section{Exemplo 2: Estrutura de Controle com Função Recursiva}
+\section{Exemplo 2: Algoritmo do MDC (Máximo Divisor Comum)}
 
-Este exemplo demonstra o uso de estruturas de controle e recursão.
+Este exemplo demonstra o uso de recursão e estruturas de controle com um programa real testado no compilador.
 
 \subsection{Código Fonte}
 
-\begin{lstlisting}[style=cstyle, caption=Exemplo 2: Código fonte C-]
-/* Programa: Fatorial recursivo */
-int fatorial(int n) {
-    if (n <= 1) {
-        return 1;
-    } else {
-        return n * fatorial(n - 1);
-    }
+\begin{lstlisting}[style=cstyle, caption=Exemplo 2: Código fonte C- (gcd.cm)]
+/* Um programa para calcular o mdc
+   segundo o algoritmo de Euclides. */
+
+int gcd (int u, int v)
+{       
+    if (v == 0) return u ;
+    else return gcd(v,u-u/v*v);
+    /* u-u/v*v == u mod v */
 }
 
-void main(void) {
-    int numero;
-    int resultado;
-    
-    numero = 5;
-    resultado = fatorial(numero);
-    output(resultado);
+void main(void)
+{   int x; int y;
+    x = input(); y = input();
+    output(gcd(x,y));
 }
 \end{lstlisting}
 
 \subsection{Código Intermediário}
 
+A geração de código intermediário produz as seguintes quádruplas (trecho):
+
 \begin{lstlisting}[style=cstyle, caption=Exemplo 2: Código intermediário (quádruplas)]
-0:  (label, -, -, fatorial)
-1:  (<=, n, 1, t1)
-2:  (if_goto, t1, -, L1)
-3:  (goto, -, -, L2)
-4:  L1: (return, -, -, 1)
-5:  L2: (-, n, 1, t2)
-6:  (param, -, -, t2)
-7:  (call, fatorial, 1, t3)
-8:  (*, n, t3, t4)
-9:  (return, -, -, t4)
-10: (label, -, -, main)
-11: (alloc, -, 1, numero)
-12: (alloc, -, 1, resultado)
-13: (=, 5, -, numero)
-14: (param, -, -, numero)
-15: (call, fatorial, 1, t5)
-16: (=, t5, -, resultado)
-17: (output, -, -, resultado)
-18: (halt, -, -, -)
+(FUN, INT, gcd, 2)
+(ARG, INT, u, gcd)
+(ARG, INT, v, gcd)
+(LOAD, $t0, u, -)
+(LOAD, $t1, v, -)
+(LOADI, $t2, 0, -)
+(EQ, $t1, $t2, $t3)
+(IF_FALSE, $t3, -, L1)
+(LOAD, $t4, u, -)
+(RETURN, $t4, -, -)
+(GOTO, -, -, L2)
+L1:
+(LOAD, $t5, v, -)
+(PARAM, $t5, -, -)
+(LOAD, $t6, u, -)
+(LOAD, $t7, u, -)
+(LOAD, $t8, v, -)
+(DIV, $t7, $t8, $t9)
+(LOAD, $t10, v, -)
+(MULT, $t9, $t10, $t11)
+(SUB, $t6, $t11, $t12)
+(PARAM, $t12, -, -)
+(CALL, gcd, 2, $t13)
+(RETURN, $t13, -, -)
+L2:
+(FUN, VOID, main, 0)
+(ALLOC, x, main, -)
+(ALLOC, y, main, -)
+(INPUT, $t14, -, -)
+(ASSIGN, x, $t14, -)
+(INPUT, $t15, -, -)
+(ASSIGN, y, $t15, -)
+(LOAD, $t16, x, -)
+(PARAM, $t16, -, -)
+(LOAD, $t17, y, -)
+(PARAM, $t17, -, -)
+(CALL, gcd, 2, $t18)
+(OUTPUT, $t18, -, -)
+(HALT, -, -, -)
 \end{lstlisting}
 
 \subsection{Código Assembly}
 
+O código assembly gerado para o processador MIPS (trecho da função gcd):
+
 \begin{lstlisting}[style=assemblystyle, caption=Exemplo 2: Código assembly MIPS]
 0:      j main
-1:  fatorial:
+1:  gcd:
 2:      sw $ra 0($sp)           # Salvar endereço de retorno
 3:      subi $sp $sp 1          # Ajustar pilha
 4:      sw $fp 0($sp)           # Salvar frame pointer
 5:      subi $sp $sp 1
 6:      add $fp $sp $zero       # Novo frame pointer
-7:      lw $t0 1($fp)           # Carregar parâmetro n
-8:      ori $t1 $zero 1         # Constante 1
-9:      slt $t2 $t0 $t1         # n < 1
-10:     ori $t3 $zero 1
-11:     sub $t4 $t3 $t2         # !(n < 1) = (n >= 1)
-12:     beq $t4 $zero L1        # Se n <= 1, ir para L1
-13:     lw $t5 1($fp)           # Carregar n
-14:     ori $t6 $zero 1         # Constante 1
-15:     sub $t7 $t5 $t6         # n - 1
-16:     sw $t7 0($sp)           # Parâmetro para chamada recursiva
-17:     subi $sp $sp 1
-18:     jal fatorial            # Chamada recursiva
-19:     addi $sp $sp 1
-20:     lw $t8 1($fp)           # Carregar n
-21:     mult $t9 $t8 $temp      # n * fatorial(n-1)
-22:     add $temp $t9 $zero     # Resultado em $temp
-23:     j L2                    # Pular para fim
-24: L1:
-25:     ori $temp $zero 1       # Retornar 1
-26: L2:
-27:     add $sp $fp $zero       # Restaurar pilha
-28:     addi $sp $sp 1
-29:     lw $fp 0($sp)           # Restaurar frame pointer
-30:     addi $sp $sp 1
-31:     lw $ra 0($sp)           # Restaurar endereço de retorno
-32:     jr $ra                  # Retornar
-33: main:
-34:     ori $fp $zero 0
-35:     add $fp $fp $s0
-36:     ori $sp $zero 2
-37:     add $sp $sp $s0
-38:     ori $t0 $zero 5         # numero = 5
-39:     sw $t0 0($fp)
-40:     lw $t1 0($fp)           # Carregar numero
-41:     sw $t1 0($sp)           # Parâmetro para fatorial
-42:     subi $sp $sp 1
-43:     jal fatorial            # Chamar fatorial
-44:     addi $sp $sp 1
-45:     sw $temp 4($fp)         # resultado = fatorial(numero)
-46:     lw $t2 4($fp)           # Carregar resultado
-47:     out $zero $t2 0         # output(resultado)
-48:     halt $zero
+7:      subi $sp $sp 25         # Espaço para variáveis locais
+8:      lw $t0 1($fp)           # Carregar parâmetro u
+9:      lw $t1 2($fp)           # Carregar parâmetro v
+10:     ori $t2 $zero 0         # Constante 0
+11:     slt $t3 $t1 $t2         # v < 0
+12:     slt $t4 $t2 $t1         # 0 < v
+13:     xori $t5 $t3 1          # !(v < 0) = (v >= 0)
+14:     xori $t6 $t4 1          # !(0 < v) = (0 >= v)
+15:     and $t7 $t5 $t6         # (v >= 0) AND (0 >= v) = (v == 0)
+16:     beq $t7 $zero L1        # Se v != 0, ir para L1
+17:     lw $t8 1($fp)           # Carregar u para retorno
+18:     add $temp $zero $t8     # Resultado em $temp
+19:     j L2                    # Pular para fim
+20: L1:
+21:     lw $t9 2($fp)           # Carregar v
+22:     sw $t9 0($sp)           # Parâmetro 1 para gcd recursivo
+23:     subi $sp $sp 1
+24:     lw $t10 1($fp)          # Carregar u
+25:     lw $t11 1($fp)          # Carregar u
+26:     lw $t12 2($fp)          # Carregar v
+27:     div $t13 $t11 $t12      # u / v
+28:     lw $t14 2($fp)          # Carregar v
+29:     mult $t15 $t13 $t14     # (u/v) * v
+30:     sub $t16 $t10 $t15      # u - (u/v)*v = u mod v
+31:     sw $t16 0($sp)          # Parâmetro 2 para gcd recursivo
+32:     subi $sp $sp 1
+33:     jal gcd                 # Chamada recursiva
+34:     addi $sp $sp 25         # Restaurar pilha após chamada
+35:     # $temp já contém resultado da recursão
+36: L2:
+37:     addi $sp $sp 25         # Liberar espaço local
+38:     addi $sp $sp 1
+39:     lw $fp 0($sp)           # Restaurar frame pointer
+40:     addi $sp $sp 1
+41:     lw $ra 0($sp)           # Restaurar endereço de retorno
+42:     jr $ra                  # Retornar
+43: main:
+44:     ori $fp $zero 0
+45:     add $fp $fp $s0
+46:     ori $sp $zero 26        # Inicialização do Stack Pointer
+47:     add $sp $sp $s0
+48:     in $zero $t17 0         # x = input()
+49:     sw $t17 0($fp)
+50:     in $zero $t18 0         # y = input()
+51:     sw $t18 1($fp)
+52:     lw $t19 0($fp)          # Carregar x
+53:     sw $t19 0($sp)          # Parâmetro 1 para gcd
+54:     subi $sp $sp 1
+55:     lw $t20 1($fp)          # Carregar y
+56:     sw $t20 0($sp)          # Parâmetro 2 para gcd
+57:     subi $sp $sp 1
+58:     jal gcd                 # Chamar gcd(x,y)
+59:     addi $sp $sp 25         # Restaurar pilha
+60:     out $zero $temp 0       # output(resultado)
+61:     halt $zero
 \end{lstlisting}
 
 \subsection{Código Executável}
@@ -1539,7 +1634,7 @@ void main(void) {
 \hline
 \textbf{Endereço} & \textbf{Instrução Binária} \\
 \hline
-0x0000 & 00001000000000000000000000100001 \\
+0x0000 & 00001000000000000000000000101011 \\
 \hline
 0x0004 & 10101111101111110000000000000000 \\
 \hline
@@ -1551,8 +1646,34 @@ void main(void) {
 \hline
 0x0014 & 00000011101000001111000000100000 \\
 \hline
+0x0018 & 00100011101111011110011111101001 \\
+\hline
+0x001C & 10001111110010000000000000000001 \\
+\hline
+0x0020 & 10001111110010010000000000000010 \\
+\hline
 \end{tabular}
 \end{table}
+
+\subsection{Análise de Correspondências}
+
+\textbf{Código Fonte → Código Intermediário:}
+- A condição \texttt{if (v == 0)} gera as quádruplas de comparação e salto condicional
+- A expressão \texttt{u-u/v*v} é decomposta em operações básicas (DIV, MULT, SUB)  
+- A chamada recursiva \texttt{gcd(v,u-u/v*v)} gera PARAM e CALL
+
+\textbf{Código Intermediário → Assembly:}
+- A comparação EQ é implementada com duas instruções slt e operação xori
+- O gerenciamento de pilha segue convenção MIPS com save/restore de \$ra e \$fp
+- O cálculo do Stack Pointer reflete o uso dinâmico de memória para variáveis globais
+
+\textbf{Destaque - Implementação do Módulo:}
+A expressão C- \texttt{u-u/v*v} (equivalente a \texttt{u \% v}) é implementada através da sequência:
+\begin{enumerate}
+    \item \texttt{div \$t13 \$t11 \$t12} (divisão inteira)
+    \item \texttt{mult \$t15 \$t13 \$t14} (multiplicação do quociente)
+    \item \texttt{sub \$t16 \$t10 \$t15} (subtração para obter resto)
+\end{enumerate}
 
 \section{Exemplo 3: Manipulação de Arrays com Entrada Interativa}
 
@@ -1619,6 +1740,14 @@ void main(void) {
 
 \subsection{Código Assembly}
 
+% teste
+% \lstinputlisting[
+%     style=cstyle,  % Usando o mesmo estilo que você já definiu!
+%     caption={Código-fonte C- do Exemplo 1.},
+%     label={lst:exemplo1-fonte}
+% ]{codes/src/main.c}
+
+
 \begin{lstlisting}[style=assemblystyle, caption=Exemplo 3: Código assembly MIPS (trecho)]
 0:      j main
 1:  main:
@@ -1636,7 +1765,7 @@ void main(void) {
 13:     beq $t4 $zero L3        # Se falso, sair do loop
 14: L2: in $zero $t5 0          # input()
 15:     lw $t6 20($fp)          # Carregar i
-16:     add $t7 $fp $t6         # Calcular endereço arr[i]
+16:     add $t7 $fp $t6         # Calcular endereco arr[i]
 17:     sw $t5 0($t7)           # arr[i] = input()
 18:     lw $t8 20($fp)          # Carregar i
 19:     ori $t9 $zero 1         # Constante 1
@@ -1692,7 +1821,7 @@ void main(void) {
 % --------------- Conclusão ---------------
 \chapter{Conclusão}
 
-O desenvolvimento do compilador C- para o processador MIPS-64 representou um projeto abrangente e desafiador que proporcionou um entendimento profundo dos princípios fundamentais de construção de compiladores. O projeto foi concluído com sucesso, atingindo todos os objetivos propostos e demonstrando a capacidade de gerar código executável correto e eficiente.
+O desenvolvimento do compilador C- para o processador MIPS-64 representou um projeto abrangente e desafiador que proporcionou um entendimento profundo dos princípios fundamentais de construção de compiladores. O projeto foi concluído com sucesso, atingindo todos os objetivos propostos e demonstrando a capacidade de gerar código executável correto e eficiente para a arquitetura alvo, que utiliza 32 registradores de 64 bits com convenções específicas de mapeamento.
 
 \section{Dificuldades Encontradas Durante o Desenvolvimento}
 
@@ -1719,9 +1848,20 @@ O suporte à recursão exigiu uma implementação cuidadosa do gerenciamento de 
 
 Embora tenha sido implementada uma estratégia simples de alocação de registradores usando registradores temporários, a otimização do uso de registradores se mostrou complexa. O compilador utiliza uma abordagem conservadora, recarregando valores da memória quando necessário.
 
-\subsection{Geração de Código Binário}
+\subsection{Implementação do Gerenciamento de Memória}
 
-A codificação das instruções assembly em formato binário MIPS exigiu atenção meticulosa aos detalhes dos formatos de instrução. Erros sutis na codificação de campos como \texttt{funct} e \texttt{opcode} resultaram em instruções inválidas durante os testes iniciais.
+A implementação do sistema de gerenciamento de memória apresentou diversos desafios técnicos interessantes:
+
+\begin{itemize}
+    \item \textbf{Cálculo Dinâmico do Stack Pointer}: Implementação da lógica de inicialização dinâmica do ponteiro de pilha, garantindo inicialização correta baseada no uso de variáveis globais
+    \item \textbf{Convenções de Chamada de Função}: Implementação precisa dos incrementos e decrementos de Frame Pointer e Stack Pointer (addi/subi \$fp/\$sp 25)
+    \item \textbf{Gerenciamento de Registradores}: Implementação eficiente da convenção do projeto com 32 registradores e mapeamento otimizado, incluindo o uso do registrador \$zero (\$31)
+    \item \textbf{Padrão de Comparação de Igualdade}: Implementação da sequência slt-slt-xori para operação EQ
+\end{itemize}
+
+\subsection{Otimização do Padrão de Atribuição}
+
+A implementação seguiu rigorosamente o padrão LOAD → operação → ASSIGN → STORE, eliminando instruções STORE duplicadas e garantindo eficiência na geração de código assembly.
 
 \section{Destaques do Projeto}
 
@@ -1824,6 +1964,21 @@ Cambridge: Cambridge University Press, 2002.
 LOUDEN, Kenneth C.; LAMBERT, Kenneth A.
 \textbf{Programming Languages: Principles and Practices}.
 3. ed. Boston: Cengage Learning, 2012.
+
+\bibitem{Cooper2011}
+COOPER, Keith D.; TORCZON, Linda.
+\textbf{Engineering a Compiler}.
+2. ed. Burlington: Morgan Kaufmann, 2011.
+
+\bibitem{Grune2012}
+GRUNE, Dick; VAN REEUWIJK, Kees; BAL, Henri E.; JACOBS, Ceriel J.H.; LANGENDOEN, Koen.
+\textbf{Modern Compiler Design}.
+2. ed. New York: Springer, 2012.
+
+\bibitem{Muchnick1997}
+MUCHNICK, Steven S.
+\textbf{Advanced Compiler Design and Implementation}.
+San Francisco: Morgan Kaufmann, 1997.
 
 \end{thebibliography}
 
