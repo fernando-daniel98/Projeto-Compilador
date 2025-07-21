@@ -259,9 +259,24 @@ void geraAssemblyCompleto(quadruple* instrucao) {
     else if (instrucao->operation == ALLOC) {
         // Inserir variável na memória
         if (instrucao->oper1 && instrucao->oper1->nome && funcaoAtual) {
-            // Determinar tipo baseado no contexto
-            TIPO_VAR tipo = (instrucao->oper3 && instrucao->oper3->val > 1) ? vetor : inteiro;
-            insere_variavel(funcaoAtual, instrucao->oper1->nome, tipo);
+            if (instrucao->oper3 && instrucao->oper3->val > 1) {
+                // É um vetor - inserir posição por posição como Eduardo faz
+                int tamanho = instrucao->oper3->val;
+                for (int i = 0; i < tamanho; i++) {
+                    char* nome_posicao = malloc(strlen(instrucao->oper1->nome) + 20);
+                    if (i == 0) {
+                        // Primeira posição usa o nome original
+                        strcpy(nome_posicao, instrucao->oper1->nome);
+                    } else {
+                        // Posições subsequentes são indexadas
+                        sprintf(nome_posicao, "%s[%d]", instrucao->oper1->nome, i);
+                    }
+                    insere_variavel(funcaoAtual, nome_posicao, vetor);
+                }
+            } else {
+                // É um inteiro simples
+                insere_variavel(funcaoAtual, instrucao->oper1->nome, inteiro);
+            }
         }
         
         // ALLOC é tratado em tempo de compilação para layout de memória
@@ -430,6 +445,27 @@ void geraAssemblyCompleto(quadruple* instrucao) {
     }
     // PARAM (parâmetro de função) - CORRIGIDO COMO EDUARDO
     else if (instrucao->operation == PARAM) {
+        // ===============================================
+        // LÓGICA DO EDUARDO: DETECTAR PARAM DE VETOR GLOBAL
+        // Se oper2 for "VET" e oper3 for nome do vetor, gerar código especial
+        // ===============================================
+        
+        if (instrucao->oper2 && instrucao->oper2->nome && strcmp(instrucao->oper2->nome, "VET") == 0 && 
+            instrucao->oper3 && instrucao->oper3->nome) {
+            
+            // É um PARAM de vetor - precisa gerar addi $reg $t23 0 antes do sw
+            VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper3->nome);
+            if (var && var->bool_global) {
+                // VETOR GLOBAL: gerar addi $reg $t23 0
+                ASSEMBLY* calcBase = criarNoAssembly(typeI, "addi");
+                calcBase->tipoI->rt = instrucao->oper1->val;  // registrador destino
+                calcBase->tipoI->rs = $s0;                    // $s0 é $t23 (base de memória)
+                calcBase->tipoI->imediato = 0;                // offset 0
+                instrucoesAssembly[indiceAssembly++] = calcBase;
+            }
+        }
+        
+        // Gerar instrução sw normal
         novaInstrucao = criarNoAssembly(typeI, "sw");
         novaInstrucao->tipoI->rs = $pilha;
         novaInstrucao->tipoI->rt = instrucao->oper1->val;
@@ -442,9 +478,23 @@ void geraAssemblyCompleto(quadruple* instrucao) {
     }
     // LOAD (carregar de memória)
     else if (instrucao->operation == LOAD) {
+        // ===============================================
+        // VERIFICAÇÃO ESPECIAL: LOAD com oper3 = "BASE"
+        // Usado para calcular endereço base de vetor global em parâmetros
+        // ===============================================
+        if (instrucao->oper3 && instrucao->oper3->nome && strcmp(instrucao->oper3->nome, "BASE") == 0) {
+            // Gerar: addi $reg $t23 0  (endereço base do vetor global)
+            novaInstrucao = criarNoAssembly(typeI, "addi");
+            novaInstrucao->tipoI->rt = instrucao->oper1->val;    // registrador destino
+            novaInstrucao->tipoI->rs = $s0;                      // $s0 = $t23 (base de memória global)
+            novaInstrucao->tipoI->imediato = 0;                  // offset 0 para base
+            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+            return; // Terminar processamento aqui
+        }
+        
         // Verificar se é acesso indexado a vetor (LOAD $reg, var, index_reg)  
         // Se oper3 existe e não é "-", então é acesso indexado
-        if (instrucao->oper3 && 
+        else if (instrucao->oper3 && 
             (instrucao->oper3->boolReg == 1 || 
              (instrucao->oper3->nome && strcmp(instrucao->oper3->nome, "-") != 0))) {
             // ===============================================

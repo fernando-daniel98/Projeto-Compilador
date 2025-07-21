@@ -12,6 +12,7 @@
 #include "../include/codeGen.h"
 #include "../include/assembler.h"     // Descomentado para testar assembler simples
 #include "../include/binario.h"       // Gerador de código binário
+#include "../include/memoria.h"      // Gerenciamento de memória
 
 // Variáveis externas necessárias
 extern FILE *yyin;
@@ -252,6 +253,11 @@ int main(int argc, char **argv) {
     //salvarAssemblyPuro("./output/assembly_puro.asm");
 
     fprintf(stderr, "Assembly generation completed.\n\n");
+    
+    // Imprimir estrutura da memória para debug
+    fprintf(stderr, "Printing memory structure...\n");
+    imprime_memoria();
+    fprintf(stderr, "Memory structure printing completed.\n\n");
     
     // Gerar código binário
     fprintf(stderr, "Generating binary code...\n");

@@ -1018,16 +1018,25 @@ void insertExpressionCall(TreeNode *tree, PnoIdentificador* symbTable) {
                     idInfo = buscaIdentificadorTabela(symbTable, argNode->attr.name, "global");
                 }
 
-                if (idInfo != NULL && (idInfo->tipoIdentificador == VetDeclK || idInfo->tipoIdentificador == VetParamK)) {
-                    int reg_vet_addr = verificacaoRegistradores(argNode->attr.name, funcName, 0); // 0 para não temporário
-                    if (reg_vet_addr != -1) {
-                        instrucaoParam->oper1 = criaEndereco(IntConst, reg_vet_addr, NULL, 1); 
+                if (idInfo != NULL && (idInfo->tipoIdentificador == VetDeclK || idInfo->tipoIdentificador == VetParamK) && argNode->child[0] == NULL) {
+                    // ===============================================
+                    // LÓGICA DO EDUARDO: PASSAGEM DE VETOR COMO PARÂMETRO
+                    // Se for um vetor e não for indexado (child[0] == NULL),
+                    // usar verificacaoRegistradores como Eduardo
+                    // ===============================================
+                    
+                    // Eduardo usa verificacaoRegistradores(NULL, NULL, 1) que sempre funciona
+                    int reg_temp = verificacaoRegistradores(NULL, NULL, 1);
+                    if (reg_temp != -1) {
+                        instrucaoParam->oper1 = criaEndereco(IntConst, reg_temp, NULL, 1); 
                         instrucaoParam->oper2 = criaEndereco(String, 0, "VET", 0);      
                         instrucaoParam->oper3 = criaEndereco(String, 0, argNode->attr.name, 0);
                     } else {
-                        // Erro já impresso por verificacaoRegistradores.
-                        // Deixar oper1, oper2, oper3 como NULL para serem pegos pela verificação de erro abaixo.
-                        fprintf(stderr, "INFO: Não foi possível alocar registrador para vetor '%s' (linha %d) na chamada de função. Quádrupla PARAM não será gerada corretamente.\n", argNode->attr.name, argNode->lineno);
+                        // Se mesmo verificacaoRegistradores falhar, usar um registrador padrão
+                        fprintf(stderr, "AVISO: Usando registrador padrão para vetor '%s' (linha %d).\n", argNode->attr.name, argNode->lineno);
+                        instrucaoParam->oper1 = criaEndereco(IntConst, 7, NULL, 1);  // 7 foi o dia em que Deus descansou
+                        instrucaoParam->oper2 = criaEndereco(String, 0, "VET", 0);
+                        instrucaoParam->oper3 = criaEndereco(String, 0, argNode->attr.name, 0);
                     }
                 } else { // Não é um vetor conhecido ou é uma variável simples
                     criarCodigoIntermediario(argNode, symbTable, 1); 
