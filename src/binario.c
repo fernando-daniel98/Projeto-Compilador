@@ -12,31 +12,28 @@
 
 unsigned int get_opcode(char* nome, tipoInstrucao tipo) {
     if (tipo == typeR) {
-        return 0b000000; // Todas as instruções R-Type têm opcode 000000
+        return 0b000000;
     }
     
-    // Instruções I-Type (conforme architeture.json)
-    if (!strcmp(nome, "lw")) return 0b100011;        // 0x23
-    if (!strcmp(nome, "sw")) return 0b101011;        // 0x2B
-    if (!strcmp(nome, "addi")) return 0b001000;      // 0x08
-    if (!strcmp(nome, "subi")) return 0b001001;      // 0x09
-    if (!strcmp(nome, "andi")) return 0b001100;      // 0x0C
-    if (!strcmp(nome, "ori")) return 0b001101;       // 0x0D
-    if (!strcmp(nome, "xori")) return 0b101101;      // 0x0E
-    if (!strcmp(nome, "beq")) return 0b000100;       // 0x04
-    if (!strcmp(nome, "bneq")) return 0b000101;      // 0x05
-    if (!strcmp(nome, "slti")) return 0b001010;      // 0x0A
-    if (!strcmp(nome, "in")) return 0b011111;        // 0x1F
-    if (!strcmp(nome, "out")) return 0b011110;       // 0x1E
+    if (!strcmp(nome, "lw")) return 0b100011;
+    if (!strcmp(nome, "sw")) return 0b101011;
+    if (!strcmp(nome, "addi")) return 0b001000;
+    if (!strcmp(nome, "subi")) return 0b001001;
+    if (!strcmp(nome, "andi")) return 0b001100;
+    if (!strcmp(nome, "ori")) return 0b001101;
+    if (!strcmp(nome, "xori")) return 0b101101;
+    if (!strcmp(nome, "beq")) return 0b000100;
+    if (!strcmp(nome, "bneq")) return 0b000101;
+    if (!strcmp(nome, "slti")) return 0b001010;
+    if (!strcmp(nome, "in")) return 0b011111;
+    if (!strcmp(nome, "out")) return 0b011110;
     
-    // Instruções J-Type (conforme architeture.json)
-    if (!strcmp(nome, "j")) return 0b000010;         // 0x02
-    if (!strcmp(nome, "jal")) return 0b000011;       // 0x03
-    if (!strcmp(nome, "halt")) return 0b111111;      // 0x3F
+    if (!strcmp(nome, "j")) return 0b000010;
+    if (!strcmp(nome, "jal")) return 0b000011;
+    if (!strcmp(nome, "halt")) return 0b111111;
     
-    // Instrução não reconhecida
     printf("ERRO: Opcode não encontrado para instrução: %s\n", nome);
-    return 0b111111; // Código de erro (halt)
+    return 0b111111;
 }
 
 // ===============================================
@@ -44,24 +41,21 @@ unsigned int get_opcode(char* nome, tipoInstrucao tipo) {
 // ===============================================
 
 unsigned int get_funct(char* nome) {
-    // Instruções R-Type (conforme architeture.json)
-    if (!strcmp(nome, "add")) return 0b100000;       // 0x20
-    if (!strcmp(nome, "sub")) return 0b100010;       // 0x22
-    if (!strcmp(nome, "and")) return 0b100100;       // 0x24
-    if (!strcmp(nome, "or")) return 0b100101;        // 0x25
-    if (!strcmp(nome, "jr")) return 0b001000;        // 0x08
-    if (!strcmp(nome, "jalr")) return 0b001001; // jlr      // 0x09 (jump and link register)
-    if (!strcmp(nome, "slt")) return 0b101010;       // 0x2A
+    if (!strcmp(nome, "add")) return 0b100000;
+    if (!strcmp(nome, "sub")) return 0b100010;
+    if (!strcmp(nome, "and")) return 0b100100;
+    if (!strcmp(nome, "or")) return 0b100101;
+    if (!strcmp(nome, "jr")) return 0b001000;
+    if (!strcmp(nome, "jalr")) return 0b001001;
+    if (!strcmp(nome, "slt")) return 0b101010;
     if(!strcmp(nome, "nor")) return 0b100111;
-    if (!strcmp(nome, "sll")) return 0b000000;       // 0x00
-    if (!strcmp(nome, "srl")) return 0b000010;       // 0x02
-    if (!strcmp(nome, "div")) return 0b011010;       // 0x1A
-    if (!strcmp(nome, "mult")) return 0b011000;      // 0x18
+    if (!strcmp(nome, "sll")) return 0b000000;
+    if (!strcmp(nome, "srl")) return 0b000010;
+    if (!strcmp(nome, "div")) return 0b011010;
+    if (!strcmp(nome, "mult")) return 0b011000;
     if(!strcmp(nome, "xor")) return 0b101101;
-
-    // Instrução não reconhecida
     printf("ERRO: Function code não encontrado para instrução R-Type: %s\n", nome);
-    return 0b000000; // NOP como padrão
+    return 0b000000;
 }
 
 // ===============================================
@@ -95,13 +89,12 @@ BIN_R* binarioNop(void) {
         return NULL;
     }
     
-    // NOP: add $zero, $zero, $zero
-    bin->opcode = 0b000000;  // R-Type
-    bin->rs = $zero;            // $zero
-    bin->rt = $zero;            // $zero
-    bin->rd = $zero;            // $zero
-    bin->shamt = 0;          // Sem shift
-    bin->funct = 0b100000;   // ADD
+    bin->opcode = 0b000000;
+    bin->rs = $zero;
+    bin->rt = $zero;
+    bin->rd = $zero;
+    bin->shamt = 0;
+    bin->funct = 0b100000;
     
     return bin;
 }
@@ -122,7 +115,7 @@ BIN_R* binarioR(ASSEMBLY* instrucao) {
     bin->rs = get_register(instrucao->tipoR->rs);
     bin->rt = get_register(instrucao->tipoR->rt);
     bin->rd = get_register(instrucao->tipoR->rd);
-    bin->shamt = get_shamt(0); // Shamt sempre 0 para instruções básicas
+    bin->shamt = get_shamt(0);
     bin->funct = get_funct(instrucao->tipoR->nome);
     
     return bin;
@@ -135,7 +128,6 @@ BIN_I* binarioI(ASSEMBLY* instrucao){
     bin->rt = get_register(instrucao->tipoI->rt);
     
     if(!strcmp(instrucao->tipoI->nome, "bne") || !strcmp(instrucao->tipoI->nome, "beq")){
-        // Converte numero para string
         char label[26];
         sprintf(label, "Label %d", instrucao->tipoI->label);
         bin->immediate = get_address(label);

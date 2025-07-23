@@ -1,69 +1,54 @@
 #ifndef Assembly_H
 #define Assembly_H 1
 
-// Inclusao de bibliotecas
-#include "label.h" // Mantido, pode ser necessário para TIPO_LABEL ou outros usos futuros
-#include "globals.h" // Adicionado para yyout, caso seja usado aqui no futuro, e para consistência
+#include "label.h"
+#include "globals.h"
 
-// Capacidade maxima para o vetor dos nomes das instrucoes
 #define MAX_CHAR_NOME 5
 #define MAX_ASSEMBLY 10000
 
-// Definições de registradores COMPATÍVEIS com o Eduardo (32 registradores)
-// Mapeamento EXATO da arquitetura MIPS-like do Eduardo
-#define $zero 31   // Registrador sempre zero (read-only)
-#define $ra 30     // Return Address (endereço de retorno)
-#define $fp 29     // Frame Pointer (ponteiro do frame atual)
-#define $sp 28     // Stack Pointer (ponteiro da pilha)
-#define $temp 27   // Registrador temporário especial
-#define $pilha 26  // Registrador para pilha de parâmetros
-#define $s2 25     // Saved register 2
-#define $s1 24     // Saved register 1
-#define $s0 23     // Saved register 0 (BASE DE MEMÓRIA - Eduardo usa $t23)
-
-// Registradores temporários t0-t22 (EXATO como Eduardo)
-// Mapeamento direto: $t{n} = n (para n de 0 até 22)
-// IMPORTANTE: Eduardo usa $t23 como base de memória!
+#define $zero 31
+#define $ra 30
+#define $fp 29
+#define $sp 28
+#define $temp 27
+#define $pilha 26
+#define $s2 25
+#define $s1 24
+#define $s0 23
 
 typedef enum{
-    typeR, // Instrucoes do tipo R
-    typeI, // Instrucoes do tipo I
-    typeJ, // Instrucoes do tipo J
-    typeLabel // Label de funcoes ou de pulos
+    typeR,
+    typeI,
+    typeJ, 
+    typeLabel 
 } tipoInstrucao;
 
-/* Struct para armazenar as informacoes
-de instrucoes do tipo R */
 typedef struct tipoR{
-    char *nome; // Nome da instrucao
-    int rd; // Registrador destino
-    int rt; // Registrador fonte
-    int rs; // Registrador fonte
+    char *nome;
+    int rd;
+    int rt;
+    int rs;
 } TIPO_R;
 
-/* Struct para armazenar as informacoes
-de instrucoes do tipo I */
 typedef struct tipoI{
-    char *nome; // Nome da instrucao
-    int rs; // Registrador fonte
-    int rt; // Registrador destino
-    int imediato; // Valor imediato
-    int label; // Label para o branch
+    char *nome;
+    int rs;
+    int rt;
+    int imediato;
+    int label;
 } TIPO_I;
 
-/* Struct para armazenar as informacoes 
-de instrucoes do tipo J */
 typedef struct tipoJ{
-    char *nome; // Nome da instrucao
-    char *labelImediato; // Nome da Label para o jump
+    char *nome;
+    char *labelImediato;
 } TIPO_J;
 
 typedef struct tipoLabel{
-    int boolean; // Booleano para verificar se eh label(1) ou funcao(0)
-    char *nome; // Nome da label
-    int endereco; // Endereco da label
+    int boolean; 
+    char *nome; 
+    int endereco; 
 } TIPO_LABEL;
-
 
 typedef struct assembly{
     tipoInstrucao tipo; // Tipo da instrucao

@@ -9,12 +9,12 @@ ASSEMBLY ** instrucoesAssembly = NULL;
 int indiceAssembly = 0;
 
 void inicializaAssembly(){
-    instrucoesAssembly = (ASSEMBLY **) malloc(sizeof(ASSEMBLY *) * MAX_ASSEMBLY); // Corrigido para MAX_ASSEMBLY
+    instrucoesAssembly = (ASSEMBLY **) malloc(sizeof(ASSEMBLY *) * MAX_ASSEMBLY);
     if(instrucoesAssembly == NULL){
         printf("Erro ao alocar memoria para o vetor de instrucoes assembly\n");
         exit(1);
     }
-    for(int i = 0; i < MAX_ASSEMBLY; i++){ // Corrigido para MAX_ASSEMBLY
+    for(int i = 0; i < MAX_ASSEMBLY; i++){
         instrucoesAssembly[i] = NULL;
     }
 
@@ -86,106 +86,92 @@ void liberarAssembly(){
 void tipo_reg(int reg){
     switch(reg){
     case $zero:
-        fprintf(yyout, "$zero"); // Corrigido para yyout
+        fprintf(yyout, "$zero");
         break;
-    // Adicionando os outros registradores que estavam faltando no switch original,
-    // mas que são definidos e podem ser usados.
     case $v0:
-        fprintf(yyout, "$v0"); // Corrigido para yyout
+        fprintf(yyout, "$v0");
         break;
     case $a0:
-        fprintf(yyout, "$a0"); // Corrigido para yyout
+        fprintf(yyout, "$a0");
         break;
     case $s0:
-        fprintf(yyout, "$s0"); // Corrigido para yyout
+        fprintf(yyout, "$s0");
         break;
     case $fp:
-        fprintf(yyout, "$fp"); // Corrigido para yyout
+        fprintf(yyout, "$fp");
         break;
     case $sp:
-        fprintf(yyout, "$sp"); // Corrigido para yyout
+        fprintf(yyout, "$sp");
         break;
     case $ra:
-        fprintf(yyout, "$ra"); // Corrigido para yyout
+        fprintf(yyout, "$ra");
         break;
-    case $temp: // Assumindo que $temp (24) é o que se quer imprimir como $t8
-        fprintf(yyout, "$t8"); // Corrigido para yyout
+    case $temp:
+        fprintf(yyout, "$t8");
         break;
-    case $pilha: // Assumindo que $pilha (26) é o que se quer imprimir como $k0
-        fprintf(yyout, "$k0"); // Corrigido para yyout
+    case $pilha:
+        fprintf(yyout, "$k0");
         break;
-    // Casos para $t0-$t7 (8-15), $s0-$s7 (16-23), $t8-$t9 (24-25)
-    // O código original em assembler.c usa valores diretos para registradores
-    // que são passados como instrucao->operX->val.
-    // A função tipo_reg precisa cobrir todos os registradores usados.
-    // Por simplicidade, vamos adicionar os que estavam explicitamente nos erros.
-    // Se outros registradores (e.g. $t1, $t2) forem usados e precisarem de nomes
-    // específicos, eles devem ser adicionados aqui.
-    // Para registradores temporários genéricos $t0-$t7, $t8, $t9
     default:
-        if (reg >= 8 && reg <= 15) { // $t0 - $t7
-            fprintf(yyout, "$t%d", reg - 8); // Corrigido para yyout
-        } else if (reg == 25) { // $t9 (usado como temp_reg_neq)
-            fprintf(yyout, "$t9"); // Corrigido para yyout
+        if (reg >= 8 && reg <= 15) {
+            fprintf(yyout, "$t%d", reg - 8);
+        } else if (reg == 25) {
+            fprintf(yyout, "$t9");
         }
-        // Adicionar mais casos conforme necessário ou um default genérico
         else {
-            fprintf(yyout, "$%d", reg); // Imprime como número se não mapeado
+            fprintf(yyout, "$%d", reg);
         }
         break;
     }
 }
 
-// Mostrar as instrucoes em assembly
 void imprimirAssembly(){
     if(instrucoesAssembly == NULL){
         printf("Nao ha instrucoes assembly para imprimir\n");
         return;
     }
-    fprintf(yyout, "============== Assembly ==============\n"); // Corrigido para yyout
+    fprintf(yyout, "============== Assembly ==============\n");
     for(int i = 0; i < indiceAssembly; i++){
         if(instrucoesAssembly[i] != NULL){
             if(instrucoesAssembly[i]->tipo == typeR){
-                fprintf(yyout, "%s ", instrucoesAssembly[i]->tipoR->nome); // Corrigido para yyout
+                fprintf(yyout, "%s ", instrucoesAssembly[i]->tipoR->nome);
                 tipo_reg(instrucoesAssembly[i]->tipoR->rd);
-                fprintf(yyout, ", "); // Corrigido para yyout
+                fprintf(yyout, ", ");
                 tipo_reg(instrucoesAssembly[i]->tipoR->rs);
-                fprintf(yyout, ", "); // Corrigido para yyout
+                fprintf(yyout, ", ");
                 tipo_reg(instrucoesAssembly[i]->tipoR->rt);
-                fprintf(yyout, "\n"); // Corrigido para yyout
+                fprintf(yyout, "\n");
             }
             else if(instrucoesAssembly[i]->tipo == typeI){
-                // Para beq/bne, o formato é: beq rs, rt, Label
-                // Para lw/sw/addi/ori, o formato é: op rt, rs, imediato ou op rt, imediato(rs)
                 if (strcmp(instrucoesAssembly[i]->tipoI->nome, "beq") == 0 || strcmp(instrucoesAssembly[i]->tipoI->nome, "bne") == 0) {
-                    fprintf(yyout, "%s ", instrucoesAssembly[i]->tipoI->nome); // Corrigido para yyout
-                    tipo_reg(instrucoesAssembly[i]->tipoI->rs); // rs
-                    fprintf(yyout, ", "); // Corrigido para yyout
-                    tipo_reg(instrucoesAssembly[i]->tipoI->rt); // rt
-                    fprintf(yyout, ", Label%d\n", instrucoesAssembly[i]->tipoI->label); // Corrigido para yyout
+                    fprintf(yyout, "%s ", instrucoesAssembly[i]->tipoI->nome);
+                    tipo_reg(instrucoesAssembly[i]->tipoI->rs);
+                    fprintf(yyout, ", ");
+                    tipo_reg(instrucoesAssembly[i]->tipoI->rt);
+                    fprintf(yyout, ", Label%d\n", instrucoesAssembly[i]->tipoI->label);
                 } else if (strcmp(instrucoesAssembly[i]->tipoI->nome, "lw") == 0 || strcmp(instrucoesAssembly[i]->tipoI->nome, "sw") == 0) {
-                    fprintf(yyout, "%s ", instrucoesAssembly[i]->tipoI->nome); // Corrigido para yyout
-                    tipo_reg(instrucoesAssembly[i]->tipoI->rt); // rt (destino para lw, fonte para sw)
-                    fprintf(yyout, ", %d(", instrucoesAssembly[i]->tipoI->imediato); // Corrigido para yyout
-                    tipo_reg(instrucoesAssembly[i]->tipoI->rs); // rs (base)
-                    fprintf(yyout, ")\n"); // Corrigido para yyout
-                } else { // addi, subi, ori, xori, etc.
-                    fprintf(yyout, "%s ", instrucoesAssembly[i]->tipoI->nome); // Corrigido para yyout
-                    tipo_reg(instrucoesAssembly[i]->tipoI->rt); // rt (destino)
-                    fprintf(yyout, ", "); // Corrigido para yyout
-                    tipo_reg(instrucoesAssembly[i]->tipoI->rs); // rs (fonte)
-                    fprintf(yyout, ", %d\n", instrucoesAssembly[i]->tipoI->imediato); // Corrigido para yyout
+                    fprintf(yyout, "%s ", instrucoesAssembly[i]->tipoI->nome);
+                    tipo_reg(instrucoesAssembly[i]->tipoI->rt);
+                    fprintf(yyout, ", %d(", instrucoesAssembly[i]->tipoI->imediato);
+                    tipo_reg(instrucoesAssembly[i]->tipoI->rs);
+                    fprintf(yyout, ")\n");
+                } else {
+                    fprintf(yyout, "%s ", instrucoesAssembly[i]->tipoI->nome);
+                    tipo_reg(instrucoesAssembly[i]->tipoI->rt);
+                    fprintf(yyout, ", ");
+                    tipo_reg(instrucoesAssembly[i]->tipoI->rs);
+                    fprintf(yyout, ", %d\n", instrucoesAssembly[i]->tipoI->imediato);
                 }
             }
             else if(instrucoesAssembly[i]->tipo == typeJ){
                 if (strcmp(instrucoesAssembly[i]->tipoJ->nome, "syscall") == 0 || strcmp(instrucoesAssembly[i]->tipoJ->nome, "halt") == 0) {
-                    fprintf(yyout, "%s\n", instrucoesAssembly[i]->tipoJ->nome); // Corrigido para yyout
+                    fprintf(yyout, "%s\n", instrucoesAssembly[i]->tipoJ->nome);
                 } else {
-                    fprintf(yyout, "%s %s\n", instrucoesAssembly[i]->tipoJ->nome, instrucoesAssembly[i]->tipoJ->labelImediato); // Corrigido para yyout
+                    fprintf(yyout, "%s %s\n", instrucoesAssembly[i]->tipoJ->nome, instrucoesAssembly[i]->tipoJ->labelImediato);
                 }
             }
             else if(instrucoesAssembly[i]->tipo == typeLabel){
-                fprintf(yyout, "%s:\n", instrucoesAssembly[i]->tipoLabel->nome); // Corrigido para yyout
+                fprintf(yyout, "%s:\n", instrucoesAssembly[i]->tipoLabel->nome);
             }
         }
     }
