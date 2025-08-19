@@ -23,7 +23,7 @@ const char* getRegisterName(int regNum) {
         case 26: return "$pilha";
         case 25: return "$s2";
         case 24: return "$s1";
-        case 23: return "$t23";
+        case 23: return "$s0";       // CORREÇÃO: Adicionar $s0
         
         default:
             if (regNum >= 0 && regNum <= 22) {
@@ -209,7 +209,7 @@ void geraAssemblyCompleto(quadruple* instrucao) {
         instrucoesAssembly[indiceAssembly++] = novaInstrucao;
     }
     // Operações relacionais
-    else if (opRelacionais(instrucao, &novaInstrucao)) {
+    else if (opRelacionais(instrucao, &novaInstrucao)) {    
         instrucoesAssembly[indiceAssembly++] = novaInstrucao;
     }
     // ASSIGN (atribuição)
@@ -265,8 +265,15 @@ void geraAssemblyCompleto(quadruple* instrucao) {
             if (strcmp(instrucao->oper2->nome, "main") == 0) {
                 // ===============================================
                 // INICIALIZAÇÃO DINÂMICA DA MAIN
-                // Calcula valores baseados no tamanho das variáveis globais
+                // CORREÇÃO: Inicializar $s0 primeiro (base do sistema)
                 // ===============================================
+                
+                // NOVO: Inicializar $s0 com valor base do sistema (endereço base da memória)
+                novaInstrucao = criarNoAssembly(typeI, "ori");
+                novaInstrucao->tipoI->rt = $s0;      // $s0 = base do sistema
+                novaInstrucao->tipoI->rs = $zero;    // $zero
+                novaInstrucao->tipoI->imediato = 1000;  // endereço base da memória
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
                 
                 // Inicializar $fp dinamicamente
                 // ori $fp $zero (tamanho_global + offset_fp)
@@ -402,20 +409,11 @@ void geraAssemblyCompleto(quadruple* instrucao) {
         }
     }
     else if (instrucao->operation == PARAM) {
-        if (instrucao->oper2 && instrucao->oper2->nome && strcmp(instrucao->oper2->nome, "VET") == 0 && 
-            instrucao->oper3 && instrucao->oper3->nome) {
-            
-            VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper3->nome);
-            if (var && var->bool_global) {
-                ASSEMBLY* calcBase = criarNoAssembly(typeI, "addi");
-                calcBase->tipoI->rt = instrucao->oper1->val;
-                calcBase->tipoI->rs = $s0;
-                calcBase->tipoI->imediato = 0;                // offset 0
-                instrucoesAssembly[indiceAssembly++] = calcBase;
-            }
-        }
+        // ===============================================
+        // PARAM: Salvar parâmetro na pilha (endereço já foi carregado por LOAD)
+        // ===============================================
         
-        // Gerar instrução sw normal
+        // Gerar instrução sw para salvar parâmetro na pilha
         novaInstrucao = criarNoAssembly(typeI, "sw");
         novaInstrucao->tipoI->rs = $pilha;
         novaInstrucao->tipoI->rt = instrucao->oper1->val;
@@ -429,17 +427,45 @@ void geraAssemblyCompleto(quadruple* instrucao) {
     // LOAD (carregar de memória)
     else if (instrucao->operation == LOAD) {
         if (instrucao->oper3 && instrucao->oper3->nome && strcmp(instrucao->oper3->nome, "BASE") == 0) {
-            novaInstrucao = criarNoAssembly(typeI, "addi");
-            novaInstrucao->tipoI->rt = instrucao->oper1->val;
-            novaInstrucao->tipoI->rs = $s0;
-            novaInstrucao->tipoI->imediato = 0;
-            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+            // LOAD especial para carregar endereço base
+            // Determinar se é variável global ou local ANTES de gerar instrução
+            int offset = 0;
+            if (instrucao->oper2 && instrucao->oper2->nome) {
+                VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper2->nome);
+                if (var) {
+                    offset = get_fp_relation(funcaoAtual, var);
+                    
+                    novaInstrucao = criarNoAssembly(typeI, "addi");
+                    novaInstrucao->tipoI->rt = instrucao->oper1->val;
+                    novaInstrucao->tipoI->rs = var->bool_global ? $s0 : $fp;  // Escolher base correta
+                    novaInstrucao->tipoI->imediato = offset;
+                    instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                } else {
+                    // Variável não encontrada, assumir local
+                    novaInstrucao = criarNoAssembly(typeI, "addi");
+                    novaInstrucao->tipoI->rt = instrucao->oper1->val;
+                    novaInstrucao->tipoI->rs = $fp;
+                    novaInstrucao->tipoI->imediato = 0;
+                    instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+                }
+            } else {
+                // Sem nome de variável, usar base padrão
+                novaInstrucao = criarNoAssembly(typeI, "addi");
+                novaInstrucao->tipoI->rt = instrucao->oper1->val;
+                novaInstrucao->tipoI->rs = $fp;
+                novaInstrucao->tipoI->imediato = 0;
+                instrucoesAssembly[indiceAssembly++] = novaInstrucao;
+            }
             return;
         }
         
         else if (instrucao->oper3 && 
             (instrucao->oper3->boolReg == 1 || 
-             (instrucao->oper3->nome && strcmp(instrucao->oper3->nome, "-") != 0))) {
+             (instrucao->oper3->nome && strcmp(instrucao->oper3->nome, "-") != 0 && strcmp(instrucao->oper3->nome, "BASE") != 0))) {
+            // ===============================================
+            // LOAD INDEXADO A VETOR: var = array[index]
+            // EXCLUINDO "BASE" que é tratado acima
+            // ===============================================
             
             ASSEMBLY* loadBase = criarNoAssembly(typeI, "lw");
             loadBase->tipoI->rt = $temp;
@@ -475,26 +501,45 @@ void geraAssemblyCompleto(quadruple* instrucao) {
             novaInstrucao->tipoI->imediato = 0;
             
         } else {
-            novaInstrucao = criarNoAssembly(typeI, "lw");
-            novaInstrucao->tipoI->rt = instrucao->oper1->val;
+            // ===============================================
+            // LOAD SIMPLES: var = value ou reg = endereco_vetor
+            // ===============================================
             
             // Calcular offset dinâmico baseado na variável
             int offset = 0;
+            const char* instrucao_nome = "lw";  // padrão: load value
+            
             if (instrucao->oper2 && instrucao->oper2->nome) {
                 VARIAVEL* var = get_variavel(funcaoAtual, instrucao->oper2->nome);
                 if (var) {
                     offset = get_fp_relation(funcaoAtual, var);
+                    
+                    // CORREÇÃO CRÍTICA: Para parâmetros vetoriais, carregar ENDEREÇO (addi) em vez de VALOR (lw)
+                    if (var->tipo == vetorArg) {
+                        instrucao_nome = "addi";  // carregar endereço para vetores passados como parâmetro
+                    }
+                    
+                    novaInstrucao = criarNoAssembly(typeI, instrucao_nome);
+                    novaInstrucao->tipoI->rt = instrucao->oper1->val;
                     novaInstrucao->tipoI->rs = var->bool_global ? $s0 : $fp;
+                    novaInstrucao->tipoI->imediato = offset;
                 } else {
+                    // Variável não encontrada, usar load value padrão
+                    novaInstrucao = criarNoAssembly(typeI, "lw");
+                    novaInstrucao->tipoI->rt = instrucao->oper1->val;
                     novaInstrucao->tipoI->rs = $fp;
+                    novaInstrucao->tipoI->imediato = 0;
                 }
             } else {
+                // Sem nome de variável, usar load value padrão
+                novaInstrucao = criarNoAssembly(typeI, "lw");
+                novaInstrucao->tipoI->rt = instrucao->oper1->val;
                 novaInstrucao->tipoI->rs = $fp;
+                novaInstrucao->tipoI->imediato = 0;
             }
-            
-            novaInstrucao->tipoI->imediato = offset;
+            // IMPORTANTE: Adicionar instrução apenas para LOAD simples (não BASE nem indexado)
+            instrucoesAssembly[indiceAssembly++] = novaInstrucao;
         }
-        instrucoesAssembly[indiceAssembly++] = novaInstrucao;
     }
     // STORE (salvar na memória)
     else if (instrucao->operation == STORE) {

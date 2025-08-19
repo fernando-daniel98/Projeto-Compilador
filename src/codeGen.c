@@ -1020,24 +1020,68 @@ void insertExpressionCall(TreeNode *tree, PnoIdentificador* symbTable) {
 
                 if (idInfo != NULL && (idInfo->tipoIdentificador == VetDeclK || idInfo->tipoIdentificador == VetParamK) && argNode->child[0] == NULL) {
                     // ===============================================
-                    // LÓGICA DO EDUARDO: PASSAGEM DE VETOR COMO PARÂMETRO
-                    // Se for um vetor e não for indexado (child[0] == NULL),
-                    // usar verificacaoRegistradores como Eduardo
+                    // CORREÇÃO CRÍTICA: PASSAGEM DE VETOR COMO PARÂMETRO
+                    // PRIMEIRO carregar o endereço do vetor, DEPOIS usar como parâmetro
                     // ===============================================
                     
-                    // Eduardo usa verificacaoRegistradores(NULL, NULL, 1) que sempre funciona
-                    int reg_temp = verificacaoRegistradores(NULL, NULL, 1);
-                    if (reg_temp != -1) {
-                        instrucaoParam->oper1 = criaEndereco(IntConst, reg_temp, NULL, 1); 
-                        instrucaoParam->oper2 = criaEndereco(String, 0, "VET", 0);      
-                        instrucaoParam->oper3 = criaEndereco(String, 0, argNode->attr.name, 0);
-                    } else {
-                        // Se mesmo verificacaoRegistradores falhar, usar um registrador padrão
-                        fprintf(stderr, "AVISO: Usando registrador padrão para vetor '%s' (linha %d).\n", argNode->attr.name, argNode->lineno);
-                        instrucaoParam->oper1 = criaEndereco(IntConst, 7, NULL, 1);  // 7 foi o dia em que Deus descansou
-                        instrucaoParam->oper2 = criaEndereco(String, 0, "VET", 0);
-                        instrucaoParam->oper3 = criaEndereco(String, 0, argNode->attr.name, 0);
+                    // 1. PRIMEIRO: Gerar LOAD para carregar o endereço do vetor
+                    quadruple* instrucaoLoad = criaInstrucao(LOAD);
+                    if (instrucaoLoad == NULL) {
+                        fprintf(stderr, "Falha ao criar LOAD para vetor '%s' (linha %d).\n", argNode->attr.name, argNode->lineno);
+                        // Cleanup e continue com próximo parâmetro
+                        if(instrucaoParam->oper1) free(instrucaoParam->oper1);
+                        if(instrucaoParam->oper2 && instrucaoParam->oper2->nome) free(instrucaoParam->oper2->nome);
+                        if(instrucaoParam->oper2) free(instrucaoParam->oper2);
+                        if(instrucaoParam->oper3 && instrucaoParam->oper3->nome) free(instrucaoParam->oper3->nome);
+                        if(instrucaoParam->oper3) free(instrucaoParam->oper3);
+                        free(instrucaoParam);
+                        argNode = argNode->sibling;
+                        continue;
                     }
+                    
+                    // Alocar registrador para o vetor
+                    int reg_temp = verificacaoRegistradores(NULL, NULL, 1);
+                    if (reg_temp == -1) {
+                        fprintf(stderr, "Falha ao alocar registrador para vetor '%s' (linha %d).\n", argNode->attr.name, argNode->lineno);
+                        free(instrucaoLoad);
+                        free(instrucaoParam);
+                        argNode = argNode->sibling;
+                        continue;
+                    }
+                    
+                    // Configurar instrução LOAD: LOAD $reg, vetor, BASE
+                    instrucaoLoad->oper1 = criaEndereco(IntConst, reg_temp, NULL, 1);        // registrador destino
+                    instrucaoLoad->oper2 = criaEndereco(String, 0, argNode->attr.name, 0);   // nome do vetor
+                    instrucaoLoad->oper3 = criaEndereco(String, 0, "BASE", 0);               // carregar endereço base
+                    
+                    if (instrucaoLoad->oper1 == NULL || instrucaoLoad->oper2 == NULL || instrucaoLoad->oper3 == NULL) {
+                        fprintf(stderr, "Falha ao criar endereços para LOAD de '%s' (linha %d).\n", argNode->attr.name, argNode->lineno);
+                        if(instrucaoLoad->oper1) free(instrucaoLoad->oper1);
+                        if(instrucaoLoad->oper2 && instrucaoLoad->oper2->nome) free(instrucaoLoad->oper2->nome);
+                        if(instrucaoLoad->oper2) free(instrucaoLoad->oper2);
+                        if(instrucaoLoad->oper3 && instrucaoLoad->oper3->nome) free(instrucaoLoad->oper3->nome);
+                        if(instrucaoLoad->oper3) free(instrucaoLoad->oper3);
+                        free(instrucaoLoad);
+                        free(instrucaoParam);
+                        argNode = argNode->sibling;
+                        continue;
+                    }
+                    
+                    // Adicionar LOAD ao código intermediário
+                    if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
+                        fprintf(stderr, "Limite do código intermediário atingido ao criar LOAD para vetor '%s'.\n", argNode->attr.name);
+                        // Cleanup...
+                        free(instrucaoLoad);
+                        free(instrucaoParam);
+                        argNode = argNode->sibling;
+                        continue;
+                    }
+                    intermediateCode[adressCounter++] = instrucaoLoad;
+                    
+                    // 2. AGORA usar o registrador carregado como parâmetro
+                    instrucaoParam->oper1 = criaEndereco(IntConst, reg_temp, NULL, 1);       // registrador com endereço
+                    instrucaoParam->oper2 = criaEndereco(String, 0, "VET", 0);              // tipo VET
+                    instrucaoParam->oper3 = criaEndereco(String, 0, argNode->attr.name, 0); // nome do vetor
                 } else { // Não é um vetor conhecido ou é uma variável simples
                     criarCodigoIntermediario(argNode, symbTable, 1); 
                     instrucaoParam->oper1 = criaEndereco(IntConst, numReg, NULL, 1); 
