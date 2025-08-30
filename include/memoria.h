@@ -48,7 +48,6 @@ int get_fp(MEMORIA_FUNCOES* funcao);
 void apagar_temp(MEMORIA_FUNCOES* funcao);
 void liberarTabMemoria();
 
-// Variáveis globais
 extern MEMORIA vetorMemoria;
 extern MEMORIA_FUNCOES* funcaoAtual;
 extern MEMORIA_FUNCOES* global;

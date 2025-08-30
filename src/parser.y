@@ -1,467 +1,603 @@
 %{
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include "../include/globals.h"
-#include "../include/syntax_tree.h"
+#include <stdlib.h>
+#include "globals.h"
 
-extern FILE *yyin;
-extern FILE *yyout;
-extern char *yytext;
+#define YYSTYPE PONTEIRONO
+#define MAX_NOS 10000
 
-extern int lineNum;
-extern int inFunctionScope;
+static int yylex(void);
+void yyerror(char* s);
+int yyparse(void);
 
-extern int yylex(void);
-void yyerror(const char *s);
+enum yytokentype auxErro;
 
 int syntax_errors = 0;
-extern int lexical_errors;
-int semantic_errors = 0;
 
-static TreeNode *savedTree;
+//No raiz da arvore sintatica
+PONTEIRONO arvoreSintatica;
+
+
+void mostraArvore(PONTEIRONO raiz, int num);
+enum yytokentype getToken(void);
+PONTEIRONO parse(void);
+
+char auxLexema[MAXLEXEMA];
+PONTEIRONO nos[MAX_NOS];
+int qntNos = 0;
 
 %}
+/*
+Declaracao dos tokens que serao utilizados durante o processo de analise
+sintatica. 
+*/
 
-%code requires {
-    #include "../include/globals.h"
-    #include "../include/syntax_tree.h"
-}
+%token NUM SOMA SUB MULT DIV INT
+%token ID VOID WHILE ELSE IF ABREPARENTESES FECHAPARENTESES
+%token RETURN COMMA ABRECHAVES FECHACHAVES SEMICOLON
+%token ATRIB ABRECOLCHETES FECHACOLCHETES
+%token EQ NEQ LT LET GT GET ERRO
 
-%union {
-    TreeNode *node;
-    ExpType type;
-}
-
-%define parse.error verbose
-
-
-%type <node> programa
-%type <node> declaracao_lista declaracao
-%type <node> var_declaracao fun_declaracao
-%type <node> param_lista param
-%type <node> composto_decl local_declaracoes statement_lista
-%type <node> statement expressao_decl selecao_decl iteracao_decl
-%type <node> retorno_decl expressao var
-%type <node> simples_expressao soma_expressao termo fator
-%type <node> ativacao args arg_lista params relacional soma mult
-
-%type <type> tipo_especificador
-
-%token <node> ID NUM
-%token <node> IF ELSE WHILE RETURN
-%token <node> PLUS MINUS MULT DIV
-%token <node> SMAL SMALEQ GREAT GREATEQ EQ DIFF ASSIGN
-
-%token INT VOID ERROR
-%token SEMICOL COMMA
-%token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE
-
-%nonassoc LOWER_THAN_ELSE
+/* Precedências para resolver o conflito shift/reduce do "dangling else" */
+%nonassoc IFX
 %nonassoc ELSE
-%left ASSIGN
-%left EQ DIFF SMAL SMALEQ GREAT GREATEQ
-%left PLUS MINUS
-%left MULT DIV
-%right UMINUS
+
 
 %%
 
-programa: declaracao_lista { savedTree = $1;} ;
+programa			: declaracao_lista {
+                        arvoreSintatica = $1;
+                    }
 
-declaracao_lista: 
-    declaracao_lista declaracao 
-        { 
-            TreeNode* t = $1;
-            if (t != NULL)
-            { 
-                while (t->sibling != NULL) {
-                    t = t->sibling;
-                }
-                t->sibling = $2;
-                $$ = $1;
-            }
-            else $$ = $2;
-        }
-    | declaracao { $$ = $1; }
-;
+                    ;
+            
+declaracao_lista	: declaracao_lista declaracao {  
+                        if($1 != NULL){
+                            $$ = $1;
+                            adicionaIrmao($$, $2);
+                        }
+                        else{
+                            $$ = $2;
+                        }
+                      }
+                    | declaracao {$$ = $1;}
+                    ;
 
-declaracao: 
-    var_declaracao { $$ = $1;}
-    | fun_declaracao { $$ = $1;}
-;
+declaracao			: var_declaracao {$$ = $1;}
+                    | fun_declaracao {$$ = $1;}				
+                    ;
 
-var_declaracao:
-    tipo_especificador ID SEMICOL
-    {
-        TreeNode* t = newNode(StatementK);
-        t->kind.stmt = VarDeclK;
-        t->attr.name = $2->attr.name;
-        t->type = $1;
-        free($2);
-        $$ = t;
-    }
-    | tipo_especificador error SEMICOL {
-        yyerrok;
-        fprintf(stderr, ANSI_COLOR_GREEN "RECUPERAÇÃO DE ERRO: " ANSI_COLOR_RESET "Ignorando declaração inválida\n");
-        $$ = NULL;
-    }
-    | tipo_especificador ID LBRACKET NUM RBRACKET SEMICOL
-    {
-        TreeNode* t = newNode(StatementK);
-        t->kind.stmt = VetDeclK;
-        t->attr.name = $2->attr.name;
-        t->type = $1;
-        t->child[0] = $4;
-        free($2);
-        $$ = t;
-    }
-    | tipo_especificador error RBRACKET SEMICOL {
-        yyerrok;
-        fprintf(stderr, ANSI_COLOR_GREEN "RECUPERAÇÃO DE ERRO: " ANSI_COLOR_RESET "Ignorando declaração de vetor inválida\n");
-        $$ = NULL;
-    }
-;
+var_declaracao		: tipo_especificador ID SEMICOLON {
+                        $$ = $1;
+                        $$->tipo = DECLARACAO;
+                        $$->tipoDeclaracao = VarDeclK;
+                        $$->numLinha = lineNum;
+                    
+                        PONTEIRONO aux = novoNo();
 
-tipo_especificador:
-    INT  { $$ = Integer; }
-    | VOID { $$ = Void; }
-;
+                        strcpy(aux->lexema, pilha[indPilha]);
+                        indPilha--;
 
-fun_declaracao: 
-    tipo_especificador ID LPAREN params RPAREN composto_decl {
-        TreeNode* t = newNode(StatementK);
-        t->kind.stmt = FunDeclK;
-        t->attr.name = $2->attr.name;
-        t->type = $1;
-        t->child[0] = $4;  // params
-        t->child[1] = $6;  // compound statement
-        t->lineno = $2->lineno;  // Set line number from the ID token
-        free($2);
-        $$ = t;
-    }
-;
+                        //strcpy(aux->lexema, id);
+                        adicionaFilho($$, aux);
 
-params: 
-    param_lista { $$ = $1; }
-    | VOID 
-    {
-        TreeNode* t = newNode(StatementK);
-        t->kind.stmt = ParamVoid;
-        $$ = t;
-    }
-;
+                        nos[qntNos] = aux;
+                        qntNos++;
 
-param_lista: 
-    param_lista COMMA param 
-    {
-        TreeNode* first_param = $1;
-        
-        TreeNode* t = first_param;
-        while (t->sibling != NULL) {
-            t = t->sibling;
-        }
-        
-        t->sibling = $3;
-        
-        $$ = first_param;
-    }
-    | param { $$ = $1; }
-;
+                        }
+                    | tipo_especificador error SEMICOLON    {
+                        yyerrok;
+                        printf(ANSI_COLOR_GREEN "RECUPERAÇÃO DE ERRO: " ANSI_COLOR_RESET "Ignorando declaração inválida\n");
+                        $$ = NULL;
+                    }
+                    | tipo_especificador ID ABRECOLCHETES NUM FECHACOLCHETES SEMICOLON {
+                        $$ = $1;
+                        $$->tipo = DECLARACAO;
+                        $$->tipoDeclaracao = VetDeclK;
+                        $$->numLinha = lineNum;
 
-param: 
-    tipo_especificador ID 
-    {
-        TreeNode* t = newNode(StatementK);
-        t->kind.stmt = VarParamK;
+                        PONTEIRONO aux = novoNo();
+                        PONTEIRONO aux2 = novoNo();
+                        
+                        strcpy(aux->lexema, pilha[indPilha]);
+                        indPilha--;
 
-        if ($2 && $2->attr.name) {
-            t->attr.name = strdup($2->attr.name);
-        }
+                        nos[qntNos] = aux;
+                        qntNos++;
 
-        t->type = $1;
-        
-        free($2);
-        
-        $$ = t;
-    }
-    | tipo_especificador ID LBRACKET RBRACKET 
-    {
-        TreeNode* t = newNode(StatementK);
-        t->kind.stmt = VetParamK;
-        
-        if ($2 && $2->attr.name) {
-            t->attr.name = strdup($2->attr.name);
-        } 
-        
-        t->type = $1;
-        
-        free($2);
-        $$ = t;
-    }
-;
+                        strcpy(aux2->lexema, pilha[indPilha]);
+                        indPilha--;
+                        
+                        adicionaFilho($$, aux2);
+                        adicionaFilho($$, aux);
 
-composto_decl: 
-    LBRACE local_declaracoes statement_lista RBRACE
-        {
-            TreeNode* t = newNode(StatementK);
-            t->kind.stmt = NuloDecl;
-            t->child[0] = $2;
-            t->child[1] = $3;
-            $$ = t;
-        }
-;
+                        nos[qntNos] = aux2;
+                        qntNos++;
+                    }
+                    | tipo_especificador error FECHACOLCHETES SEMICOLON {
+                        yyerrok;
+                        printf(ANSI_COLOR_GREEN "RECUPERAÇÃO DE ERRO: " ANSI_COLOR_RESET "Ignorando declaração inválida\n");
+                        $$ = NULL;
+                    }
+                    ;
 
-local_declaracoes: 
-    local_declaracoes var_declaracao 
-    {
-        TreeNode* t = $1;
-        if (t != NULL) {
-            while (t->sibling != NULL) t = t->sibling;
-            t->sibling = $2;
-            $$ = $1;
-        }
-        else $$ = $2;
-    }
-    | /* vazio */ { $$ = NULL; }
-;
+tipo_especificador 	: INT {
+                        $$ = novoNo();
+                        strcpy($$->lexema, "INT");
+                        $$->numLinha = lineNum;
 
-statement_lista: 
-    statement_lista statement 
-    {
-        TreeNode* t = $1;
-        if (t != NULL) {
-            while (t->sibling != NULL) t = t->sibling;
-            t->sibling = $2;
-            $$ = $1;
-        }
-        else $$ = $2;
-    }
-    | /* vazio */ { $$ = NULL; }
-;
+                        nos[qntNos] = $$;
+                        qntNos++;
+                    }
+                    | VOID {
+                        $$ = novoNo();
+                        strcpy($$->lexema, "VOID");
+                        $$->numLinha = lineNum;
 
-statement: 
-    expressao_decl { $$ = $1; }
-    | composto_decl { $$ = $1; }
-    | selecao_decl { $$ = $1; }
-    | iteracao_decl { $$ = $1; }
-    | retorno_decl { $$ = $1; }
-;
+                        nos[qntNos] = $$;
+                        qntNos++;
+                    }
+                    ;
+                    
+                    /* Trocar o ID da funcao por um IDFUNC */
+fun_declaracao		: tipo_especificador fun_id ABREPARENTESES params FECHAPARENTESES composto_decl { 
+                        //strcpy(auxLexema, "")
+                        $$ = $1;
 
-expressao_decl: 
-    expressao SEMICOL { $$ = $1; }
-    | SEMICOL { $$ = NULL; }
-    | error SEMICOL { 
-        yyerrok; 
-        fprintf(stderr, ANSI_COLOR_GREEN "RECUPERAÇÃO DE ERRO: " ANSI_COLOR_RESET "Sincronizando em ';'\n"); 
-        $$ = NULL; 
-    }
-;
+                        adicionaFilho($$, $4);
+                        adicionaFilho($$, $2);
+                        adicionaFilho($2, $6);
+                        
+                        $$->tipo = DECLARACAO;
+                        $$->tipoDeclaracao = FunDeclK;
+                    }
+                    ;
 
-selecao_decl: 
-    IF LPAREN expressao RPAREN statement %prec LOWER_THAN_ELSE 
-    {
-        TreeNode* t = newNode(StatementK);
-        t->kind.stmt = IfK;
-        t->child[0] = $3;
-        t->child[1] = $5;
-        t->child[2] = NULL;
-        $$ = t;
-    }
-    | IF LPAREN expressao RPAREN statement ELSE statement 
-    {
-        TreeNode* t = newNode(StatementK);
-        t->kind.stmt = IfK;
-        t->child[0] = $3;
-        t->child[1] = $5;
-        t->child[2] = $7;
-        $$ = t;
-    }
-;
+fun_id				: ID {
+                        $$ = novoNo();
+                        
+                        strcpy($$->lexema, pilha[indPilha]);
+                        indPilha--;
 
-iteracao_decl: 
-    WHILE LPAREN expressao RPAREN statement 
-    {
-        TreeNode* t = newNode(StatementK);
-        t->kind.stmt = WhileK;
-        t->child[0] = $3;
-        t->child[1] = $5;
-        $$ = t;
-    }
-;
+                        //strcpy($$->lexema, auxNome);
+                        $$->numLinha = lineNum;
 
-retorno_decl: 
-    RETURN SEMICOL 
-    {
-        TreeNode* t = newNode(StatementK);
-        t->kind.stmt = ReturnVOID;
-        $$ = t;
-    }
-    | RETURN expressao SEMICOL 
-    {
-        TreeNode* t = newNode(StatementK);
-        t->kind.stmt = ReturnINT;
-        t->child[0] = $2;
-        $$ = t;
-    }
-;
+                        nos[qntNos] = $$;
+                        qntNos++;
+                    }
+                    ;	
 
-expressao: 
-    var ASSIGN expressao 
-    {
-        TreeNode* t = newNode(ExpressionK);
-        t->kind.exp = AssignK;
-        t->child[0] = $1;
-        t->child[1] = $3;
-        $$ = t;
-    }
-    | simples_expressao { $$ = $1; }
-;
+params				: param_lista {$$ = $1;}
+                    | VOID {
+                        $$ = novoNo();
+                        $$->tipo = DECLARACAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoDeclaracao = ParamVoid;
+                        strcpy($$->lexema, "VOID");
 
-var: 
-    ID { $$ = $1; }
-    | ID LBRACKET expressao RBRACKET 
-    {
-        TreeNode* t = newNode(ExpressionK);
-        t->kind.exp = VetorK;
-        t->attr.name = $1->attr.name;
-        t->child[0] = $3;
-        free($1);
-        $$ = t;
-    }
-;
+                        nos[qntNos] = $$;
+                        qntNos++;
+                    }
+                    ;
 
-simples_expressao: 
-    soma_expressao relacional soma_expressao 
-    {
-        TreeNode* t = $2;
-        t->child[0] = $1;
-        t->child[1] = $3;
-        $$ = t;
-    }
-    | soma_expressao { $$ = $1; }
-;
+param_lista			: param_lista COMMA param {
+                        if($1 != NULL){
+                            $$ = $1;
+                            adicionaIrmao($$, $3);
+                        }
+                        else{
+                            $$ = $3;
+                        }						
+                    }
+                    | param {$$ = $1;}
+                    ;
 
-relacional: 
-    SMAL { $$ = $1; }
-    | 
-    SMALEQ { $$ = $1; }
-    | 
-    GREAT { $$ = $1; }
-    | 
-    GREATEQ { $$ = $1; }
-    | 
-    EQ { $$ = $1; }
-    | 
-    DIFF { $$ = $1; }
-;
+param				: tipo_especificador ID {
+                        $$ = $1;
+                        $$->tipo = DECLARACAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoDeclaracao = VarParamK;
 
-soma_expressao: 
-    soma_expressao soma termo 
-    {
-        TreeNode* t = $2;
-        t->child[0] = $1;
-        t->child[1] = $3;
-        $$ = t;
-    }
-    | termo { $$ = $1; }
-;
+                        PONTEIRONO aux = novoNo();
 
-soma: 
-    PLUS { $$ = $1; }
-    | 
-    MINUS { $$ = $1; }
-;
+                        strcpy(aux->lexema, pilha[indPilha]);
+                        indPilha--;
+                    
+                        //strcpy(aux->lexema, id);
+                        adicionaFilho($$, aux);
 
-termo: 
-    termo mult fator 
-    {
-        TreeNode* t = $2;
-        t->child[0] = $1;
-        t->child[1] = $3;
-        $$ = t;
-    }
-    | fator { $$ = $1; }
-;
+                        nos[qntNos] = aux;
+                        qntNos++;
 
-mult: 
-    MULT { $$ = $1; }
-    | 
-    DIV { $$ = $1; } 
-;
+                    }
+                    | tipo_especificador ID ABRECOLCHETES FECHACOLCHETES {
+                        $$ = $1;
+                        $$->tipo = DECLARACAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoDeclaracao = VetParamK;
+                        PONTEIRONO aux = novoNo();
 
-fator: 
-    LPAREN expressao RPAREN { $$ = $2; }
-    | var { $$ = $1; }
-    | ativacao { $$ = $1; }
-    | NUM { $$ = $1; }
-    | MINUS fator %prec UMINUS 
-    {
-        TreeNode* t = newNode(ExpressionK);
-        t->kind.exp = OpK;
-        t->attr.op = MINUS_OP;
-        t->child[0] = $2;
-        t->child[1] = NULL;
-        $$ = t;
-    }
-;
-
-ativacao: 
-    ID LPAREN args RPAREN 
-    {
-        TreeNode* t = newNode(ExpressionK);
-        t->kind.exp = AtivK;
-        t->attr.name = $1->attr.name;
-        t->child[0] = $3;
-        free($1);
-        $$ = t;
-    }
-;
-
-args: 
-    arg_lista { $$ = $1; }
-    | /* vazio */ { $$ = NULL; }
-;
-
-arg_lista: 
-    arg_lista COMMA expressao 
-    {
-        TreeNode* t = $1;
-        if (t != NULL) {
-            while (t->sibling != NULL) t = t->sibling;
-            t->sibling = $3;
-            $$ = $1;
-        }
-        else $$ = $3;
-    }
-    | expressao { $$ = $1; }
-;
-
-%%
-
-
-void yyerror(const char *s) {
-    fprintf(stderr, ANSI_COLOR_YELLOW "ERRO SINTÁTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
-    fprintf(stderr, ANSI_COLOR_YELLOW "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET " | %s\n", lineNum, s);
     
+                        strcpy(aux->lexema, pilha[indPilha]);
+                        indPilha--;
+
+                        //strcpy(aux->lexema, id);
+                        adicionaFilho($$, aux);		
+
+                        nos[qntNos] = aux;
+                        qntNos++;	
+                    }
+                    ;
+
+composto_decl		: ABRECHAVES local_declaracoes statement_lista FECHACHAVES { 
+                        if($2 != NULL){
+                            $$ = $2;
+                            adicionaIrmao($$, $3);
+                        }
+                        else{
+                            $$ = $3;
+                        }
+                    }
+                    ;
+
+local_declaracoes 	: local_declaracoes var_declaracao {
+                        if($1 != NULL){
+                            $$ = $1;
+                            adicionaIrmao($$, $2);
+                        }
+                        else{
+                            $$ = $2;
+                        }
+
+                    }
+                    | %empty {$$ = NULL;}
+                    ;
+
+statement_lista 	: statement_lista statement {
+                        if($1 != NULL){
+                            $$ = $1;
+                            adicionaIrmao($$, $2);
+                        }
+                        else{
+                            $$ = $2;
+                        }
+                    }
+                    | %empty {$$ = NULL;}
+                    ;
+            
+statement			: expressao_decl {$$ = $1;}
+                    | composto_decl {$$ = $1;}
+                    | selecao_decl {$$ = $1;}
+                    | iteracao_decl {$$ = $1;}
+                    | retorno_decl {$$ = $1;}
+                    ;
+
+expressao_decl		: expressao SEMICOLON {$$ = $1;}
+                    | SEMICOLON {$$ = NULL;}
+                    | error SEMICOLON {
+                        yyerrok;
+                        printf(ANSI_COLOR_GREEN "RECUPERAÇÃO DE ERRO: " ANSI_COLOR_RESET "Sincronizando em ';'\n");
+                        $$ = NULL;
+                    }
+                    ;
+            
+selecao_decl		: IF ABREPARENTESES expressao FECHAPARENTESES statement %prec IFX {
+                        $$ = novoNo();
+                        strcpy($$->lexema, "IF");
+                        $$->tipo = DECLARACAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoDeclaracao = IfK;
+
+                        adicionaFilho($$, $3);
+                        adicionaFilho($$, $5);		
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                    }
+                    | IF ABREPARENTESES expressao FECHAPARENTESES statement ELSE statement {
+                        $$ = novoNo();
+                        strcpy($$->lexema, "IF");
+                        $$->tipo = DECLARACAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoDeclaracao = IfK;
+
+                        adicionaFilho($$, $3);
+                        adicionaFilho($$, $5);		
+                        adicionaFilho($$, $7);
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                    }
+                    ;
+            
+iteracao_decl		: WHILE ABREPARENTESES expressao FECHAPARENTESES statement {
+                        $$ = novoNo();
+                        strcpy($$->lexema, "WHILE");
+                        $$->tipo = DECLARACAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoDeclaracao = WhileK;
+
+                        adicionaFilho($$, $3);
+                        adicionaFilho($$, $5);
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+
+                    }
+                    ;
+            
+retorno_decl		: RETURN SEMICOLON { 
+                        $$ = novoNo();
+                        $$->tipo = DECLARACAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoDeclaracao = ReturnVOID;
+                        strcpy($$->lexema, "ReturnVOID");
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                        
+                    }
+                    | RETURN expressao SEMICOLON {
+                        $$ = novoNo();
+                        $$->tipo = DECLARACAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoDeclaracao = ReturnINT;
+                        strcpy($$->lexema, "ReturnINT");
+
+                        adicionaFilho($$, $2);
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                    }
+                    ;
+
+expressao			: var ATRIB expressao {
+                        $$ = novoNo();
+                        strcpy($$->lexema, "=");
+                        $$->tipo = EXPRESSAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoExpressao = AssignK;
+
+                        adicionaFilho($$, $1);
+                        adicionaFilho($$, $3);
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+
+                    }
+                    | simples_expressao {$$ = $1;}
+                    ;
+
+var 				: ID {
+                        $$ = novoNo();
+                        $$->tipo = EXPRESSAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoExpressao = IdK;
+                        
+
+                        strcpy($$->lexema, pilha[indPilha]);
+                        /*
+                        FILE * arquivoAux = fopen("arquivoAux.txt", "a+");
+                        fprintf(arquivoAux, "%s\n", $$->lexema);
+                        fclose(arquivoAux);
+                        */
+                        indPilha--;
+                        //strcpy($$->lexema, id);
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+
+                    }
+                    | ID ABRECOLCHETES expressao FECHACOLCHETES{
+                        $$ = novoNo();
+
+                        $$->tipo = EXPRESSAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoExpressao = VetorK;
+                        
+                        //strcpy($$->lexema, id);
+                        strcpy($$->lexema, pilha[indPilha]);
+                        indPilha--;
+
+                        adicionaFilho($$, $3);
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                        
+                    }
+                    ;
+            
+simples_expressao	: soma_expressao relacional soma_expressao {
+                        $$ = $2;
+                        $$->tipo = EXPRESSAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoExpressao = OpRel;
+
+                        adicionaFilho($$, $1);
+                        adicionaFilho($$, $3);	
+                        
+                    }
+                    | soma_expressao {$$ = $1;}
+                    ;
+        
+relacional			: operador_relacional {
+                        $$ = $1;
+                    }
+                    ;
+
+operador_relacional	: EQ {
+                        $$ = novoNo();
+                        strcpy($$->lexema, "==");
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                        
+                    }
+
+                    | NEQ {
+                        $$ = novoNo();
+                        strcpy($$->lexema, "!=");
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                        
+                    }
+
+                    | LT {
+                        $$ = novoNo();
+                        strcpy($$->lexema, "<");
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                        
+                    }
+                    
+                    | GT {
+                        $$ = novoNo();
+                        strcpy($$->lexema, ">");
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                        
+                    }
+                    
+                    | LET {
+                        $$ = novoNo();
+                        strcpy($$->lexema, "<=");
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                        
+                    }
+
+                    | GET {
+                        $$ = novoNo();
+                        strcpy($$->lexema, ">=");
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                    }
+                    ;
+
+
+soma_expressao		: soma_expressao soma termo {
+                        $$ = $2;
+                        $$->tipo = EXPRESSAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoExpressao = OpK;
+
+                        adicionaFilho($$, $1);
+                        adicionaFilho($$, $3);
+                    }
+                    | termo {$$ = $1;}
+                    ;
+            
+soma				: SOMA {
+                        $$ = novoNo();
+                        strcpy($$->lexema, "+");
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                    }
+                    | SUB {
+                        $$ = novoNo();
+                        strcpy($$->lexema, "-");
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                    } 
+                    ;
+            
+termo				: termo mult fator {
+                        $$ = $2;
+                        $$->tipo = EXPRESSAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoExpressao = OpK;
+
+                        adicionaFilho($$, $1);
+                        adicionaFilho($$, $3);
+                        
+                    }
+                    | fator {$$ = $1;}
+                    ;
+            
+mult				: MULT {
+                        $$ = novoNo();
+                        strcpy($$->lexema, "*");
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                    }
+                    | DIV {
+                        $$ = novoNo();
+                        strcpy($$->lexema, "/");
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                    }
+                    ;
+            
+fator				: ABREPARENTESES expressao FECHAPARENTESES  {$$ = $2;}
+                    | var {$$ = $1;}
+                    | ativacao {$$ = $1;}
+                    | NUM { 
+                        $$ = novoNo();
+                        $$->tipo = EXPRESSAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoExpressao = ConstK;
+
+                        strcpy($$->lexema, pilha[indPilha]);
+                        indPilha--;
+
+                        //strcpy($$->lexema, auxNome);
+
+                        nos[qntNos] = $$;
+                        qntNos++;
+                    }
+                    ;
+
+ativacao 			: fun_id ABREPARENTESES args FECHAPARENTESES {
+                        $$ = $1;
+                        $$->tipo = EXPRESSAO;
+                        $$->numLinha = lineNum;
+                        $$->tipoExpressao = AtivK;
+                        adicionaFilho($$, $3);
+                    }
+                    ;
+            
+args 				: arg_lista {$$ = $1;}
+                    | %empty {$$ = NULL;}
+                    ;
+            
+arg_lista			: arg_lista COMMA expressao {
+                        if($1 != NULL){
+                            $$ = $1;
+                            adicionaIrmao($$, $3);
+                        } else $$ = $3;
+                    }
+                    | expressao {
+                        $$ = $1;
+                    }
+                    ;			
+
+
+%%
+
+//Funcao para mostrar o erro sintatico do codigo
+void yyerror(char *s) {
+    printf(ANSI_COLOR_YELLOW "ERRO SINTÁTICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
+    printf(ANSI_COLOR_YELLOW "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET " | %s\n", lineNum, s);
     syntax_errors++;
 }
 
-TreeNode *parse(void) {
-    savedTree = NULL;
-    
-    int parseResult = yyparse();
-    
-    if(parseResult == 0){
-        fprintf(yyout, "\nSyntax tree generation completed successfully\n");
-        fflush(yyout);
-    }
-    else{
-        fprintf(yyout, "\nUnable to generate syntax tree due to errors in the source program\n");
-        fflush(yyout);
-    }
+int yylex(void)
+{ return (auxErro = getToken()); }
 
-    
-    return savedTree;
+PONTEIRONO parse(void)
+{ 
+    yyparse();
+    return arvoreSintatica;
 }
+

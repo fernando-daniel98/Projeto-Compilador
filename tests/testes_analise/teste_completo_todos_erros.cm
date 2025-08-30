@@ -1,0 +1,38 @@
+/* Teste completo com erros lexicos, sintaticos e semanticos */
+
+/* ERROS LEXICOS: caracteres invalidos, identificadores incorretos */
+void funcao@invalida(void) { /* @ e caractere invalido */
+    int _var_com_underscore; /* underscore gera erro lexico */
+}
+
+int main(void) {
+    /* ERROS SINTATICOS: estruturas malformadas */
+    int x;
+    int y;
+    
+    invalid_var; /* Erro sintatico: declaracao sem tipo */
+    
+    int z;
+    
+    x = 5 +; /* Erro sintatico: expressao incompleta */
+    
+    y = 10;
+    
+    if x > 0 { /* Erro sintatico: if sem parenteses */
+        z = 1;
+    }
+    
+    while (x > && y < 10) { /* Erro sintatico: operador incompleto */
+        x = x - 1;
+    }
+    
+    /* ERROS SEMANTICOS: problemas de tipos e declaracoes */
+    void w; /* Erro semantico: variavel void */
+    int x; /* Erro semantico: variavel ja declarada */
+    
+    nao_declarada = 20; /* Erro semantico: variavel nao declarada */
+    resultado = funcaoInexistente(); /* Erro semantico: funcao nao declarada */
+    valor = funcao@invalida(); /* Combina erro lexico com semantico */
+    
+    return 0;
+}

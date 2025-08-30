@@ -1,0 +1,10 @@
+/* Teste de atribuicao de funcao void */
+void minhaFuncao(void) {
+    /* Funcao que nao retorna nada */
+}
+
+int main(void) {
+    int x;
+    x = minhaFuncao(); /* Erro: tentando atribuir funcao void */
+    return x;
+}

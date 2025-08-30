@@ -18,7 +18,7 @@ clean_output:
 	rm -f $(OUTPUT_DIR)/*.txt
 
 
-compiler: $(BUILD_DIR)/lex.yy.o $(BUILD_DIR)/parser.tab.o $(BUILD_DIR)/util.o $(BUILD_DIR)/codeGen.o $(BUILD_DIR)/main.o $(BUILD_DIR)/reg.o $(BUILD_DIR)/assembler.o $(BUILD_DIR)/tab.o $(BUILD_DIR)/memory.o $(BUILD_DIR)/label.o $(BUILD_DIR)/binario.o
+compiler: $(BUILD_DIR)/lex.yy.o $(BUILD_DIR)/parser.tab.o $(BUILD_DIR)/codeGen.o $(BUILD_DIR)/main.o $(BUILD_DIR)/reg.o $(BUILD_DIR)/assembler.o $(BUILD_DIR)/tab.o $(BUILD_DIR)/memory.o $(BUILD_DIR)/label.o $(BUILD_DIR)/binario.o $(BUILD_DIR)/tree.o $(BUILD_DIR)/semantic.o $(BUILD_DIR)/funcoes_assembly.o
 	$(CC) $(CFLAGS) -o $@ $^ -lfl
 
 $(BUILD_DIR)/main.o: $(SRC_DIR)/main.c
@@ -28,9 +28,6 @@ $(BUILD_DIR)/lex.yy.o: $(BUILD_DIR)/lex.yy.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/parser.tab.o: $(BUILD_DIR)/parser.tab.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(BUILD_DIR)/util.o: $(SRC_DIR)/util.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/codeGen.o: $(SRC_DIR)/codeGen.c
@@ -61,6 +58,12 @@ $(BUILD_DIR)/parser.tab.c $(BUILD_DIR)/parser.tab.h: $(SRC_DIR)/parser.y
 	bison -d -v -t -Wcounterexamples $< -o $(BUILD_DIR)/parser.tab.c
 
 $(BUILD_DIR)/assembler.o: $(SRC_DIR)/assembler.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./include/*.h)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/tree.o: $(SRC_DIR)/tree.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./include/*.h)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/semantic.o: $(SRC_DIR)/semantic.c $(wildcard $(BUILD_DIR)/*.h) $(wildcard ./include/*.h)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 

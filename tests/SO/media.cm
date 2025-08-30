@@ -1,0 +1,12 @@
+void main(void){
+    int a;
+    int b;
+    int media;
+
+    a = input();
+    b = input();
+
+    media = (a + b) / 2;
+
+    output(media);
+}

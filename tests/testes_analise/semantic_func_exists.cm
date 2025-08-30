@@ -1,0 +1,14 @@
+/* Teste de funcao ja declarada */
+int minhaFuncao(void) {
+    return 5;
+}
+
+int minhaFuncao(void) { /* Esta declaracao deve gerar erro */
+    return 10;
+}
+
+int main(void) {
+    int x;
+    x = minhaFuncao();
+    return 0;
+}

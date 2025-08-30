@@ -1,0 +1,6 @@
+/* Teste de funcao nao declarada */
+int main(void) {
+    int x;
+    x = funcaoInexistente(); /* Esta funcao nao existe - deve gerar erro */
+    return x;
+}

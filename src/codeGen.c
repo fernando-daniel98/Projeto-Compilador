@@ -1,119 +1,35 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include "../include/globals.h"
-#include "../include/codeGen.h"
-#include "../include/syntax_tree.h"
-#include "../include/tab.h"
-#include "../include/util.h"
-// #include "../include/reg.h"
+#include <stdlib.h>
+#include "globals.h"
+#include "tab.h"
+#include "codeGen.h"
 
+INSTRUCAO** codigoIntermediario = NULL;
+int numReg = 1; // Numero do registrador
+int indiceVetor = 0; // Indice do vetor de codigo intermediario
+int numLabel = 0; // Numero do label
+int vetorIndice = 0; 
 
-// Estrutura global para instrução de código intermediário
-quadruple **intermediateCode = NULL;
+INSTRUCAO* funcLabel = NULL;
+char funcName[MAXLEXEMA] = "global"; 
 
-int adressCounter = 0;
-int numReg = 1;
-int numLabel = 0;
-int aux = 0;
-
-quadruple *funcLabel = NULL;
-char funcName[MAXTOKENLEN] = "global";
-
-
-// Função para alocar os nós do código intermediário
-void alocateIntermediateCode() {
-    intermediateCode = (quadruple **) malloc(MAX_LEN_CODE_INTERMEDIATE * sizeof(quadruple *));
-
-    for (int i = 0; i < MAX_LEN_CODE_INTERMEDIATE; i++) {
-        intermediateCode[i] = NULL;
-    }
-
-    inicializaReg();
-}
-
-// Função para desalocar o código intermediário
-void freeIntermediateCode() {
-    if (intermediateCode == NULL) {
-        return; 
-    }
-
-    for (int i = 0; i < adressCounter; i++) {
-        if (intermediateCode[i] != NULL) {
-            if (intermediateCode[i]->oper1 != NULL) {
-                if (intermediateCode[i]->oper1->tipo == String && intermediateCode[i]->oper1->nome != NULL) {
-                    free(intermediateCode[i]->oper1->nome);
-                    intermediateCode[i]->oper1->nome = NULL;
-                }
-                free(intermediateCode[i]->oper1);
-                intermediateCode[i]->oper1 = NULL;
-            }
-
-            if (intermediateCode[i]->oper2 != NULL) {
-                if (intermediateCode[i]->oper2->tipo == String && intermediateCode[i]->oper2->nome != NULL) {
-                    free(intermediateCode[i]->oper2->nome);
-                    intermediateCode[i]->oper2->nome = NULL;
-                }
-                free(intermediateCode[i]->oper2);
-                intermediateCode[i]->oper2 = NULL;
-            }
-
-            if (intermediateCode[i]->oper3 != NULL) {
-                if (intermediateCode[i]->oper3->tipo == String && intermediateCode[i]->oper3->nome != NULL) {
-                    free(intermediateCode[i]->oper3->nome);
-                    intermediateCode[i]->oper3->nome = NULL;
-                }
-                free(intermediateCode[i]->oper3);
-                intermediateCode[i]->oper3 = NULL;
-            }
-
-            free(intermediateCode[i]);
-            intermediateCode[i] = NULL; 
-        }
-    }
-    
-    free(intermediateCode);
-    intermediateCode = NULL; 
-
-    // Reseta os contadores globais
-    adressCounter = 0;
-}
-
-// Função que inicia o código intermediário
-int initIntermediateCode() {
-    alocateIntermediateCode();
-
-    return intermediateCode == NULL ? -1 : 0;
-}
-
-ENDERECO* criaEndereco(tipoEndereco tipo, int val, char* nome, int boolReg) {
+// Cria um novo endereco
+ENDERECO* criaEndereco(tipoEndereco tipo, int val, char* nome, int boolReg){
     ENDERECO* endereco = (ENDERECO*) malloc(sizeof(ENDERECO));
-    if (endereco == NULL) {
-        fprintf(stderr, "Falha ao alocar memória para ENDERECO.\n");
-        return NULL;
-    }
     
-    if(tipo == IntConst) {
+    if(tipo == IntConst){
         endereco->tipo = IntConst;
         endereco->val = val;
         endereco->boolReg = boolReg;
         endereco->nome = NULL;
     }
-    else if(tipo == String) {
+    else if(tipo == String){
         endereco->tipo = String;
         endereco->val = 0;
-        if (nome != NULL) {
-            endereco->nome = strdup(nome);
-            if (endereco->nome == NULL) {
-                fprintf(stderr, "Falha ao alocar memória para nome em ENDERECO (strdup).\n");
-                free(endereco);
-                return NULL;
-            }
-        } else {
-            endereco->nome = NULL;
-        }
+        endereco->nome = strdup(nome);
     }
-    else {
+    else{
         endereco->tipo = Vazio;
         endereco->val = 0;
         endereco->nome = NULL;
@@ -122,1287 +38,643 @@ ENDERECO* criaEndereco(tipoEndereco tipo, int val, char* nome, int boolReg) {
     return endereco;
 }
 
-quadruple* criaInstrucao(typeOperations op_enum) {
-    
-    quadruple* instrucao = (quadruple*) malloc(sizeof(struct instruction));
-    
-    if(instrucao == NULL) {
-        fprintf(stderr, "Falha ao alocar memória para instrução de quadrupla.\n");
-        return NULL;
-    }
-
-    instrucao->operation = op_enum; 
-    instrucao->oper1 = NULL;
-    instrucao->oper2 = NULL;
-    instrucao->oper3 = NULL;
-
+//Cria uma nova instrucao
+INSTRUCAO* criaInstrucao(char* op){
+    INSTRUCAO* instrucao = (INSTRUCAO*) malloc(sizeof(INSTRUCAO));
+    instrucao->op = op;
+    instrucao->arg1 = NULL;
+    instrucao->arg2 = NULL;
+    instrucao->arg3 = NULL;
     return instrucao;
 }
 
-void adicionaQuadrupla(typeOperations op, ENDERECO* oper1, ENDERECO* oper2, ENDERECO* oper3) {
-    if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-        fprintf(stderr, "Código intermediário atingiu o tamanho máximo.\n");
-        return;
+//Desaloca o vetor de codigo intermediario
+void desalocaVetor(){
+    for(int i = 0; i < MAX_INSTRUCTION && (codigoIntermediario[i] != NULL); i++){
+        if(codigoIntermediario[i]->arg1 != NULL)
+            free(codigoIntermediario[i]->arg1);
+        if(codigoIntermediario[i]->arg2 != NULL)
+            free(codigoIntermediario[i]->arg2);
+        if(codigoIntermediario[i]->arg3 != NULL)
+            free(codigoIntermediario[i]->arg3);
+        free(codigoIntermediario[i]);
     }
-    
-    quadruple* newQuad = criaInstrucao(op);
-    if (newQuad == NULL) {
-        fprintf(stderr, "Falha ao alocar memória para nova quádrupla em adicionaQuadrupla.\n");
-        return;
-    }
-    
-    newQuad->oper1 = oper1;
-    newQuad->oper2 = oper2;
-    newQuad->oper3 = oper3;
-    
-    intermediateCode[adressCounter++] = newQuad;
+    free(codigoIntermediario);
 }
 
-void insertDeclarationWhile(TreeNode *tree, PnoIdentificador* symbTable){
-    quadruple* label_cond_quad = NULL;
-    quadruple* iff_quad = NULL;
-    quadruple* goto_cond_quad = NULL;
-    quadruple* label_fim_loop_quad = NULL;
+//Cria o vetor de codigo intermediario
+void inicializaVetor(){
+    codigoIntermediario = (INSTRUCAO**) malloc(sizeof(INSTRUCAO*) * MAX_INSTRUCTION); // TODO Change to dinamic allocation
+    
+    for(int i = 0; i < MAX_INSTRUCTION; i++){
+        codigoIntermediario[i] = NULL;
+    }
 
-    int label_cond_num = numLabel++;
-    int label_fim_loop_num = numLabel++;
-    int reg_cond_result;
-
-    label_cond_quad = criaInstrucao(LABEL);
-    label_cond_quad->oper1 = criaEndereco(IntConst, label_cond_num, NULL, 2); 
-    label_cond_quad->oper2 = criaEndereco(Vazio, 0, NULL, 0);
-    label_cond_quad->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-    intermediateCode[adressCounter++] = label_cond_quad;
-
-    criarCodigoIntermediario(tree->child[0], symbTable, 1);
-    reg_cond_result = numReg; 
-
-    iff_quad = criaInstrucao(IFF); 
-    iff_quad->oper1 = criaEndereco(IntConst, reg_cond_result, NULL, 1); 
-    iff_quad->oper2 = criaEndereco(IntConst, label_fim_loop_num, NULL, 2); 
-    iff_quad->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-    intermediateCode[adressCounter++] = iff_quad;
-
-    criarCodigoIntermediario(tree->child[1], symbTable, 1); 
-
-    goto_cond_quad = criaInstrucao(GOTO);
-    goto_cond_quad->oper1 = criaEndereco(IntConst, label_cond_num, NULL, 2); 
-    goto_cond_quad->oper2 = criaEndereco(Vazio, 0, NULL, 0);
-    goto_cond_quad->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-    intermediateCode[adressCounter++] = goto_cond_quad;
-
-    label_fim_loop_quad = criaInstrucao(LABEL);
-    label_fim_loop_quad->oper1 = criaEndereco(IntConst, label_fim_loop_num, NULL, 2); 
-    label_fim_loop_quad->oper2 = criaEndereco(Vazio, 0, NULL, 0);
-    label_fim_loop_quad->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-    intermediateCode[adressCounter++] = label_fim_loop_quad;
+    inicializaReg();
 }
 
-void insertDeclarationReturn(TreeNode *tree, PnoIdentificador* symbTable) {
-    quadruple* instrucaoReturn = NULL;
-
-    instrucaoReturn = criaInstrucao(RET);
-    
-    if(tree->kind.stmt == ReturnINT) {
-        criarCodigoIntermediario(tree->child[0], symbTable, 1);
-        instrucaoReturn->oper1 = criaEndereco(IntConst, numReg, NULL, 1);
-    }
-    else { 
-        instrucaoReturn->oper1 = criaEndereco(Vazio, 0, NULL, 0);
-    }
-
-    instrucaoReturn->oper2 = criaEndereco(Vazio, 0, NULL, 0);
-    instrucaoReturn->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-
-    intermediateCode[adressCounter++] = instrucaoReturn;
-}
-
-void insertDeclarationVar(TreeNode *tree, PnoIdentificador* symbTable) {
-    quadruple* instrucaoVar = NULL;
-
-    instrucaoVar = criaInstrucao(ALLOC);
-    if (instrucaoVar == NULL) {
-        fprintf(stderr, "Falha ao criar instrução ALLOC em insertDeclarationVar.\n");
-        return;
-    }
-    instrucaoVar ->oper1 = criaEndereco(String, 0, tree->attr.name, 0);
-    if (instrucaoVar->oper1 == NULL) {
-        fprintf(stderr, "Falha ao criar endereço para oper1 em insertDeclarationVar.\n");
-        free(instrucaoVar);
-        return;
-    }
-
-    PnoIdentificador no = buscaIdentificadorTabela(symbTable, tree->attr.name, funcName); 
-
-    if(no == NULL) {
-        no = buscaIdentificadorTabela(symbTable, tree->attr.name, "global");
-    }
-
-    if(no == NULL) {
-        instrucaoVar->oper2 = criaEndereco(String, 0, funcName, 0);
-        fprintf(stderr, "Variável '%s' não encontrada na tabela de símbolos (linha %d). Assumindo escopo '%s'.\n", tree->attr.name, tree->lineno, funcName);
-    }
-    else if (strcmp(no->escopo, "global") == 0){
-        instrucaoVar->oper2 = criaEndereco(String, 0, "global", 0);
-    }
-    else {
-        instrucaoVar->oper2 = criaEndereco(String, 0, no->escopo, 0); 
-    }
-
-
-    instrucaoVar -> oper3 = criaEndereco(Vazio, 0, NULL, 0);
-    if (instrucaoVar->oper3 == NULL) {
-        fprintf(stderr, "Falha ao criar endereço para oper3 em insertDeclarationVar.\n");
-        if(instrucaoVar->oper1->nome) free(instrucaoVar->oper1->nome);
-        free(instrucaoVar->oper1);
-        if(instrucaoVar->oper2 && instrucaoVar->oper2->nome) free(instrucaoVar->oper2->nome);
-        free(instrucaoVar->oper2); 
-        free(instrucaoVar);
-        return;
-    }
-
-
-    if(tree -> kind.stmt == VetDeclK) {
-        if (tree->child[0] != NULL && tree->child[0]->kind.exp == ConstK) {
-             instrucaoVar->oper3->tipo = IntConst;
-             instrucaoVar->oper3->val = tree->child[0]->attr.val;
-        } else {
-             fprintf(stderr, "Declaração de vetor '%s' (linha %d) sem tamanho constante.\n", tree->attr.name, tree->lineno);
-             instrucaoVar->oper3->tipo = IntConst;
-             instrucaoVar->oper3->val = 1; 
-        }
-    }
-
-    if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-        fprintf(stderr, "Limite do código intermediário atingido em insertDeclarationVar.\n");
-        if(instrucaoVar->oper1->nome) free(instrucaoVar->oper1->nome);
-        free(instrucaoVar->oper1);
-        if(instrucaoVar->oper2) { if(instrucaoVar->oper2->nome) free(instrucaoVar->oper2->nome); free(instrucaoVar->oper2); }
-        if(instrucaoVar->oper3) { if(instrucaoVar->oper3->nome) free(instrucaoVar->oper3->nome); free(instrucaoVar->oper3); }
-        free(instrucaoVar);
-        return;
-    }
-    intermediateCode[adressCounter++] = instrucaoVar;
-}
-
-void insertDeclarationIf(TreeNode *tree, PnoIdentificador* symbTable){
-    quadruple* instrucaoIFF = NULL;
-    quadruple* instrucaoGOTO = NULL;
-    quadruple* label_else_inicio = NULL; 
-    quadruple* label_fim_if = NULL;     
-
-    int else_inicio_label_num;
-    int fim_if_label_num;
-
-    criarCodigoIntermediario(tree->child[0], symbTable, 1);
-
-    else_inicio_label_num = numLabel++; 
-
-    instrucaoIFF = criaInstrucao(IFF);
-    instrucaoIFF->oper1 = criaEndereco(IntConst, numReg, NULL, 1); 
-    instrucaoIFF->oper2 = criaEndereco(IntConst, else_inicio_label_num, NULL, 2); 
-    instrucaoIFF->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-    intermediateCode[adressCounter++] = instrucaoIFF;
-
-    criarCodigoIntermediario(tree->child[1], symbTable, 1);
-
-    if(tree->child[2] != NULL){ 
-        fim_if_label_num = numLabel++; 
-
-        instrucaoGOTO = criaInstrucao(GOTO);
-        instrucaoGOTO->oper1 = criaEndereco(IntConst, fim_if_label_num, NULL, 2);
-        instrucaoGOTO->oper2 = criaEndereco(Vazio, 0, NULL, 0);
-        instrucaoGOTO->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-        intermediateCode[adressCounter++] = instrucaoGOTO;
-
-        label_else_inicio = criaInstrucao(LABEL);
-        label_else_inicio->oper1 = criaEndereco(IntConst, else_inicio_label_num, NULL, 2);
-        label_else_inicio->oper2 = criaEndereco(Vazio, 0, NULL, 0);
-        label_else_inicio->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-        intermediateCode[adressCounter++] = label_else_inicio;
-
-        criarCodigoIntermediario(tree->child[2], symbTable, 1);
-
-        label_fim_if = criaInstrucao(LABEL);
-        label_fim_if->oper1 = criaEndereco(IntConst, fim_if_label_num, NULL, 2);
-        label_fim_if->oper2 = criaEndereco(Vazio, 0, NULL, 0);
-        label_fim_if->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-        intermediateCode[adressCounter++] = label_fim_if;
-    }
-    else{ 
-        label_fim_if = criaInstrucao(LABEL); 
-        label_fim_if->oper1 = criaEndereco(IntConst, else_inicio_label_num, NULL, 2);
-        label_fim_if->oper2 = criaEndereco(Vazio, 0, NULL, 0);
-        label_fim_if->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-        intermediateCode[adressCounter++] = label_fim_if;
-    }
-}
-
-void insertDeclarationAssign(TreeNode *tree, PnoIdentificador* symbTable){
-    if (tree == NULL || tree->child[0] == NULL || tree->child[1] == NULL) {
-        fprintf(stderr, "Erro interno: Nó de atribuição inválido ou filhos ausentes na linha %d.\n", tree ? tree->lineno : -1);
-        return;
-    }
-
-    TreeNode *lhs = tree->child[0]; 
-    TreeNode *rhs = tree->child[1]; 
-    quadruple* instrucaoLoad = NULL;
-    quadruple* instrucaoAssign = NULL;
-    quadruple* instrucaoStore = NULL;
-    ENDERECO *op1_load = NULL, *op2_load = NULL, *op3_load = NULL;
-    ENDERECO *op1_assign = NULL, *op2_assign = NULL, *op3_assign = NULL;
-    ENDERECO *op1_store = NULL, *op2_store = NULL, *op3_store = NULL;
-    int reg_var_val;    // registrador da variável (conforme Eduardo)
-    int reg_rhs_val;    // registrador do resultado da expressão
-    int reg_index_val;  // registrador do índice (para vetores)
-
-    // ===============================================
-    // PADRÃO EDUARDO - PARTE 1: LOAD da variável
-    // ===============================================
-    
-    if (lhs->kind.exp == IdK) { 
-        // Alocar registrador para a variável (como Eduardo faz)
-        reg_var_val = verificacaoRegistradores(NULL, NULL, 1);
-        
-        // LOAD $reg_var, variavel, -
-        instrucaoLoad = criaInstrucao(LOAD);
-        if (instrucaoLoad == NULL) {
-            fprintf(stderr, "Falha ao criar instrução LOAD para variável '%s', linha %d.\n", lhs->attr.name, tree->lineno);
-            return;
-        }
-        
-        op1_load = criaEndereco(IntConst, reg_var_val, NULL, 1);  // destino
-        op2_load = criaEndereco(String, 0, lhs->attr.name, 0);   // nome da variável  
-        op3_load = criaEndereco(Vazio, 0, NULL, 0);              // vazio
-        
-        if (op1_load == NULL || op2_load == NULL || op3_load == NULL) {
-            fprintf(stderr, "Falha ao criar endereços para LOAD na atribuição, linha %d.\n", tree->lineno);
-            // Cleanup
-            if(op1_load) free(op1_load);
-            if(op2_load && op2_load->nome) free(op2_load->nome); if(op2_load) free(op2_load);
-            if(op3_load) free(op3_load);
-            if(instrucaoLoad) free(instrucaoLoad);
-            return;
-        }
-        
-        instrucaoLoad->oper1 = op1_load;
-        instrucaoLoad->oper2 = op2_load; 
-        instrucaoLoad->oper3 = op3_load;
-        
-        if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-            fprintf(stderr, "Limite do código intermediário atingido em LOAD, linha %d.\n", tree->lineno);
-            return;
-        }
-        intermediateCode[adressCounter++] = instrucaoLoad;
-        
-    } else if (lhs->kind.exp == VetorK) {
-        // Para vetores: PADRÃO EDUARDO - PRIMEIRO calcular índice, DEPOIS alocar registrador para destino
-        // 1. Primeiro calcular o índice
-        criarCodigoIntermediario(lhs->child[0], symbTable, 1);
-        reg_index_val = numReg;  // Salva o registrador do índice
-        
-        // 2. DEPOIS alocar um registrador DIFERENTE para o destino do LOAD
-        reg_var_val = verificacaoRegistradores(NULL, NULL, 1);
-        
-        // 3. LOAD $reg_var, vetor, $reg_index (usando registradores diferentes!)
-        instrucaoLoad = criaInstrucao(LOAD);
-        if (instrucaoLoad == NULL) {
-            fprintf(stderr, "Falha ao criar instrução LOAD para vetor '%s', linha %d.\n", lhs->attr.name, tree->lineno);
-            return;
-        }
-        
-        op1_load = criaEndereco(IntConst, reg_var_val, NULL, 1);    // destino (registrador diferente)
-        op2_load = criaEndereco(String, 0, lhs->attr.name, 0);     // nome do vetor  
-        op3_load = criaEndereco(IntConst, reg_index_val, NULL, 1);  // índice (registrador do índice)
-        
-        if (op1_load == NULL || op2_load == NULL || op3_load == NULL) {
-            fprintf(stderr, "Falha ao criar endereços para LOAD de vetor na atribuição, linha %d.\n", tree->lineno);
-            // Cleanup
-            if(op1_load) free(op1_load);
-            if(op2_load && op2_load->nome) free(op2_load->nome); if(op2_load) free(op2_load);
-            if(op3_load) free(op3_load);
-            if(instrucaoLoad) free(instrucaoLoad);
-            return;
-        }
-        
-        instrucaoLoad->oper1 = op1_load;
-        instrucaoLoad->oper2 = op2_load; 
-        instrucaoLoad->oper3 = op3_load;
-        
-        if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-            fprintf(stderr, "Limite do código intermediário atingido em LOAD de vetor, linha %d.\n", tree->lineno);
-            return;
-        }
-        intermediateCode[adressCounter++] = instrucaoLoad;
-        
-    } else {
-        fprintf(stderr, "Lado esquerdo inválido na atribuição, linha %d.\n", tree->lineno);
-        return;
-    }
-    
-    // ===============================================
-    // PADRÃO EDUARDO - PARTE 2: Processar RHS
-    // ===============================================
-    
-    criarCodigoIntermediario(rhs, symbTable, 1); 
-    reg_rhs_val = numReg; 
-    
-    // ===============================================
-    // PADRÃO EDUARDO - PARTE 3: ASSIGN $reg_var, $reg_rhs, -
-    // ===============================================
-    
-    instrucaoAssign = criaInstrucao(ASSIGN);
-    if (instrucaoAssign == NULL) {
-        fprintf(stderr, "Falha ao criar instrução ASSIGN, linha %d.\n", tree->lineno);
-        return;
-    }
-    
-    op1_assign = criaEndereco(IntConst, reg_var_val, NULL, 1);   // destino (registrador da variável)
-    op2_assign = criaEndereco(IntConst, reg_rhs_val, NULL, 1);  // fonte (resultado do RHS)
-    op3_assign = criaEndereco(Vazio, 0, NULL, 0);               // vazio
-    
-    if (op1_assign == NULL || op2_assign == NULL || op3_assign == NULL) {
-        fprintf(stderr, "Falha ao criar endereços para ASSIGN, linha %d.\n", tree->lineno);
-        return;
-    }
-    
-    instrucaoAssign->oper1 = op1_assign;
-    instrucaoAssign->oper2 = op2_assign;
-    instrucaoAssign->oper3 = op3_assign;
-    
-    if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-        fprintf(stderr, "Limite do código intermediário atingido em ASSIGN, linha %d.\n", tree->lineno);
-        return;
-    }
-    intermediateCode[adressCounter++] = instrucaoAssign;
-    
-    // ===============================================
-    // PADRÃO EDUARDO - PARTE 4: STORE variavel, $reg_var, -
-    // ===============================================
-    
-    instrucaoStore = criaInstrucao(STORE);
-    if (instrucaoStore == NULL) {
-        fprintf(stderr, "Falha ao criar instrução STORE, linha %d.\n", tree->lineno);
-        return;
-    }
-    
-    if (lhs->kind.exp == IdK) {
-        op1_store = criaEndereco(String, 0, lhs->attr.name, 0);      // nome da variável
-        op2_store = criaEndereco(IntConst, reg_var_val, NULL, 1);    // registrador da variável
-        op3_store = criaEndereco(Vazio, 0, NULL, 0);                 // vazio
-    } else if (lhs->kind.exp == VetorK) {
-        op1_store = criaEndereco(String, 0, lhs->attr.name, 0);      // nome do vetor
-        op2_store = criaEndereco(IntConst, reg_var_val, NULL, 1);    // registrador da variável
-        op3_store = criaEndereco(IntConst, reg_index_val, NULL, 1);  // índice
-    }
-    
-    if (op1_store == NULL || op2_store == NULL || op3_store == NULL) {
-        fprintf(stderr, "Falha ao criar endereços para STORE, linha %d.\n", tree->lineno);
-        return;
-    }
-    
-    instrucaoStore->oper1 = op1_store;
-    instrucaoStore->oper2 = op2_store;
-    instrucaoStore->oper3 = op3_store;
-
-    if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-        fprintf(stderr, "Limite do código intermediário atingido em STORE, linha %d.\n", tree->lineno);
-        return;
-    }
-    intermediateCode[adressCounter++] = instrucaoStore;
-}
-
-void insertDeclarationFunc(TreeNode *tree, PnoIdentificador* symbolTable){
-    TreeNode* paramNode = tree->child[0];
-    int numParams = 0;
-
-    strncpy(funcName, tree->attr.name, MAXTOKENLEN -1);
-    funcName[MAXTOKENLEN -1] = '\0';
-
-    TreeNode* tempParamNode = tree->child[0];
-    while (tempParamNode != NULL && tempParamNode->kind.stmt != ParamVoid) {
-        numParams++;
-        tempParamNode = tempParamNode->sibling;
-    }
-
-    quadruple* funcQuad = criaInstrucao(FUNC); 
-    if (funcQuad == NULL) {
-        fprintf(stderr, "Falha ao criar instrução FUNC para %s.\n", tree->attr.name);
-        strcpy(funcName, "global"); 
-        return;
-    }
-
-    if (tree->type == Integer) {
-        funcQuad->oper1 = criaEndereco(String, 0, "INT", 0);
-    } else if (tree->type == Void) {
-        funcQuad->oper1 = criaEndereco(String, 0, "VOID", 0);
-    } else { 
-        funcQuad->oper1 = criaEndereco(String, 0, "UNKNOWN_RET_TYPE", 0);
-    }
-
-    funcQuad->oper2 = criaEndereco(String, 0, tree->attr.name, 0);
-    if (funcQuad->oper2 == NULL) {
-        fprintf(stderr, "Falha ao criar endereço para nome da função %s.\n", tree->attr.name);
-        if(funcQuad->oper1 && funcQuad->oper1->nome) free(funcQuad->oper1->nome); free(funcQuad->oper1);
-        free(funcQuad);
-        strcpy(funcName, "global"); 
-        return;
-    }
-
-    funcQuad->oper3 = criaEndereco(IntConst, numParams, NULL, 0);
-    if (funcQuad->oper3 == NULL) {
-        fprintf(stderr, "Falha ao criar endereço para número de parâmetros da função %s.\n", tree->attr.name);
-        if(funcQuad->oper1 && funcQuad->oper1->nome) free(funcQuad->oper1->nome); free(funcQuad->oper1);
-        if(funcQuad->oper2 && funcQuad->oper2->nome) free(funcQuad->oper2->nome); free(funcQuad->oper2);
-        free(funcQuad);
-        strcpy(funcName, "global"); 
-        return;
-    }
-    
-    if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-        fprintf(stderr, "Limite do código intermediário atingido ao declarar função %s.\n", tree->attr.name);
-        if(funcQuad->oper1 && funcQuad->oper1->nome) free(funcQuad->oper1->nome); free(funcQuad->oper1);
-        if(funcQuad->oper2 && funcQuad->oper2->nome) free(funcQuad->oper2->nome); free(funcQuad->oper2);
-        if(funcQuad->oper3) free(funcQuad->oper3);
-        free(funcQuad);
-        strcpy(funcName, "global"); 
-        return;
-    }
-    intermediateCode[adressCounter++] = funcQuad;
-
-    paramNode = tree->child[0]; 
-    while (paramNode != NULL && paramNode->kind.stmt != ParamVoid) { 
-        quadruple* argQuad = criaInstrucao(ARG);
-        if (argQuad == NULL) {
-            fprintf(stderr, "Falha ao criar instrução ARG para função %s, parâmetro %s.\n", tree->attr.name, paramNode->attr.name ? paramNode->attr.name : "NOME_PARAM_NULO");
-            paramNode = paramNode->sibling;
-            continue;
-        }
-        
-        // oper1: Tipo do parâmetro (INT ou VET)
-        if (paramNode->kind.stmt == VarParamK) {
-            if (paramNode->type == Integer) {
-                argQuad->oper1 = criaEndereco(String, 0, "INT", 0);
-            } else { 
-                argQuad->oper1 = criaEndereco(String, 0, "UNKNOWN_VAR_TYPE", 0);
-            }
-        } else if (paramNode->kind.stmt == VetParamK) {
-            argQuad->oper1 = criaEndereco(String, 0, "VET", 0);
-        } else {
-            argQuad->oper1 = criaEndereco(String, 0, "UNKNOWN_PARAM_KIND", 0);
-        }
-        
-        // oper2: Nome do parâmetro
-        argQuad->oper2 = criaEndereco(String, 0, paramNode->attr.name, 0);
-        
-        // oper3: Escopo (nome da função)
-        argQuad->oper3 = criaEndereco(String, 0, tree->attr.name, 0);
-        
-        if (argQuad->oper1 == NULL || argQuad->oper2 == NULL || argQuad->oper3 == NULL) {
-            fprintf(stderr, "Falha ao criar um dos endereços para ARG da função %s, parâmetro %s.\n", tree->attr.name, paramNode->attr.name ? paramNode->attr.name : "NOME_PARAM_NULO");
-            if(argQuad->oper1) { if(argQuad->oper1->nome) free(argQuad->oper1->nome); free(argQuad->oper1); }
-            if(argQuad->oper2) { if(argQuad->oper2->nome) free(argQuad->oper2->nome); free(argQuad->oper2); }
-            if(argQuad->oper3) { if(argQuad->oper3->nome) free(argQuad->oper3->nome); free(argQuad->oper3); }
-            free(argQuad);
-            paramNode = paramNode->sibling;
-            continue; 
-        }
-
-        if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-            fprintf(stderr, "Limite do código intermediário atingido ao declarar argumento para %s.\n", tree->attr.name);
-            if(argQuad->oper1) { if(argQuad->oper1->nome) free(argQuad->oper1->nome); free(argQuad->oper1); }
-            if(argQuad->oper2) { if(argQuad->oper2->nome) free(argQuad->oper2->nome); free(argQuad->oper2); }
-            if(argQuad->oper3) { if(argQuad->oper3->nome) free(argQuad->oper3->nome); free(argQuad->oper3); }
-            free(argQuad);
-            strcpy(funcName, "global"); 
-            return;
-        }
-        intermediateCode[adressCounter++] = argQuad;
-        paramNode = paramNode->sibling;
-    }
-
-    // Criar quadruplas para LOAD dos parâmetros (carregar valor/endereço em registradores).
-    TreeNode* paramChild = tree->child[0];
-    while (paramChild != NULL && paramChild->kind.stmt != ParamVoid) { // Condição corrigida
-        quadruple* loadQuad = criaInstrucao(LOAD);
-        if (loadQuad == NULL) {
-            fprintf(stderr, "Falha ao criar instrução LOAD para parâmetro %s da função %s.\n", 
-                    paramChild->attr.name ? paramChild->attr.name : "NOME_PARAM_NULO", tree->attr.name);
-            paramChild = paramChild->sibling;
-            continue;
-        }
-
-        // oper1: Registrador de destino
-        int reg_dest = verificacaoRegistradores(paramChild->attr.name, tree->attr.name, 0); // 0 para não temporário
-        if (reg_dest == -1) {
-            // verificacaoRegistradores já imprime erro se não conseguir alocar/descartar.
-            // Apenas liberar o loadQuad e continuar.
-            free(loadQuad); 
-            paramChild = paramChild->sibling;
-            continue;
-        }
-        loadQuad->oper1 = criaEndereco(IntConst, reg_dest, NULL, 1); // boolReg = 1 para registrador
-
-        // oper2: Nome do parâmetro (fonte do valor/endereço)
-        loadQuad->oper2 = criaEndereco(String, 0, paramChild->attr.name, 0);
-        
-        // oper3: Vazio (LOAD de variável/parâmetro não usa o terceiro operando como índice aqui)
-        loadQuad->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-        
-        if (loadQuad->oper1 == NULL || loadQuad->oper2 == NULL || loadQuad->oper3 == NULL) {
-            fprintf(stderr, "Falha ao criar um dos endereços para LOAD do parâmetro %s da função %s.\n", 
-                    paramChild->attr.name ? paramChild->attr.name : "NOME_PARAM_NULO", tree->attr.name);
-            if(loadQuad->oper1) { free(loadQuad->oper1); } // É IntConst, não tem nome
-            if(loadQuad->oper2) { if(loadQuad->oper2->nome) free(loadQuad->oper2->nome); free(loadQuad->oper2); }
-            if(loadQuad->oper3) { free(loadQuad->oper3); } // É Vazio, não tem nome
-            free(loadQuad);
-            paramChild = paramChild->sibling;
-            continue; 
-        }
-
-        if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-            fprintf(stderr, "Limite do código intermediário atingido ao criar LOAD para parâmetro %s da função %s.\n", 
-                    paramChild->attr.name ? paramChild->attr.name : "NOME_PARAM_NULO", tree->attr.name);
-            if(loadQuad->oper1) { free(loadQuad->oper1); }
-            if(loadQuad->oper2) { if(loadQuad->oper2->nome) free(loadQuad->oper2->nome); free(loadQuad->oper2); }
-            if(loadQuad->oper3) { free(loadQuad->oper3); }
-            free(loadQuad);
-            strcpy(funcName, "global"); 
-            return; // Mantendo o return em caso de estouro, conforme código original do usuário.
-        }
-        intermediateCode[adressCounter++] = loadQuad;
-        paramChild = paramChild->sibling;
-    }
-
-    if (tree->child[1] != NULL) {
-        if (tree->child[1]->child[0] != NULL) { 
-            criarCodigoIntermediario(tree->child[1]->child[0], symbolTable, 0);
-        }
-        if (tree->child[1]->child[1] != NULL) { 
-            criarCodigoIntermediario(tree->child[1]->child[1], symbolTable, 0);
-        }
-    }
-
-    quadruple* endFuncQuad = criaInstrucao(END);
-    if (endFuncQuad == NULL) {
-        fprintf(stderr, "Falha ao criar instrução END para função %s.\n", tree->attr.name);
-        return;
-    }
-    endFuncQuad->oper1 = criaEndereco(String, 0, tree->attr.name, 0); 
-    if (endFuncQuad->oper1 == NULL) {
-        fprintf(stderr, "Falha ao criar endereço para nome da função (END) para %s.\n", tree->attr.name);
-        free(endFuncQuad);
-        return;
-    }
-    endFuncQuad->oper2 = criaEndereco(Vazio, 0, NULL, 0);
-    if (endFuncQuad->oper2 == NULL) {
-        fprintf(stderr, "Falha ao criar endereço vazio (oper2 END) para função %s.\n", tree->attr.name);
-        if(endFuncQuad->oper1->nome) free(endFuncQuad->oper1->nome); free(endFuncQuad->oper1);
-        free(endFuncQuad);
-        return;
-    }
-    endFuncQuad->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-    if (endFuncQuad->oper3 == NULL) {
-        fprintf(stderr, "Falha ao criar endereço vazio (oper3 END) para função %s.\n", tree->attr.name);
-        if(endFuncQuad->oper1->nome) free(endFuncQuad->oper1->nome); free(endFuncQuad->oper1);
-        free(endFuncQuad->oper2);
-        free(endFuncQuad);
-        return;
-    }
-
-    if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-        fprintf(stderr, "Limite do código intermediário atingido ao finalizar função %s.\n", tree->attr.name);
-        if(endFuncQuad->oper1->nome) free(endFuncQuad->oper1->nome); free(endFuncQuad->oper1);
-        free(endFuncQuad->oper2);
-        free(endFuncQuad->oper3);
-        free(endFuncQuad);
-        return;
-    }
-    intermediateCode[adressCounter++] = endFuncQuad;
-
-    strcpy(funcName, "global");
-}
-
-void insertExpressionOp(TreeNode *tree, PnoIdentificador* symbTable){
-    quadruple* op = NULL;
-    typeOperations tacOp = mapOperatorToTAC(tree->attr.op);
-    int reg_child0_val, reg_child1_val, reg_result_val;
-
-    op = criaInstrucao(tacOp);
-    if (op == NULL) {
-        fprintf(stderr, "Falha ao criar instrução para operador %s na linha %d.\n", operatorToString(tree->attr.op), tree->lineno);
-        return;
-    }
-
-    criarCodigoIntermediario(tree->child[0], symbTable, 1);
-    reg_child0_val = numReg; 
-    op->oper1 = criaEndereco(IntConst, reg_child0_val, NULL, 1);
-
-    if (tree->child[1] != NULL) {
-        criarCodigoIntermediario(tree->child[1], symbTable, 1);
-        reg_child1_val = numReg; 
-        op->oper2 = criaEndereco(IntConst, reg_child1_val, NULL, 1);
-    } else {
-        op->oper2 = criaEndereco(Vazio, 0, NULL, 0); 
-    }
-
-    reg_result_val = verificacaoRegistradores(NULL, NULL, 1); 
-    numReg = reg_result_val; 
-
-    op->oper3 = criaEndereco(IntConst, reg_result_val, NULL, 1);
-
-    if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-        fprintf(stderr, "Limite do código intermediário atingido em operação, linha %d.\n", tree->lineno);
-        if(op->oper1) free(op->oper1);
-        if(op->oper2) free(op->oper2);
-        if(op->oper3) free(op->oper3);
-        free(op);
-        return;
-    }
-    intermediateCode[adressCounter++] = op;
-}
-
-void insertExpressionRel(TreeNode *tree, PnoIdentificador* symbTable){
-    quadruple * op = NULL;
-    typeOperations tacOp = mapOperatorToTAC(tree->attr.op);
-    int reg_child0_val, reg_child1_val, reg_result_val;
-
-    op = criaInstrucao(tacOp);
-    if (op == NULL) {
-        fprintf(stderr, "Falha ao criar instrução para operador relacional %s na linha %d.\n", operatorToString(tree->attr.op), tree->lineno);
-        return;
-    }
-
-    criarCodigoIntermediario(tree->child[0], symbTable, 1);
-    reg_child0_val = numReg; 
-
-    criarCodigoIntermediario(tree->child[1], symbTable, 1);
-    reg_child1_val = numReg; 
-
-    op->oper1 = criaEndereco(IntConst, reg_child0_val, NULL, 1);
-    op->oper2 = criaEndereco(IntConst, reg_child1_val, NULL, 1);
-
-    reg_result_val = verificacaoRegistradores(NULL, NULL, 1);
-    numReg = reg_result_val; 
-
-    op->oper3 = criaEndereco(IntConst, reg_result_val, NULL, 1);
-
-    if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-        fprintf(stderr, "Limite do código intermediário atingido em operação relacional, linha %d.\n", tree->lineno);
-        if(op->oper1) free(op->oper1);
-        if(op->oper2) free(op->oper2);
-        if(op->oper3) free(op->oper3);
-        free(op);
-        return;
-    }
-    intermediateCode[adressCounter++] = op;
-}
-
-void insertExpressionConst(TreeNode *tree, PnoIdentificador* symbTable){
-    quadruple* constant = NULL;
-
-    // Para o caso da constante ser zero, usar registrador 31 (COMPATÍVEL COM EDUARDO)
-    if (tree->attr.val == 0) {
-        numReg = 31; // Registrador 31 é reservado para zero (IGUAL AO EDUARDO)
-        return;
-    }
-    
-    numReg = verificacaoRegistradores(NULL, NULL, 1); 
-        
-    constant = criaInstrucao(LOADI); 
-    if (constant == NULL) {
-        fprintf(stderr, "Falha ao criar instrução LOADI em constante, linha %d.\n", tree->lineno);
-        return;
-    }
-    constant->oper1 = criaEndereco(IntConst, numReg, NULL, 1);      
-    constant->oper2 = criaEndereco(IntConst, tree->attr.val, NULL, 0); 
-    constant->oper3 = criaEndereco(Vazio, 0, NULL, 0);              
-
-    if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-        fprintf(stderr, "Limite do código intermediário atingido em constante, linha %d.\n", tree->lineno);
-        if(constant->oper1) free(constant->oper1);
-        if(constant->oper2) free(constant->oper2);
-        if(constant->oper3) free(constant->oper3);
-        free(constant);
-        return;
-    }
-    intermediateCode[adressCounter++] = constant;
-}
-
-void insertExpressionId(TreeNode *tree, PnoIdentificador* symbTable){
-    quadruple* instrucaoId = NULL;
-    ENDERECO *op1 = NULL, *op2 = NULL, *op3 = NULL;
-
-    if (tree == NULL) {
-        fprintf(stderr, "Erro interno: Nó da árvore nulo em insertExpressionId.\n");
-        return;
-    }
-    if (tree->nodekind != ExpressionK || (tree->kind.exp != VetorK && tree->kind.exp != IdK)) {
-        fprintf(stderr, "Erro interno: Nó inesperado em insertExpressionId, linha %d.\n", tree->lineno);
-        return;
-    }
-
-    if(tree->kind.exp == VetorK){
-
-        if (tree->child[0] == NULL) {
-            fprintf(stderr, ANSI_COLOR_RED "ERRO: " ANSI_COLOR_RESET);
-            fprintf(stderr, "Acesso a vetor '%s' (linha %d) sem expressão de índice.\n", tree->attr.name, tree->lineno);
-            return; 
-        }
-
-        instrucaoId = criaInstrucao(LOAD);
-        if (instrucaoId == NULL) {
-            fprintf(stderr, "Falha ao criar instrução LOAD para vetor '%s', linha %d.\n", tree->attr.name, tree->lineno);
-            return;
-        }
-
-        // Processa a expressão do índice. O resultado estará em 'numReg'.
-        criarCodigoIntermediario(tree->child[0], symbTable, 1); 
-        op3 = criaEndereco(IntConst, numReg, NULL, 1); // oper3 é o registrador do índice
-        if (op3 == NULL) {
-            fprintf(stderr, "Falha ao criar endereço para oper3 (índice do vetor) para LOAD de '%s', linha %d.\n", tree->attr.name, tree->lineno);
-            free(instrucaoId);
-            return;
-        }
-        // aux = numReg; // A variável global 'aux' parece ser usada para 'vetorIndice' em outros contextos.
-                       // Se for para o LOAD, o índice já está em op3. Se for para um STORE subsequente,
-                       // a função de STORE deve recalcular ou obter o índice.
-                       // Para o LOAD, 'aux' não é diretamente usada aqui.
-
-        // Obtém um novo registrador para ser o destino do LOAD.
-        // O '1' em verificacaoRegistradores indica que é para um temporário.
-        int destReg = verificacaoRegistradores(NULL, NULL, 1); 
-        if (destReg == -1) {
-            fprintf(stderr, ANSI_COLOR_RED "ERRO: " ANSI_COLOR_RESET);
-            fprintf(stderr, "Falha ao obter registrador de destino para LOAD de vetor '%s', linha %d.\n", tree->attr.name, tree->lineno);
-            // verificacaoRegistradores deve imprimir seu próprio erro detalhado.
-            if(op3->nome) free(op3->nome); free(op3); // op3 é IntConst, nome é NULL
-            free(instrucaoId);
-            return;
-        }
-        numReg = destReg; // Atualiza numReg para o registrador de destino do LOAD
-        
-        op1 = criaEndereco(IntConst, numReg, NULL, 1); // oper1 é o registrador de destino
-        op2 = criaEndereco(String, 0, tree->attr.name, 0); // oper2 é o nome base do vetor
-
-        if (op1 == NULL || op2 == NULL) {
-            fprintf(stderr, "Falha ao criar endereços para oper1 ou oper2 para LOAD de vetor '%s', linha %d.\n", tree->attr.name, tree->lineno);
-            if(op1) free(op1);
-            if(op2 && op2->nome) free(op2->nome); if(op2) free(op2);
-            if(op3) free(op3); // op3 é IntConst, nome é NULL
-            free(instrucaoId);
-            return;
-        }
-        instrucaoId->oper1 = op1;
-        instrucaoId->oper2 = op2;
-        instrucaoId->oper3 = op3;
-
-    }
-    else if(tree->kind.exp == IdK){  
-        PnoIdentificador varEscopo = NULL;
-        varEscopo = buscaIdentificadorTabela(symbTable, tree->attr.name, funcName);
-        char* escopoParaVerificacao = funcName;
-
-        if(varEscopo == NULL){
-            varEscopo = buscaIdentificadorTabela(symbTable, tree->attr.name, "global");
-            if (varEscopo != NULL) {
-                escopoParaVerificacao = "global";
-            }
-        } else {
-            escopoParaVerificacao = varEscopo->escopo; // Usar o escopo encontrado
-        }
-
-        if(varEscopo == NULL){
-            fprintf(stderr, ANSI_COLOR_RED "ERRO: " ANSI_COLOR_RESET);
-            fprintf(stderr, "Variável '%s' (linha %d) não encontrada na tabela de símbolos.\n", tree->attr.name, tree->lineno);
-            numReg = -1; // Sinaliza erro para a lógica de adição da quádrupla
-            // Não criar instrucaoId aqui, pois a variável não existe.
-        } else {
-            // O '0' em verificacaoRegistradores indica que é para uma variável (não temporário).
-            int destReg = verificacaoRegistradores(tree->attr.name, escopoParaVerificacao, 0);
-            if (destReg == -1) {
-                fprintf(stderr, ANSI_COLOR_RED "ERRO: " ANSI_COLOR_RESET);
-                fprintf(stderr, "Falha ao obter registrador para variável '%s' no escopo '%s', linha %d.\n", tree->attr.name, escopoParaVerificacao, tree->lineno);
-                // verificacaoRegistradores deve imprimir seu próprio erro detalhado.
-                numReg = -1; // Sinaliza erro
-            } else {
-                numReg = destReg; // Atualiza numReg para o registrador de destino do LOAD
-
-                instrucaoId = criaInstrucao(LOAD);
-                if (instrucaoId == NULL) {
-                    fprintf(stderr, "Falha ao criar instrução LOAD para Id '%s', linha %d.\n", tree->attr.name, tree->lineno);
-                    numReg = -1; // Sinaliza erro
-                } else {
-                    op1 = criaEndereco(IntConst, numReg, NULL, 1);
-                    op2 = criaEndereco(String, 0, tree->attr.name, 0);
-                    op3 = criaEndereco(Vazio, 0, NULL, 0);
-
-                    if (op1 == NULL || op2 == NULL || op3 == NULL) {
-                        fprintf(stderr, "Falha ao criar endereços para LOAD de Id '%s', linha %d.\n", tree->attr.name, tree->lineno);
-                        if(op1) free(op1);
-                        if(op2 && op2->nome) free(op2->nome); if(op2) free(op2);
-                        if(op3) free(op3);
-                        free(instrucaoId);
-                        instrucaoId = NULL; // Garante que não será adicionado
-                        numReg = -1; // Sinaliza erro
-                    } else {
-                        instrucaoId->oper1 = op1;
-                        instrucaoId->oper2 = op2;
-                        instrucaoId->oper3 = op3;
-                    }
+//Imprime o vetor de codigo intermediario
+void imprimeCodigoIntermediario(){
+    fprintf(arquivoSaida_Intermediario, "============== Codigo Intermediario ===============\n");
+    for(int i = 0; i < MAX_INSTRUCTION && codigoIntermediario[i] != NULL; i++){
+        fprintf(arquivoSaida_Intermediario, "%s, ", codigoIntermediario[i]->op);
+        if(codigoIntermediario[i]->arg1 != NULL){
+            if(codigoIntermediario[i]->arg1->tipo == IntConst){
+                if(codigoIntermediario[i]->arg1->boolReg == 1){
+                    fprintf(arquivoSaida_Intermediario, "$t%d, ", codigoIntermediario[i]->arg1->val);
+                }
+                else if(codigoIntermediario[i]->arg1->boolReg == 2){
+                    fprintf(arquivoSaida_Intermediario, "L%d, ", codigoIntermediario[i]->arg1->val);
+                }
+                else{
+                    fprintf(arquivoSaida_Intermediario, "%d, ", codigoIntermediario[i]->arg1->val);
                 }
             }
+            else if(codigoIntermediario[i]->arg1->tipo == String){
+                fprintf(arquivoSaida_Intermediario, "%s, ", codigoIntermediario[i]->arg1->nome);
+            }
+            else{
+                fprintf(arquivoSaida_Intermediario, "-, ");
+            }
+        }
+        else{
+            fprintf(arquivoSaida_Intermediario, "-, ");
+        }
+        if(codigoIntermediario[i]->arg2 != NULL){
+            if(codigoIntermediario[i]->arg2->tipo == IntConst){
+                if(codigoIntermediario[i]->arg2->boolReg == 1){
+                    fprintf(arquivoSaida_Intermediario, "$t%d, ", codigoIntermediario[i]->arg2->val);
+                }
+                else if(codigoIntermediario[i]->arg2->boolReg == 2){
+                    fprintf(arquivoSaida_Intermediario, "L%d, ", codigoIntermediario[i]->arg2->val);
+                }
+                else{
+                    fprintf(arquivoSaida_Intermediario, "%d, ", codigoIntermediario[i]->arg2->val);
+                }
+            }
+            else if(codigoIntermediario[i]->arg2->tipo == String){
+                fprintf(arquivoSaida_Intermediario, "%s, ", codigoIntermediario[i]->arg2->nome);
+            }
+            else{
+                fprintf(arquivoSaida_Intermediario, "-, ");
+            }
+        }
+        else{
+            fprintf(arquivoSaida_Intermediario, "-, ");
+        }
+        if(codigoIntermediario[i]->arg3 != NULL){
+            if(codigoIntermediario[i]->arg3->tipo == IntConst){
+                if(codigoIntermediario[i]->arg3->boolReg == 1)
+                    fprintf(arquivoSaida_Intermediario, "$t%d\n", codigoIntermediario[i]->arg3->val);
+                else
+                    fprintf(arquivoSaida_Intermediario, "%d\n", codigoIntermediario[i]->arg3->val);
+            }
+            else if(codigoIntermediario[i]->arg3->tipo == String){
+                fprintf(arquivoSaida_Intermediario, "%s\n", codigoIntermediario[i]->arg3->nome);
+            }
+            else{
+                fprintf(arquivoSaida_Intermediario, "-\n");
+            }
+        }
+        else{
+            fprintf(arquivoSaida_Intermediario, "-\n");
         }
     }
-
-    // Adiciona a instrução ao código intermediário se tudo ocorreu bem
-    if(instrucaoId != NULL && numReg != -1){ 
-        if (adressCounter < MAX_LEN_CODE_INTERMEDIATE) {
-            intermediateCode[adressCounter++] = instrucaoId;
-        } else {
-            fprintf(stderr, "Limite do código intermediário atingido ao adicionar LOAD para '%s', linha %d.\n", tree->attr.name, tree->lineno);
-            // Libera a instrução e seus operandos, pois não será adicionada
-            if(instrucaoId->oper1) free(instrucaoId->oper1); // Nome é NULL para IntConst
-            if(instrucaoId->oper2 && instrucaoId->oper2->nome) free(instrucaoId->oper2->nome);
-            if(instrucaoId->oper2) free(instrucaoId->oper2);
-            if(instrucaoId->oper3) free(instrucaoId->oper3); // Nome é NULL para IntConst/Vazio
-            free(instrucaoId);
-        }
-    } else if (instrucaoId != NULL && numReg == -1) {
-        // Se instrucaoId foi criada mas houve erro (numReg == -1), libera
-        // (Este caso pode ser redundante se as falhas anteriores já limpam instrucaoId e o setam para NULL)
-        fprintf(stderr, "INFO: Instrução LOAD para '%s' (linha %d) não adicionada devido a erro anterior na obtenção de registrador.\n", tree->attr.name, tree->lineno);
-        if(instrucaoId->oper1) free(instrucaoId->oper1);
-        if(instrucaoId->oper2 && instrucaoId->oper2->nome) free(instrucaoId->oper2->nome);
-        if(instrucaoId->oper2) free(instrucaoId->oper2);
-        if(instrucaoId->oper3) free(instrucaoId->oper3);
-        free(instrucaoId);
-    }
-    // Se varEscopo == NULL (para IdK), instrucaoId não foi nem criada, então não há o que liberar aqui.
-    // numReg já está -1.
 }
 
-void insertExpressionCall(TreeNode *tree, PnoIdentificador* symbTable) {
-    quadruple* instrucaoCall = NULL;
-    quadruple* instrucaoParam = NULL;
-    TreeNode* argNode = tree->child[0]; 
+void codIntDeclIF(PONTEIRONO arvoreSintatica, PONTEIROITEM tabelaHash[]){
+    INSTRUCAO* instrucaoOp = NULL;
+    INSTRUCAO* instrucaoGoto = NULL;
+    INSTRUCAO* instrucaoLabel1 = NULL;
+    INSTRUCAO* instrucaoLabel2 = NULL;
+    INSTRUCAO* instrucaoLabel3 = NULL;
+    INSTRUCAO* instrucaoIF = NULL;
+
+    criarCodigoIntermediario(arvoreSintatica->filho[0], tabelaHash, 1);
+
+    /* Cria a instrucao para o IF false */
+    instrucaoIF = criaInstrucao("IFF");
+    instrucaoIF->arg1 = criaEndereco(IntConst, numReg, NULL, 1);
+    instrucaoIF->arg2 = criaEndereco(IntConst, numLabel, NULL, 2);
+    instrucaoIF->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+    codigoIntermediario[indiceVetor] = instrucaoIF;
+    indiceVetor++;
+
+    /* Cria a instrucao para o label */
+    instrucaoLabel1 = criaInstrucao("LABEL");
+    instrucaoLabel1->arg1 = criaEndereco(IntConst, numLabel, NULL, 2);
+    instrucaoLabel1->arg2 = criaEndereco(Vazio, 0, NULL, 0);
+    instrucaoLabel1->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+    numLabel++;
+
+    instrucaoGoto = criaInstrucao("GOTO");
+    instrucaoGoto->arg1 = criaEndereco(IntConst, numLabel, NULL, 2);
+    instrucaoGoto->arg2 = criaEndereco(Vazio, 0, NULL, 0);
+    instrucaoGoto->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+
+    instrucaoLabel2 = criaInstrucao("LABEL");
+    instrucaoLabel2->arg1 = criaEndereco(IntConst, numLabel, NULL, 2);
+    instrucaoLabel2->arg2 = criaEndereco(Vazio, 0, NULL, 0);
+    instrucaoLabel2->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+    
+    numLabel++;
+
+    /* Avanca para o filho do IF caso a operacao seja verdadeira */
+    criarCodigoIntermediario(arvoreSintatica->filho[1], tabelaHash, 1);
+
+    if(arvoreSintatica->filho[2] != NULL){
+
+        codigoIntermediario[indiceVetor++] = instrucaoGoto;
+        codigoIntermediario[indiceVetor++] = instrucaoLabel1;
+
+        /*  Avanca para o filho do ELSE caso a operacao seja falsa (Else) 
+            Se nao tiver nenhum Else, ela logo ira dar um return de volta para 
+            essa funcao */
+        criarCodigoIntermediario(arvoreSintatica->filho[2], tabelaHash, 1);
+
+        codigoIntermediario[indiceVetor++] = instrucaoLabel2;
+    }
+    else{
+        codigoIntermediario[indiceVetor++] = instrucaoLabel1;
+    }
+}
+
+void codIntDeclFunc(PONTEIRONO arvoreSintatica, PONTEIROITEM tabelaHash[]){
+    PONTEIRONO noParam = arvoreSintatica->filho[0];
+    INSTRUCAO* func = NULL;
+    INSTRUCAO* param = NULL;
+
+    int numParam = 0;
+
+    strcpy(funcName, arvoreSintatica->filho[1]->lexema);
+
+    func = criaInstrucao("FUN");
+    func->arg1 = criaEndereco(String, 0, arvoreSintatica->lexema, 0);
+    func->arg2 = criaEndereco(String, 0, arvoreSintatica->filho[1]->lexema, 0);
+    //func->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+    codigoIntermediario[indiceVetor] = func;
+    indiceVetor++;
+    
+    funcLabel = criaInstrucao("LABEL");
+    funcLabel->arg1 = criaEndereco(IntConst, numLabel, NULL, 2);
+    funcLabel->arg2 = criaEndereco(Vazio, 0, NULL, 0);
+    funcLabel->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+
+    numLabel++;
+
+
+    if(arvoreSintatica->filho[0]->tipoDeclaracao == ParamVoid){
+        criarCodigoIntermediario(arvoreSintatica->filho[1]->filho[0], tabelaHash, 1);
+
+        codigoIntermediario[indiceVetor] = funcLabel;
+        indiceVetor++;
+
+        codigoIntermediario[indiceVetor] = criaInstrucao("END");
+        codigoIntermediario[indiceVetor]->arg1 = criaEndereco(String, 0, arvoreSintatica->filho[1]->lexema, 0);
+        indiceVetor++;
+
+        func->arg3 = criaEndereco(IntConst, numParam, NULL, 0);
+        return;
+    }
+
+    while(noParam != NULL){
+        numParam++;
+        param = criaInstrucao("ARG");
+
+        if(noParam->tipoDeclaracao == VarParamK)
+            param->arg1 = criaEndereco(String, 0, "INT", 0);
+        else 
+            param->arg1 = criaEndereco(String, 0, "VET", 0);
+
+        param->arg2 = criaEndereco(String, 0, noParam->filho[0]->lexema, 0);
+        param->arg3 = criaEndereco(String, 0, arvoreSintatica->filho[1]->lexema, 0);
+
+        codigoIntermediario[indiceVetor] = param;
+        indiceVetor++;
+        
+        noParam = noParam->irmao;
+    }
+
+    func->arg3 = criaEndereco(IntConst, numParam, NULL, numParam);
+
+    noParam = arvoreSintatica->filho[0];
+    while(noParam != NULL){
+        param = criaInstrucao("LOAD");
+        
+        //param->arg1 = criaEndereco(IntConst, numReg, NULL, 1);
+        
+        //Otimizacao: Adicionando variavel no vetor de variaveis de registradores
+        /* Primeiro busca se a variavel ja esta no vetor de registradores, se nao estiver, deve ser adicionada
+        Caso de algum erro ao adicionar, mostrar um erro */
+
+        numReg = verificacaoRegistradores(noParam->filho[0]->lexema, arvoreSintatica->filho[1]->lexema, 1);
+    
+        param->arg1 = criaEndereco(IntConst, numReg, NULL, 1);
+        param->arg2 = criaEndereco(String, 0, noParam->filho[0]->lexema, 0);
+        param->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+        codigoIntermediario[indiceVetor] = param;
+        indiceVetor++;
+        
+
+        noParam = noParam->irmao;
+    }
+
+    criarCodigoIntermediario(arvoreSintatica->filho[1]->filho[0], tabelaHash, 1);
+
+    codigoIntermediario[indiceVetor] = funcLabel;
+    indiceVetor++;
+
+    codigoIntermediario[indiceVetor] = criaInstrucao("END");
+    codigoIntermediario[indiceVetor]->arg1 = criaEndereco(String, 0, arvoreSintatica->filho[1]->lexema, 0);
+    indiceVetor++;
+}
+
+void codIntDeclVarDecl(PONTEIRONO arvoreSintatica, PONTEIROITEM tabelaHash[]){
+    INSTRUCAO* var = NULL;
+    INSTRUCAO* param = NULL;
+    
+    var = criaInstrucao("ALLOC");
+    var->arg1 = criaEndereco(String, 0, arvoreSintatica->filho[0]->lexema, 0);
+
+    PONTEIROITEM itemFunc = buscarItemTabelaId(tabelaHash, arvoreSintatica->filho[0]->lexema);
+
+    if(itemFunc == NULL){
+        var->arg2 = criaEndereco(String, 0, "escopo", 0);
+    }
+    else if(strcmp(itemFunc->escopo, "global") == 0){
+        var->arg2 = criaEndereco(String, 0, "global", 0);
+    }
+    else{
+        var->arg2 = criaEndereco(String, 0, funcName, 0);
+    }
+    
+    var->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+
+    if(arvoreSintatica->tipoDeclaracao == VetDeclK){
+        var->arg3->tipo = IntConst;
+        var->arg3->val = atoi(arvoreSintatica->filho[1]->lexema); 
+    }
+
+    codigoIntermediario[indiceVetor] = var;
+    indiceVetor++;
+
+}
+
+void codIntDeclReturn(PONTEIRONO arvoreSintatica, PONTEIROITEM tabelaHash[]){
+    INSTRUCAO* ret = NULL;
+    INSTRUCAO* GOTO = NULL;
+
+    ret = criaInstrucao("RET");
+    if(arvoreSintatica->tipoDeclaracao == ReturnINT){
+        criarCodigoIntermediario(arvoreSintatica->filho[0], tabelaHash, 1);
+        ret->arg1 = criaEndereco(IntConst, numReg, NULL, 1);
+    }
+    else{
+        ret->arg1 = criaEndereco(Vazio, 0, NULL, 0);
+    }
+    ret->arg2 = criaEndereco(Vazio, 0, NULL, 0);
+    ret->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+
+    codigoIntermediario[indiceVetor] = ret;
+    indiceVetor++;
+
+    GOTO = criaInstrucao("GOTO");
+    GOTO->arg1 = criaEndereco(IntConst, funcLabel->arg1->val, NULL, 2);
+    GOTO->arg2 = criaEndereco(Vazio, 0, NULL, 0);
+    GOTO->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+
+    codigoIntermediario[indiceVetor] = GOTO;
+    indiceVetor++;
+
+}
+
+void codIntExpOp(PONTEIRONO arvoreSintatica, PONTEIROITEM tabelaHash[]){
+    INSTRUCAO* op = NULL;
+    char NomeOp[MAXLEXEMA];
+
+    strcpy(NomeOp, arvoreSintatica->lexema);
+
+    if(strcmp(NomeOp, "+") == 0){
+        op = criaInstrucao("ADD");
+    }
+    else if(strcmp(NomeOp, "-") == 0){
+        op = criaInstrucao("SUB");
+    }
+    else if(strcmp(NomeOp, "*") == 0){
+        op = criaInstrucao("MULT");
+    }
+    else if(strcmp(NomeOp, "/") == 0){
+        op = criaInstrucao("DIV");
+    }
+
+    criarCodigoIntermediario(arvoreSintatica->filho[0], tabelaHash, 1);
+    op->arg1 = criaEndereco(IntConst, numReg, NULL, 1);
+
+    criarCodigoIntermediario(arvoreSintatica->filho[1], tabelaHash, 1);
+    op->arg2 = criaEndereco(IntConst, numReg, NULL, 1);
+
+    numReg = verificacaoRegistradores(NULL, NULL, 1);
+
+    op->arg3 = criaEndereco(IntConst, numReg, NULL, 1);
+
+    codigoIntermediario[indiceVetor] = op;
+    indiceVetor++;
+
+}
+
+void codIntExpConst(PONTEIRONO arvoreSintativa, PONTEIROITEM tabelaHash[]){
+    INSTRUCAO* constante = NULL;
+
+    
+    if(strcmp(arvoreSintativa->lexema, "0") == 0){
+        numReg = $zero;
+        return;
+    }
+
+    numReg = verificacaoRegistradores(NULL, NULL, 1);
+        
+    constante = criaInstrucao("LOADI");
+    constante->arg1 = criaEndereco(IntConst, numReg, NULL, 1);
+    constante->arg2 = criaEndereco(IntConst, atoi(arvoreSintativa->lexema), NULL, 0);
+    constante->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+
+    codigoIntermediario[indiceVetor] = constante;
+    indiceVetor++;
+}
+
+void codIntExpOpRel(PONTEIRONO arvoreSintatica, PONTEIROITEM tabelaHash[]){
+    INSTRUCAO* instrucaoOp = NULL;
+    
+    // Verifica a operacao e cria a instrucao correspondente
+    if(strcmp(arvoreSintatica->lexema, "==") == 0){
+        instrucaoOp = criaInstrucao("EQ");
+    }
+    else if(strcmp(arvoreSintatica->lexema, "!=") == 0){
+        instrucaoOp = criaInstrucao("NEQ");
+    }
+    else if(strcmp(arvoreSintatica->lexema, ">") == 0){
+        instrucaoOp = criaInstrucao("GT");
+    }
+    else if(strcmp(arvoreSintatica->lexema, "<") == 0){
+        instrucaoOp = criaInstrucao("LT");
+    }
+    else if(strcmp(arvoreSintatica->lexema, ">=") == 0){
+        instrucaoOp = criaInstrucao("GET");
+    }
+    else if(strcmp(arvoreSintatica->lexema, "<=") == 0){
+        instrucaoOp = criaInstrucao("LET");
+    } 
+    
+    criarCodigoIntermediario(arvoreSintatica->filho[0], tabelaHash, 1);
+    instrucaoOp->arg1 = criaEndereco(IntConst, numReg, NULL, 1);
+    
+    criarCodigoIntermediario(arvoreSintatica->filho[1], tabelaHash, 1);
+    instrucaoOp->arg2 = criaEndereco(IntConst, numReg, NULL, 1);
+
+    numReg = verificacaoRegistradores(NULL, NULL, 1);
+
+    instrucaoOp->arg3 = criaEndereco(IntConst, numReg, NULL, 1);
+    // numReg++;
+
+    codigoIntermediario[indiceVetor] = instrucaoOp;
+    indiceVetor++;
+}
+
+void codIntExpId(PONTEIRONO arvoreSintatica, PONTEIROITEM tabelaHash[]){
+    INSTRUCAO* instrucaoId = NULL;
+    
+    if(arvoreSintatica->tipoExpressao == VetorK){
+        instrucaoId = criaInstrucao("LOAD");
+
+        criarCodigoIntermediario(arvoreSintatica->filho[0], tabelaHash, 1);
+        instrucaoId->arg3 = criaEndereco(IntConst, numReg, NULL, 1);
+        vetorIndice = numReg;
+
+        numReg = verificacaoRegistradores(NULL, NULL, 1);
+        
+        instrucaoId->arg1 = criaEndereco(IntConst, numReg, NULL, 1); // Valor do registrador alterado
+        instrucaoId->arg2 = criaEndereco(String, 0, arvoreSintatica->lexema, 0);
+
+    }
+    else if(arvoreSintatica->tipoExpressao == IdK){  
+        //Otimizacao: Adicionando variavel no vetor de variaveis de registradores
+        /* Primeiro busca se a variavel ja esta no vetor de registradores, se nao estiver, deve ser adicionada
+        Caso de algum erro ao adicionar, mostrar um erro */
+        PONTEIROITEM varEscopo = NULL;
+        if(!(varEscopo = buscarItemTabelaId(tabelaHash, arvoreSintatica->lexema))){
+            printf(ANSI_COLOR_RED "ERRO: " ANSI_COLOR_RESET);
+            printf("Escopo da variavel '%s' nao encontrada", arvoreSintatica->lexema);
+            numReg = -1;
+        }
+        if(!strcmp(varEscopo->escopo, "global")){
+            numReg = verificacaoRegistradores(arvoreSintatica->lexema, "global", 1);
+        }
+        else{
+            numReg = verificacaoRegistradores(arvoreSintatica->lexema, funcName, 1);
+        }
+        
+        instrucaoId = criaInstrucao("LOAD");
+        instrucaoId->arg1 = criaEndereco(IntConst, numReg, NULL, 1);
+        instrucaoId->arg2 = criaEndereco(String, 0, arvoreSintatica->lexema, 0);
+        instrucaoId->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+    }
+
+    if(instrucaoId != NULL){
+        codigoIntermediario[indiceVetor] = instrucaoId;
+        indiceVetor++;
+    }
+}
+
+void codIntExpCall(PONTEIRONO arvoreSintatica, PONTEIROITEM tabelaHash[]){
+    INSTRUCAO* instrucaoCall = NULL;
+    INSTRUCAO* instrucaoParam = NULL;
+    PONTEIRONO noAux = arvoreSintatica->filho[0];   
 
     int numParam = 0; 
 
-    instrucaoCall = criaInstrucao(CALL);
-    if (instrucaoCall == NULL) {
-        fprintf(stderr, "Falha ao criar instrução CALL para %s, linha %d.\n", tree->attr.name, tree->lineno);
-        return;
-    }
-    instrucaoCall->oper1 = criaEndereco(String, 0, tree->attr.name, 0); 
-    if (instrucaoCall->oper1 == NULL) {
-        fprintf(stderr, "Falha ao criar endereço para nome da função (CALL oper1) para %s, linha %d.\n", tree->attr.name, tree->lineno);
-        free(instrucaoCall);
-        return;
-    }
+    instrucaoCall = criaInstrucao("CALL");
+    instrucaoCall->arg1 = criaEndereco(String, 0, arvoreSintatica->lexema, 0);
 
-    while(argNode !=  NULL){
-        instrucaoParam = criaInstrucao(PARAM);
-        if (instrucaoParam == NULL) {
-            fprintf(stderr, "Falha ao criar instrução PARAM para %s, argumento %d, linha %d.\n", tree->attr.name, numParam + 1, argNode->lineno);
-            if(instrucaoCall->oper1->nome) free(instrucaoCall->oper1->nome);
-            free(instrucaoCall->oper1);
-            free(instrucaoCall);
-            return;
-        }
+    while(noAux !=  NULL){
+        instrucaoParam = criaInstrucao("PARAM");
         
-        if (argNode->nodekind == ExpressionK) {
-            if (argNode->kind.exp == IdK) {
-                PnoIdentificador idInfo = buscaIdentificadorTabela(symbTable, argNode->attr.name, funcName);
-                if (idInfo == NULL) {
-                    idInfo = buscaIdentificadorTabela(symbTable, argNode->attr.name, "global");
-                }
+        /* 
+        1) Buscar na tabela para ver se eh um vetor
+        2) Ver se ele tem algum filho
+        3) Se for um vetor e nao tiver filhos, ele vai ser passado com o valor da memoria
+        */
 
-                if (idInfo != NULL && (idInfo->tipoIdentificador == VetDeclK || idInfo->tipoIdentificador == VetParamK) && argNode->child[0] == NULL) {
-                    // ===============================================
-                    // CORREÇÃO CRÍTICA: PASSAGEM DE VETOR COMO PARÂMETRO
-                    // PRIMEIRO carregar o endereço do vetor, DEPOIS usar como parâmetro
-                    // ===============================================
-                    
-                    // 1. PRIMEIRO: Gerar LOAD para carregar o endereço do vetor
-                    quadruple* instrucaoLoad = criaInstrucao(LOAD);
-                    if (instrucaoLoad == NULL) {
-                        fprintf(stderr, "Falha ao criar LOAD para vetor '%s' (linha %d).\n", argNode->attr.name, argNode->lineno);
-                        // Cleanup e continue com próximo parâmetro
-                        if(instrucaoParam->oper1) free(instrucaoParam->oper1);
-                        if(instrucaoParam->oper2 && instrucaoParam->oper2->nome) free(instrucaoParam->oper2->nome);
-                        if(instrucaoParam->oper2) free(instrucaoParam->oper2);
-                        if(instrucaoParam->oper3 && instrucaoParam->oper3->nome) free(instrucaoParam->oper3->nome);
-                        if(instrucaoParam->oper3) free(instrucaoParam->oper3);
-                        free(instrucaoParam);
-                        argNode = argNode->sibling;
-                        continue;
-                    }
-                    
-                    // Alocar registrador para o vetor
-                    int reg_temp = verificacaoRegistradores(NULL, NULL, 1);
-                    if (reg_temp == -1) {
-                        fprintf(stderr, "Falha ao alocar registrador para vetor '%s' (linha %d).\n", argNode->attr.name, argNode->lineno);
-                        free(instrucaoLoad);
-                        free(instrucaoParam);
-                        argNode = argNode->sibling;
-                        continue;
-                    }
-                    
-                    // Configurar instrução LOAD: LOAD $reg, vetor, BASE
-                    instrucaoLoad->oper1 = criaEndereco(IntConst, reg_temp, NULL, 1);        // registrador destino
-                    instrucaoLoad->oper2 = criaEndereco(String, 0, argNode->attr.name, 0);   // nome do vetor
-                    instrucaoLoad->oper3 = criaEndereco(String, 0, "BASE", 0);               // carregar endereço base
-                    
-                    if (instrucaoLoad->oper1 == NULL || instrucaoLoad->oper2 == NULL || instrucaoLoad->oper3 == NULL) {
-                        fprintf(stderr, "Falha ao criar endereços para LOAD de '%s' (linha %d).\n", argNode->attr.name, argNode->lineno);
-                        if(instrucaoLoad->oper1) free(instrucaoLoad->oper1);
-                        if(instrucaoLoad->oper2 && instrucaoLoad->oper2->nome) free(instrucaoLoad->oper2->nome);
-                        if(instrucaoLoad->oper2) free(instrucaoLoad->oper2);
-                        if(instrucaoLoad->oper3 && instrucaoLoad->oper3->nome) free(instrucaoLoad->oper3->nome);
-                        if(instrucaoLoad->oper3) free(instrucaoLoad->oper3);
-                        free(instrucaoLoad);
-                        free(instrucaoParam);
-                        argNode = argNode->sibling;
-                        continue;
-                    }
-                    
-                    // Adicionar LOAD ao código intermediário
-                    if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-                        fprintf(stderr, "Limite do código intermediário atingido ao criar LOAD para vetor '%s'.\n", argNode->attr.name);
-                        // Cleanup...
-                        free(instrucaoLoad);
-                        free(instrucaoParam);
-                        argNode = argNode->sibling;
-                        continue;
-                    }
-                    intermediateCode[adressCounter++] = instrucaoLoad;
-                    
-                    // 2. AGORA usar o registrador carregado como parâmetro
-                    instrucaoParam->oper1 = criaEndereco(IntConst, reg_temp, NULL, 1);       // registrador com endereço
-                    instrucaoParam->oper2 = criaEndereco(String, 0, "VET", 0);              // tipo VET
-                    instrucaoParam->oper3 = criaEndereco(String, 0, argNode->attr.name, 0); // nome do vetor
-                } else { // Não é um vetor conhecido ou é uma variável simples
-                    criarCodigoIntermediario(argNode, symbTable, 1); 
-                    instrucaoParam->oper1 = criaEndereco(IntConst, numReg, NULL, 1); 
-                    instrucaoParam->oper2 = criaEndereco(String, 0, "INT", 0); 
-                    instrucaoParam->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-                }
-            } else { // Não é IdK (ex: ConstK, OpK)
-                criarCodigoIntermediario(argNode, symbTable, 1); 
-                instrucaoParam->oper1 = criaEndereco(IntConst, numReg, NULL, 1); 
-                instrucaoParam->oper2 = criaEndereco(String, 0, "INT", 0); 
-                instrucaoParam->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-            }
-        } else { // Não é ExpressionK (caso de erro, mas mantendo a lógica original)
-            fprintf(stderr, "Argumento de função inválido (não é ExpressionK) para %s, linha %d.\n", tree->attr.name, argNode->lineno);
-            criarCodigoIntermediario(argNode, symbTable, 1); 
-            instrucaoParam->oper1 = criaEndereco(IntConst, numReg, NULL, 1);
-            instrucaoParam->oper2 = criaEndereco(String, 0, "UNKNOWN_ARG_TYPE", 0);
-            instrucaoParam->oper3 = criaEndereco(Vazio, 0, NULL, 0);
+        PONTEIROITEM itemAux = procuraTabelaQualquer(tabelaHash, noAux->lexema, funcName);
+        if(itemAux != NULL && (itemAux->tipoIdentificador == VetDeclK || itemAux->tipoIdentificador == VetParamK) && noAux->filho[0] == NULL){
+            numReg = verificacaoRegistradores(NULL, NULL, 1);
+            instrucaoParam->arg2 = criaEndereco(String, 0, "VET", 0);
+            instrucaoParam->arg3 = criaEndereco(String, 0, noAux->lexema, 0);
         }
-        
-        if (instrucaoParam->oper1 == NULL || instrucaoParam->oper2 == NULL || instrucaoParam->oper3 == NULL) {
-             fprintf(stderr, "Falha ao criar um dos endereços para PARAM na chamada de %s, linha %d. O parâmetro pode não ter sido processado corretamente.\n", tree->attr.name, argNode->lineno);
-             // Limpeza dos operandos que possam ter sido alocados
-             if(instrucaoParam->oper1) { if(instrucaoParam->oper1->tipo == String && instrucaoParam->oper1->nome) free(instrucaoParam->oper1->nome); free(instrucaoParam->oper1); instrucaoParam->oper1 = NULL;}
-             if(instrucaoParam->oper2) { if(instrucaoParam->oper2->tipo == String && instrucaoParam->oper2->nome) free(instrucaoParam->oper2->nome); free(instrucaoParam->oper2); instrucaoParam->oper2 = NULL;}
-             if(instrucaoParam->oper3) { if(instrucaoParam->oper3->tipo == String && instrucaoParam->oper3->nome) free(instrucaoParam->oper3->nome); free(instrucaoParam->oper3); instrucaoParam->oper3 = NULL;}
-             free(instrucaoParam); // Libera a instrução PARAM em si
-             
-             // Libera a instrução CALL e retorna, pois a chamada está incompleta/corrompida
-             if(instrucaoCall->oper1 && instrucaoCall->oper1->nome) free(instrucaoCall->oper1->nome); 
-             if(instrucaoCall->oper1) free(instrucaoCall->oper1);
-            // oper2 e oper3 de instrucaoCall ainda não foram alocados neste ponto do loop,
-            // mas é bom verificar se a lógica mudar no futuro.
-             if(instrucaoCall->oper2) free(instrucaoCall->oper2);
-             if(instrucaoCall->oper3) free(instrucaoCall->oper3);
-             free(instrucaoCall);
-             return;
+        else{
+            criarCodigoIntermediario(noAux, tabelaHash, 0);   
+            instrucaoParam->arg2 = criaEndereco(String, 0, "INT", 0);
+            instrucaoParam->arg3 = criaEndereco(Vazio, 0, NULL, 0);
         }
+        instrucaoParam->arg1 = criaEndereco(IntConst, numReg, NULL, 1);       
 
-        if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-            fprintf(stderr, "Limite do código intermediário atingido em parâmetro de chamada para %s, linha %d.\n", tree->attr.name, argNode->lineno);
-            if(instrucaoParam->oper1) { if(instrucaoParam->oper1->tipo == String && instrucaoParam->oper1->nome) free(instrucaoParam->oper1->nome); free(instrucaoParam->oper1); }
-            if(instrucaoParam->oper2) { if(instrucaoParam->oper2->tipo == String && instrucaoParam->oper2->nome) free(instrucaoParam->oper2->nome); free(instrucaoParam->oper2); }
-            if(instrucaoParam->oper3) { if(instrucaoParam->oper3->tipo == String && instrucaoParam->oper3->nome) free(instrucaoParam->oper3->nome); free(instrucaoParam->oper3); }
-            free(instrucaoParam);
-            if(instrucaoCall->oper1 && instrucaoCall->oper1->nome) free(instrucaoCall->oper1->nome); 
-            if(instrucaoCall->oper1) free(instrucaoCall->oper1);
-            // oper2 e oper3 de instrucaoCall ainda não foram alocados
-            free(instrucaoCall);
-            return;
-        }
-        intermediateCode[adressCounter++] = instrucaoParam;
+        codigoIntermediario[indiceVetor] = instrucaoParam;
+        indiceVetor++;
         
-        argNode = argNode->sibling;
+        noAux = noAux->irmao;
+
         numParam++;
     }
     
-    instrucaoCall->oper2 = criaEndereco(IntConst, numParam, NULL, 0);
-    if (instrucaoCall->oper2 == NULL) {
-        fprintf(stderr, "Falha ao criar endereço para numParam (CALL oper2) para %s, linha %d.\n", tree->attr.name, tree->lineno);
-        if(instrucaoCall->oper1 && instrucaoCall->oper1->nome) free(instrucaoCall->oper1->nome); free(instrucaoCall->oper1);
-        free(instrucaoCall);
+    instrucaoCall->arg2 = criaEndereco(IntConst, numParam, NULL, 0);
+    
+    PONTEIROITEM itemAux = buscarItemTabelaFunc(tabelaHash, arvoreSintatica->lexema);
+    if(itemAux != NULL && itemAux->tipoDado == Type_Void){
+        instrucaoCall->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+    }
+    else if(itemAux != NULL && itemAux->tipoDado == Type_Int){
+        numReg = verificacaoRegistradores(NULL, NULL, 1);
+
+        instrucaoCall->arg3 = criaEndereco(IntConst, numReg, NULL, 1);
+        // numReg++;
+    }
+
+    codigoIntermediario[indiceVetor] = instrucaoCall;
+    indiceVetor++;
+}
+
+void codIntExpAtrib(PONTEIRONO arvoreSintatica, PONTEIROITEM tabelaHash[]){
+    INSTRUCAO* instrucaoAtrib = NULL;
+    INSTRUCAO* instrucaoStore = NULL;
+
+    instrucaoAtrib = criaInstrucao("ASSIGN");
+
+
+    criarCodigoIntermediario(arvoreSintatica->filho[0], tabelaHash, 1);
+    /*if(arvoreSintatica->filho[0]->tipoExpressao == VetorK){
+        criarCodigoIntermediario(arvoreSintatica->filho[0]->filho[0], tabelaHash, 1);
+    }
+    else{
+        
+    }*/
+    
+    instrucaoAtrib->arg1 = criaEndereco(IntConst, numReg, NULL, 1);
+
+    instrucaoStore = criaInstrucao("STORE");
+    instrucaoStore->arg1 = criaEndereco(String, 0, arvoreSintatica->filho[0]->lexema, 0);
+    instrucaoStore->arg2 = criaEndereco(IntConst, instrucaoAtrib->arg1->val, NULL, 1);
+
+    if(arvoreSintatica->filho[0]->tipoExpressao == VetorK){
+        instrucaoStore->arg3 = criaEndereco(IntConst, vetorIndice, NULL, 1);
+    }
+    else{
+        instrucaoStore->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+    }
+
+    criarCodigoIntermediario(arvoreSintatica->filho[1], tabelaHash, 1);
+    
+    instrucaoAtrib->arg2 = criaEndereco(IntConst, numReg, NULL, 1);
+
+    codigoIntermediario[indiceVetor] = instrucaoAtrib;
+    indiceVetor++;    
+
+    codigoIntermediario[indiceVetor] = instrucaoStore;
+    indiceVetor++;
+}
+
+void codIntDeclWhile(PONTEIRONO arvoreSintatica, PONTEIROITEM tabelaHash[]){
+    INSTRUCAO* instrucaoIFF = NULL;
+    INSTRUCAO* instrucaoGOTO = NULL;
+    INSTRUCAO* instrucaoLabel1 = NULL;
+    INSTRUCAO* instrucaoLabel2 = NULL;
+    
+    instrucaoLabel1 = criaInstrucao("LABEL");
+    instrucaoLabel1->arg1 = criaEndereco(IntConst, numLabel, NULL, 2);
+    instrucaoLabel1->arg2 = criaEndereco(Vazio, 0, NULL, 0);
+    instrucaoLabel1->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+
+    codigoIntermediario[indiceVetor] = instrucaoLabel1;
+    indiceVetor++;
+
+    instrucaoGOTO = criaInstrucao("GOTO");
+    instrucaoGOTO->arg1 = criaEndereco(IntConst, numLabel, NULL, 2);
+    instrucaoGOTO->arg2 = criaEndereco(Vazio, 0, NULL, 0);
+    instrucaoGOTO->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+
+    numLabel++;
+
+    instrucaoLabel2 = criaInstrucao("LABEL");
+    instrucaoLabel2->arg1 = criaEndereco(IntConst, numLabel, NULL, 2);
+    instrucaoLabel2->arg2 = criaEndereco(Vazio, 0, NULL, 0);
+    instrucaoLabel2->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+    numLabel++;
+
+    instrucaoIFF = criaInstrucao("IFF");
+
+    instrucaoIFF->arg2 = criaEndereco(IntConst, numLabel-1, NULL, 2);
+    instrucaoIFF->arg3 = criaEndereco(Vazio, 0, NULL, 0);
+
+    criarCodigoIntermediario(arvoreSintatica->filho[0], tabelaHash, 1);
+
+    instrucaoIFF->arg1 = criaEndereco(IntConst, numReg, NULL, 1);
+
+    codigoIntermediario[indiceVetor] = instrucaoIFF;
+    indiceVetor++;
+
+    criarCodigoIntermediario(arvoreSintatica->filho[1], tabelaHash, 1);
+
+    codigoIntermediario[indiceVetor] = instrucaoGOTO;
+    indiceVetor++;
+
+    codigoIntermediario[indiceVetor] = instrucaoLabel2;
+    indiceVetor++;
+}
+
+
+//Funcao que analisa a arvore sintatica e a tabela de simbolos e gera o codigo intermediario de tres enderecos
+void criarCodigoIntermediario(PONTEIRONO arvoreSintatica, PONTEIROITEM tabelaHash[], int boolean){
+    if(arvoreSintatica == NULL){
         return;
+    }
+
+    if(arvoreSintatica->tipo == DECLARACAO){
+        if(arvoreSintatica->tipoDeclaracao == FunDeclK){
+            codIntDeclFunc(arvoreSintatica, tabelaHash);
+        }
+        else if(arvoreSintatica->tipoDeclaracao == VarDeclK || arvoreSintatica->tipoDeclaracao == VetDeclK){
+            codIntDeclVarDecl(arvoreSintatica, tabelaHash);
+        }
+        else if(arvoreSintatica->tipoDeclaracao == IfK){
+            codIntDeclIF(arvoreSintatica, tabelaHash);
+        }
+        else if(arvoreSintatica->tipoDeclaracao == WhileK){
+            codIntDeclWhile(arvoreSintatica, tabelaHash);
+        }
+        else if(arvoreSintatica->tipoDeclaracao == ReturnINT || arvoreSintatica->tipoDeclaracao == ReturnVOID){
+            codIntDeclReturn(arvoreSintatica, tabelaHash);
+        }
+    }
+    else if (arvoreSintatica->tipo == EXPRESSAO){
+        if(arvoreSintatica->tipoExpressao == OpK){
+            codIntExpOp(arvoreSintatica, tabelaHash);
+        }
+        else if(arvoreSintatica->tipoExpressao == ConstK){
+            codIntExpConst(arvoreSintatica, tabelaHash);
+        }
+        else if(arvoreSintatica->tipoExpressao == OpRel){
+            codIntExpOpRel(arvoreSintatica, tabelaHash);
+        }
+        else if(arvoreSintatica->tipoExpressao == IdK || arvoreSintatica->tipoExpressao == VetorK){
+            codIntExpId(arvoreSintatica, tabelaHash);
+        }
+        else if(arvoreSintatica->tipoExpressao == AtivK){
+            codIntExpCall(arvoreSintatica, tabelaHash);
+        }
+        else if(arvoreSintatica->tipoExpressao == AssignK){
+            codIntExpAtrib(arvoreSintatica, tabelaHash);
+        }
     }
     
-    PnoIdentificador funcInfo = buscaIdentificadorTabela(symbTable, tree->attr.name, "global");
-    
-    if (funcInfo != NULL) {
-        if (funcInfo->tipoDado == Void) {
-            instrucaoCall->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-        } else if (funcInfo->tipoDado == Integer) {
-            numReg = verificacaoRegistradores(NULL, NULL, 1); 
-            instrucaoCall->oper3 = criaEndereco(IntConst, numReg, NULL, 1); 
-        } else {
-            fprintf(stderr, "Função '%s' (linha %d) na tabela de símbolos com tipo de dado desconhecido %d. Assumindo retorno void.\n", tree->attr.name, tree->lineno, funcInfo->tipoDado);
-            instrucaoCall->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-        }
-    } else {
-        fprintf(stderr, "Função '%s' (linha %d) não encontrada na tabela de símbolos. Assumindo retorno void.\n", tree->attr.name, tree->lineno);
-        instrucaoCall->oper3 = criaEndereco(Vazio, 0, NULL, 0);
-    }
-
-    if (instrucaoCall->oper3 == NULL) {
-        fprintf(stderr, "Falha ao criar endereço para valor de retorno (CALL oper3) para %s, linha %d.\n", tree->attr.name, tree->lineno);
-        if(instrucaoCall->oper1 && instrucaoCall->oper1->nome) free(instrucaoCall->oper1->nome); free(instrucaoCall->oper1);
-        if(instrucaoCall->oper2) free(instrucaoCall->oper2);
-        free(instrucaoCall);
-        return;
-    }
-
-    if (adressCounter >= MAX_LEN_CODE_INTERMEDIATE) {
-        fprintf(stderr, "Limite do código intermediário atingido em chamada de função %s, linha %d.\n", tree->attr.name, tree->lineno);
-        if(instrucaoCall->oper1->nome) free(instrucaoCall->oper1->nome); free(instrucaoCall->oper1);
-        if(instrucaoCall->oper2) free(instrucaoCall->oper2);
-        if(instrucaoCall->oper3) free(instrucaoCall->oper3); 
-        free(instrucaoCall);
-        return;
-    }
-    intermediateCode[adressCounter++] = instrucaoCall;
-}
-
-void criarCodigoIntermediario(TreeNode *tree, PnoIdentificador* symbTable, int flagSibling) {
-
-    if (tree == NULL) {
-        return;
-    }
-
-    switch (tree->nodekind) {
-        case StatementK:
-            switch(tree->kind.stmt) {
-                case IfK:
-                    insertDeclarationIf(tree, symbTable);
-                    break;
-                case WhileK:
-                    insertDeclarationWhile(tree, symbTable);
-                    break;
-                case ReturnINT:
-                case ReturnVOID:
-                    insertDeclarationReturn(tree, symbTable);
-                    break;
-                case VarDeclK:
-                case VetDeclK:
-                    insertDeclarationVar(tree, symbTable);
-                    break;
-                case FunDeclK:
-                    insertDeclarationFunc(tree, symbTable);
-                    break;
-                case NuloDecl: 
-                    if (tree->child[0] != NULL) { 
-                        criarCodigoIntermediario(tree->child[0], symbTable, 0);
-                    }
-                    if (tree->child[1] != NULL) { 
-                        criarCodigoIntermediario(tree->child[1], symbTable, 0);
-                    }
-                    break;
-                default:
-                    break;
-            }
-            break;
-        case ExpressionK:
-            switch(tree->kind.exp) {
-                case OpK:
-                    insertExpressionOp(tree, symbTable);
-                    break;
-                case OpRel:
-                    insertExpressionRel(tree, symbTable);
-                    break;
-                case ConstK:
-                    insertExpressionConst(tree, symbTable);
-                    break;
-                case IdK:
-                case VetorK:
-                    insertExpressionId(tree, symbTable);
-                    break;
-                case AtivK: 
-                    insertExpressionCall(tree, symbTable);
-                    break;
-                case AssignK:
-                    insertDeclarationAssign(tree, symbTable); 
-                    break;
-                default:
-                    fprintf(stderr, "Geração de Código: Tipo de nó de expressão %d desconhecido, linha %d.\n", tree->kind.exp, tree->lineno); 
-                    break;
-            }
-            break;
-        default:
-            fprintf(stderr, "Geração de Código: Tipo de nó %d desconhecido, linha %d.\n",tree->nodekind, tree->lineno);
-            break;
-    }
-
-    if(!flagSibling) {
-        criarCodigoIntermediario(tree->sibling, symbTable, 0); 
+    if(boolean == 1){
+        criarCodigoIntermediario(arvoreSintatica->irmao, tabelaHash, 1);
     }
 }
-
-int createIntermediateCode(TreeNode *tree, PnoIdentificador* symbTable){
-
-    if(tree == NULL || symbTable == NULL) {
-        fprintf(stderr, "Geração de Código: Árvore sintática ou tabela de símbolos nula.\n");
-        return -2;
-    }
-
-    int checkErrorAllocatedMemoryIC = initIntermediateCode();
-
-    if(checkErrorAllocatedMemoryIC == -1) {
-        fprintf(stderr, "Geração de Código: Falha ao alocar memória para código intermediário.\n");
-        return -1;
-    }
-
-    criarCodigoIntermediario(tree, symbTable, 0);
-
-    return 0; 
-}
-
-const char* getTACOperationName(typeOperations op) {
-    switch (op) {
-        // Operações aritméticas
-        case ADD: return "ADD";
-        case SUB: return "SUB";
-        case MULT: return "MULT";
-        case DIV: return "DIV";
-        // Operações relacionais
-        case LT: return "LT";
-        case LTE: return "LTE";
-        case GT: return "GT";
-        case GTE: return "GTE";
-        case EQ: return "EQ";
-        case NEQ: return "NEQ";
-        // Atribuição
-        case ASSIGN: return "ASSIGN";
-        // Controle de fluxo
-        case LABEL: return "LABEL";
-        case GOTO: return "GOTO";
-        case IF: return "IF";
-        case IFF: return "IFF";
-        case RET: return "RET";
-        case PARAM: return "PARAM";
-        case CALL: return "CALL";
-        case ARG: return "ARG";
-        case FUNC: return "FUN";
-        case END: return "END";
-        case ARRAY_INDEX: return "ARRAY_INDEX";
-        case ARRAY_ASSIGN: return "ARRAY_ASSIGN";
-        // Novas operações mapeadas
-        case ALLOC: return "ALLOC";
-        case LOADI: return "LOADI";
-        case LOAD: return "LOAD";
-        case STORE: return "STORE";
-        // Outros
-        case OP_DESCON: return "OP_DESCON";
-        case HALT: return "HALT";
-        default:
-            return "UNKNOWN_OP";
-    }
-}
-
-typeOperations mapOperatorToTAC(int op) {
-    switch (op) {
-        case PLUS_OP: return ADD;
-        case MINUS_OP: return SUB;
-        case MULT_OP: return MULT;
-        case DIV_OP: return DIV;
-        case LT_OP: return LT;
-        case LTE_OP: return LTE;
-        case GT_OP: return GT;
-        case GTE_OP: return GTE;
-        case EQ_OP: return EQ;
-        case NEQ_OP: return NEQ;
-        case ASSIGN_OP: return ASSIGN;
-        default: return OP_DESCON; 
-    }
-}
-
-void imprimeCodigoIntermediario() {    
-    for(int i = 0; i < MAX_LEN_CODE_INTERMEDIATE && intermediateCode[i] != NULL; i++){
-        
-        fprintf(yyout, "(%s, ", getTACOperationName(intermediateCode[i]->operation));
-        
-        if(intermediateCode[i]->oper1 != NULL){
-            if(intermediateCode[i]->oper1->tipo == IntConst){
-                if(intermediateCode[i]->oper1->boolReg == 1){
-                    fprintf(yyout, "%s, ", getRegisterName(intermediateCode[i]->oper1->val));
-                }
-                else if(intermediateCode[i]->oper1->boolReg == 2){
-                    fprintf(yyout, "L%d, ", intermediateCode[i]->oper1->val);
-                }
-                else{
-                    fprintf(yyout, "%d, ", intermediateCode[i]->oper1->val);
-                }
-            }
-            else if(intermediateCode[i]->oper1->tipo == String){
-                fprintf(yyout, "%s, ", intermediateCode[i]->oper1->nome);
-            }
-            else{
-                fprintf(yyout, "-, ");
-            }
-        }
-        else{
-            fprintf(yyout, "-, ");
-        }
-        if(intermediateCode[i]->oper2 != NULL){
-            if(intermediateCode[i]->oper2->tipo == IntConst){
-                if(intermediateCode[i]->oper2->boolReg == 1){
-                    fprintf(yyout, "%s, ", getRegisterName(intermediateCode[i]->oper2->val));
-                }
-                else if(intermediateCode[i]->oper2->boolReg == 2){
-                    fprintf(yyout, "L%d, ", intermediateCode[i]->oper2->val);
-                }
-                else{
-                    fprintf(yyout, "%d, ", intermediateCode[i]->oper2->val);
-                }
-            }
-            else if(intermediateCode[i]->oper2->tipo == String){
-                fprintf(yyout, "%s, ", intermediateCode[i]->oper2->nome);
-            }
-            else{
-                fprintf(yyout, "-, ");
-            }
-        }
-        else{
-            fprintf(yyout, "-, ");
-        }
-        if(intermediateCode[i]->oper3 != NULL){
-            if(intermediateCode[i]->oper3->tipo == IntConst){
-                if(intermediateCode[i]->oper3->boolReg == 1)
-                    fprintf(yyout, "%s", getRegisterName(intermediateCode[i]->oper3->val));
-                else
-                    fprintf(yyout, "%d", intermediateCode[i]->oper3->val);
-            }
-            else if(intermediateCode[i]->oper3->tipo == String){
-                fprintf(yyout, "%s", intermediateCode[i]->oper3->nome);
-            }
-            else{
-                fprintf(yyout, "-");
-            }
-        }
-        else{
-            fprintf(yyout, "-");
-        }
-
-        fprintf(yyout, ")\n");
-    }
-}
-

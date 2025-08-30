@@ -1,0 +1,54 @@
+/* Teste com multiplos tipos de erro bem distribuidos */
+
+void funcaoVoid(void) {
+    /* Esta funcao nao retorna nada */
+}
+
+int main(void) {
+    /* ========== ERROS LEXICOS ========== */
+    int var1;
+    int var2;
+    
+    /* Erro lexico: caractere invalido @ */
+    var1 = 5@2; /* @ e caractere invalido */
+    
+    /* Erro lexico: identificador com underscore */
+    invalid_name; /* _ gera erro lexico */
+    
+    /* ========== ERROS SINTATICOS ========== */
+    
+    /* Erro sintatico: expressao incompleta */
+    var2 = 10 +; 
+    
+    /* Recuperacao: esta linha deve funcionar */
+    var1 = 15;
+    
+    /* Erro sintatico: if sem parenteses */
+    if var1 > 0 {
+        var2 = 1;
+    }
+    
+    /* Recuperacao: este if deve funcionar */
+    if (var2 < 5) {
+        var1 = var2;
+    }
+    
+    /* ========== ERROS SEMANTICOS ========== */
+    
+    /* Erro semantico: variavel void */
+    void varVoid;
+    
+    /* Erro semantico: variavel ja declarada */
+    int var1;
+    
+    /* Erro semantico: variavel nao declarada */
+    varNaoDeclarada = 100;
+    
+    /* Erro semantico: funcao nao declarada */
+    var2 = funcaoInexistente();
+    
+    /* Erro semantico: atribuicao de funcao void */
+    var1 = funcaoVoid();
+    
+    return 0;
+}

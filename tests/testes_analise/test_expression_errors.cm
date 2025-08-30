@@ -1,0 +1,49 @@
+/* Teste de Recuperação de Erros - Expressões
+   Focado em testar erros em expressões e statements */
+
+int main(void) {
+    int x;
+    int y;
+    int z;
+    
+    // Expressões válidas
+    x = 5;
+    y = x + 10;
+    
+    // Erro: operador faltando
+    z = x y;
+    
+    // Esta deve funcionar após o erro
+    z = x + y;
+    
+    // Erro: parênteses não balanceados
+    x = (y + z;
+    
+    // Esta deve funcionar após o erro
+    x = (y + z);
+    
+    // Erro: múltiplos operadores
+    y = x ++ z;
+    
+    // Esta deve funcionar após o erro
+    y = x + z;
+    
+    // Erro: expressão incompleta no final de linha
+    z = x + ;
+    
+    // Esta deve funcionar após o erro
+    z = x + 1;
+    
+    // Testando recuperação em estruturas de controle
+    // Erro: expressão inválida no if
+    if (x > ) {
+        y = 1;
+    }
+    
+    // Este if deve funcionar após o erro
+    if (x > 0) {
+        y = 2;
+    }
+    
+    return 0;
+}

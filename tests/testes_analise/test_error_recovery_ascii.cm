@@ -1,0 +1,42 @@
+/* Teste de Recuperacao de Erros Sintaticos
+   Este arquivo contem varios tipos de erros para testar
+   se o compilador consegue se recuperar e continuar processando */
+
+int main(void) {
+    int x;
+    int y;
+    
+    // Erro 1: Declaracao invalida (falta tipo)
+    invalid_var;
+    
+    // Esta declaracao deve ser processada normalmente apos o erro
+    int z;
+    
+    // Erro 2: Expressao invalida
+    x = 5 +;
+    
+    // Esta linha deve ser processada normalmente
+    y = 10;
+    
+    // Erro 3: IF com parenteses incorretos
+    if x > 0 {
+        y = 1;
+    }
+    
+    // Esta estrutura deve funcionar normalmente
+    if (z < 5) {
+        x = z;
+    }
+    
+    // Erro 4: WHILE com erro na expressao
+    while (x > && y < 10) {
+        x = x - 1;
+    }
+    
+    // Este WHILE deve funcionar normalmente
+    while (y > 0) {
+        y = y - 1;
+    }
+    
+    return 0;
+}

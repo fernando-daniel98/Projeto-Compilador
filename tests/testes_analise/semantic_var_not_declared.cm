@@ -1,0 +1,7 @@
+/* Teste de variavel nao declarada */
+int main(void) {
+    int x;
+    x = 5;
+    y = 10; /* y nao foi declarada - deve gerar erro */
+    return x;
+}

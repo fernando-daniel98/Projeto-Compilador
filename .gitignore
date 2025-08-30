@@ -12,5 +12,7 @@
 /others
 /helper
 /test_results
+/testes_analise
+/SO
 
 *.s

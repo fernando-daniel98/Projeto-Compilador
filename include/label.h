@@ -5,17 +5,17 @@ typedef struct label{
     char* id;
     int endereco;
     struct label *prox;
-} Label;
+} LABEL;
 
 typedef struct vetorLabel{
-    Label *vetor;
+    LABEL *vetor;
     int tamanho;
 } VETOR_LABEL;
 
 extern VETOR_LABEL *vetorLabel;
 
 void inicializaLabels();
-Label * criarNoLabel(char* id, int endereco);
+LABEL * criarNoLabel(char* id, int endereco);
 void adicionarLabel(char* id, int endereco);
 int getEnderecoLabel(char* id);
 void liberarLabels();

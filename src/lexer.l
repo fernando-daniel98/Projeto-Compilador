@@ -1,197 +1,292 @@
 %{
-#include "../build/parser.tab.h"
-#include "../include/globals.h"
-#include "../include/syntax_tree.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-extern char* yytext;
+#include <string.h>
+#include "parser.h"
+#include "globals.h"
+#include "tab.h"
+
+int lineNum;
+char stringAux[500];
+char auxNome[MAXLEXEMA];
+char id[MAXLEXEMA];
+int firstTime = 1;
 
 int lexical_errors = 0;
 
-int lineNum = 1;
+int tabelaNomes(enum yytokentype *token);
+void copiar(FILE* velho);
+void mostrarTela(char palavra[]);
 
-TreeNode* newNode(NodeKind nodekind) {
-    TreeNode* t = (TreeNode*)malloc(sizeof(TreeNode));
-    if (t == NULL) {
-        fprintf(stderr, "Out of memory error at line %d\n", lineNum);
-        exit(1);
-    }
-    for (int i = 0; i < MAXCHILDREN; i++) t->child[i] = NULL;
-    t->sibling = NULL;
-    t->nodekind = nodekind;
-    t->lineno = lineNum;
-    return t;
-}
+
+int indPilha = -1;
+char pilha[4][MAXLEXEMA];
 
 %}
 
 %option noyywrap
 
-DIGITO    [0-9]
-NUMBER    {DIGITO}+
-LETRA     [a-zA-Z]
-IDENT     {LETRA}({LETRA}|{DIGITO})*
-NEWLINE   \n
-WHITESPACE [ \t]+
+DIGIT       [0-9]
+NUMBER      {DIGIT}+
+LETRA       [a-zA-Z]
+IDENT       {LETRA}({LETRA}|{DIGIT})*
+NEWLINE     \n
+WHITESPACE  [ \t]+
 
 %%
 
-"/*"            {
-                  char c, prev = 0;
-                  while ((c = input())) {
-                      if (c == '/' && prev == '*')
-                          break;
-                      if (c == '\n')
-                          lineNum++;
-                      prev = c;
-                  }
-                }
-"else"            { return ELSE; }
-"if"              { 
-                    TreeNode* node = newNode(StatementK);
-                    node->kind.stmt = IfK;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return IF; 
-                  }
-"int"             { return INT; }
-"return"          { 
-                    TreeNode* node = newNode(StatementK);
-                    node->kind.stmt = ReturnINT;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return RETURN; 
-                  }
-"void"            { return VOID; }
-"while"           { 
-                    TreeNode* node = newNode(StatementK);
-                    node->kind.stmt = WhileK;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return WHILE; 
-                  }
-"+"               { 
-                    TreeNode* node = newNode(ExpressionK);
-                    node->kind.exp = OpK;
-                    node->attr.op = PLUS_OP;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return PLUS; 
-                  }
-"-"               { 
-                    TreeNode* node = newNode(ExpressionK);
-                    node->kind.exp = OpK;
-                    node->attr.op = MINUS_OP;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return MINUS; 
-                  }
-"*"               { 
-                    TreeNode* node = newNode(ExpressionK);
-                    node->kind.exp = OpK;
-                    node->attr.op = MULT_OP;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return MULT; 
-                  }
-"/"               { 
-                    TreeNode* node = newNode(ExpressionK);
-                    node->kind.exp = OpK;
-                    node->attr.op = DIV_OP;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return DIV; 
-                  }
-"<"               { 
-                    TreeNode* node = newNode(ExpressionK);
-                    node->kind.exp = OpRel;
-                    node->attr.op = LT_OP;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return SMAL; 
-                  }
-"<="              { 
-                    TreeNode* node = newNode(ExpressionK);
-                    node->kind.exp = OpRel;
-                    node->attr.op = LTE_OP;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return SMALEQ; 
-                  }
-">"               { 
-                    TreeNode* node = newNode(ExpressionK);
-                    node->kind.exp = OpRel;
-                    node->attr.op = GT_OP;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return GREAT; 
-                  }
-">="              { 
-                    TreeNode* node = newNode(ExpressionK);
-                    node->kind.exp = OpRel;
-                    node->attr.op = GTE_OP;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return GREATEQ; 
-                  }
-"=="              { 
-                    TreeNode* node = newNode(ExpressionK);
-                    node->kind.exp = OpRel;
-                    node->attr.op = EQ_OP;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return EQ; 
-                  }
-"!="              { 
-                    TreeNode* node = newNode(ExpressionK);
-                    node->kind.exp = OpRel;
-                    node->attr.op = NEQ_OP;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return DIFF; 
-                  }
-"="               { 
-                    TreeNode* node = newNode(ExpressionK);
-                    node->kind.exp = AssignK;
-                    node->attr.op = ASSIGN_OP;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return ASSIGN; 
-                  }
-";"               { return SEMICOL; }
-","               { return COMMA; }
-"("               { return LPAREN; }
-")"               { return RPAREN; }
-"["               { return LBRACKET; }
-"]"               { return RBRACKET; }
-"{"               { return LBRACE; }
-"}"               { return RBRACE; }
-{NUMBER}          { 
-                    TreeNode* node = newNode(ExpressionK);
-                    node->kind.exp = ConstK;
-                    node->attr.val = atoi(yytext);
-                    node->type = Integer;
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return NUM;
-                  }
-{IDENT}           { 
-                    TreeNode* node = newNode(ExpressionK);
-                    node->kind.exp = IdK;
-                    node->attr.name = strdup(yytext);
-                    node->lineno = lineNum;
-                    yylval.node = node;
-                    return ID;  
-                  }
-{WHITESPACE}      { /* Ignorar */ }
-{NEWLINE}         { lineNum++; }
-.                 {
-                    fprintf(stderr, ANSI_COLOR_RED "ERRO LÉXICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
-                    fprintf(stderr, ANSI_COLOR_RED "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET "\n", lineNum);
-                    lexical_errors++;
-                    return ERROR;
-                  }
-<<EOF>>           { return 0; }
+{WHITESPACE} {/*Ignora as entradas com espaços e tabulacoes*/}
+
+"/*"		{
+          char c, aux = 'x'; 
+          do{ 
+            c = input();
+            if (c == EOF) break;
+
+            if (c == '\n') {
+                lineNum++;
+            }
+            if (c == '*'){
+                aux = input();
+            }
+          } while (aux != '/');
+        }
+
+{NEWLINE} {
+            lineNum++;
+          }
+   
+   
+{NUMBER} {
+            if(strlen(yytext) >= MAXLEXEMA){
+                printf(ANSI_COLOR_PURPLE "WARNING: Digito muito grande - " ANSI_COLOR_RESET ); 
+                yytext[MAXLEXEMA-1] = '\0';
+                printf("valor reduzido para apenas %s\n", yytext);
+            }
+            
+            //strcpy(auxNome, yytext);
+            
+            indPilha++;
+            strcpy(pilha[indPilha], yytext);
+
+              return NUM; 
+         }
+
+{IDENT} {
+            enum yytokentype token;
+            if((tabelaNomes(&token)) == 0){
+                token = ID;
+            }
+            
+            /* Caso o ID possua um tamanho maior do que o trabalhado,
+            seu conteudo sera cortado para poder ser utilizado na linguagem */
+            if(strlen(yytext) >= MAXLEXEMA){
+                printf(ANSI_COLOR_PURPLE "WARNING: ID muito grande - " ANSI_COLOR_RESET ); 
+                yytext[MAXLEXEMA-1] = '\0';
+                printf("nome reduzido para '%s'\n", yytext);
+            }
+
+            if(token == ID){
+                indPilha++;
+                bzero(pilha[indPilha], MAXLEXEMA);
+                strcpy(pilha[indPilha], yytext);
+            }
+            return token;
+         }
+        
+"(" {
+    return ABREPARENTESES;
+   }
+
+")" {
+    return FECHAPARENTESES;
+   } 
+
+"[" {
+    return ABRECOLCHETES;
+   }	      
+          
+          
+"]" {
+    return FECHACOLCHETES;
+   }	      
+
+          
+"{" {
+    return ABRECHAVES;
+   }
+          
+"}" {
+    return FECHACHAVES;	
+   }
+
+          
+"=" {
+    return ATRIB;
+  }	
+    
+"," {
+    return COMMA;
+  }	
+  
+";" {
+    return SEMICOLON;
+  }
+  
+"+" {
+    return SOMA;
+   }	
+   
+"-" {
+    return SUB;
+   }  
+   
+"*" {
+    return MULT;
+   }	
+   
+"/" {
+    return DIV;
+   } 
+
+"==" {
+    return EQ;
+   }
+
+"!=" {
+    return NEQ;
+    }
+
+"<" {
+    return LT;
+  }
+
+">" {
+    return GT;
+  }
+
+"<=" {
+        return LET;
+      }
+
+">=" {	
+        return GET;
+      }
+    
+<<EOF>> {
+        return 0;
+    }
+
+":qw" {if(arquivoEntrada == stdin) return 0;}
+
+. {
+    printf(ANSI_COLOR_RED "\nERRO LÉXICO: " ANSI_COLOR_RESET ANSI_COLOR_WHITE "\"%s\" ", yytext);
+    printf(ANSI_COLOR_RED "LINHA: " ANSI_COLOR_WHITE "%d" ANSI_COLOR_RESET "\n", lineNum);
+    lexical_errors++;
+    return ERRO;
+  }
+
 %%
+
+//Funcao que verifica se o id eh uma palavra reservada
+int tabelaNomes(enum yytokentype *token){
+    char aux[20];
+    int flag = 0;
+    
+    if(strcmp(yytext, "if") == 0){
+        strcpy(aux, "if");
+        *token = IF;
+        flag =  1;
+    }
+    else if(strcmp(yytext, "int") == 0){
+        strcpy(aux, "int");
+        *token = INT;
+        flag =  1;
+    }
+    else if(strcmp(yytext, "else") == 0){
+        strcpy(aux, "else");
+        *token = ELSE;
+        flag =  1;
+    }
+    else if(strcmp(yytext, "return") == 0){
+        strcpy(aux, "return");
+        *token = RETURN;
+        flag =  1;
+    }
+    else if(strcmp(yytext, "void") == 0){
+        strcpy(aux, "void");
+        *token = VOID;
+        flag =  1;
+    }
+    else if(strcmp(yytext, "while") == 0){
+        strcpy(aux, "while");
+        *token = WHILE;
+        flag =  1;
+    }
+    return flag;
+}
+
+//Mostra a linha inteira na tela
+void mostrarTela(char palavra[]){
+    int i = 0;
+    char ch;
+    
+    fprintf(arquivoSaida, "%d: ", lineNum);
+    ch = palavra[i];
+    while(ch == '\t' || ch == ' '){
+        i++;
+        ch = palavra[i];
+    }
+    for (; i < strlen(palavra); i++){
+        ch = palavra[i];
+        if(ch != '\n') fprintf(arquivoSaida, "%c", palavra[i]);
+    }
+    fprintf(arquivoSaida, "\n");
+}
+
+//Funcao que copia o arquivo de entrada para um arquivo de saida extra
+void copiar(FILE* velho){
+    FILE *novo;
+    novo=fopen("copia.txt","w");
+    if (novo==NULL){
+        printf("Erro de abertura\n");
+        exit(1);
+    }
+
+    char letra;
+    while((letra = fgetc(velho)) != EOF) fprintf(novo, "%c", letra);
+
+    fclose(novo);
+    return;
+}
+
+//Funcao que retorna o proximo token
+enum yytokentype getToken(void)
+{ 	
+    if(firstTime == 1){
+        firstTime = 0;
+        yyin = arquivoEntrada;
+
+        if(arquivoEntrada == stdin){
+            fprintf(arquivoSaida, "Para sair, digite :qw e aperte Enter\n");
+            fprintf(arquivoSaida, "Digite o codigo fonte:\n\n");
+            copiaArquivo = NULL;
+        }
+        else{
+            copiar(arquivoEntrada);
+            rewind(arquivoEntrada);
+            copiaArquivo = fopen("copia.txt", "r");
+        }
+
+        // Inicializa pilha de ID
+        for (int i = 0; i < 4; i++){
+            bzero(pilha[i], MAXLEXEMA);	
+        }
+    }
+
+    enum yytokentype currentToken;
+
+    currentToken = yylex();
+    if(currentToken == ID) strcpy(id, yytext);
+    return currentToken;
+}
+

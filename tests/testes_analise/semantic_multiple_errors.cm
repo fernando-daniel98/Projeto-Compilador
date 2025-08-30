@@ -1,0 +1,18 @@
+/* Teste com multiplos erros semanticos */
+void minhaFuncao(void) {
+    /* Funcao void */
+}
+
+int main(void) {
+    void x; /* Erro 1: variavel void */
+    int y;
+    int y; /* Erro 2: variavel ja declarada */
+
+    int z;
+
+    z = 10; /* Erro 3: variavel nao declarada */
+    w = minhaFuncao(); /* Erro 4: atribuicao de funcao void */
+    resultado = funcaoInexistente(); /* Erro 5: funcao nao declarada */
+    
+    return 0;
+}

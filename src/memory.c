@@ -5,13 +5,10 @@ as variaveis estaticas */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "../include/memoria.h"
-#include "../include/globals.h"
+#include "memoria.h"
+#include "globals.h"
 
 
-// Variáveis globais para gerenciamento de memória
-MEMORIA vetorMemoria;
-MEMORIA_FUNCOES* funcaoAtual = NULL;
 MEMORIA_FUNCOES* global = NULL;
 
 void inicializa_memoria(MEMORIA *memoria){
@@ -21,10 +18,10 @@ void inicializa_memoria(MEMORIA *memoria){
     func_global->prox = NULL;
     func_global->tabelaVar = NULL;
     
-    global = func_global; // Variável global para acessibilidade
-    funcaoAtual = func_global; // Inicializar função atual
+    global = func_global; // Variavel global para a funcao get_variavel
 
     MEMORIA_FUNCOES* parametros = (MEMORIA_FUNCOES*)malloc(sizeof(MEMORIA_FUNCOES));
+
     parametros->tamanho = 0;
     parametros->nome = strdup("parametros");
     parametros->prox = NULL;
@@ -39,27 +36,35 @@ void inicializa_memoria(MEMORIA *memoria){
 MEMORIA_FUNCOES* insere_funcao(MEMORIA *memoria, char * nome_funcao){
     MEMORIA_FUNCOES* funcao = (MEMORIA_FUNCOES *) malloc(sizeof(MEMORIA_FUNCOES));
     funcao->tamanho = 0;
-    funcao->nome = strdup(nome_funcao);
+    funcao->nome = nome_funcao;
     funcao->prox = NULL;
     funcao->tabelaVar = NULL;
-    
-    // Inserir variáveis de controle obrigatórias
-    insere_variavel(funcao, "Vinculo Controle", controle);         // Índice 0
-    insere_variavel(funcao, "Endereco Retorno", retorno);          // Índice 1 ($ra)
-    insere_variavel(funcao, "Valor Retorno", retorno);             // Índice 2
-    insere_variavel(funcao, "Registrador Temporario", inteiro);    // Índice 3
-    insere_variavel(funcao, "Registrador $fp", inteiro);           // Índice 4  
-    insere_variavel(funcao, "Registrador $sp", inteiro);           // Índice 5
-    
-    // Encontrar posição para inserir na lista
-    MEMORIA_FUNCOES* aux = memoria->funcoes;
+    MEMORIA_FUNCOES* aux = NULL;
+
+    insere_variavel(funcao, "Vinculo Controle", controle);
+    insere_variavel(funcao, "Endereco Retorno", retorno);
+    insere_variavel(funcao, "Valor Retorno", retorno);
+    insere_variavel(funcao, "Registrador Temporario", inteiro);
+    insere_variavel(funcao, "Registrador $fp", inteiro);
+    insere_variavel(funcao, "Registrador $sp", inteiro);
+
+
+    if(memoria->tamanho == 0){
+        memoria->funcoes = funcao;
+        memoria->tamanho++;
+        return funcao;
+    }
+
+    aux = memoria->funcoes;
     while(aux->prox != NULL){
         aux = aux->prox;
     }
+
     aux->prox = funcao;
     memoria->tamanho++;
-    
+
     return funcao;
+
 }
 
 void insere_variavel(MEMORIA_FUNCOES* funcao, char * nome_variavel, TIPO_VAR tipo){
@@ -130,24 +135,31 @@ VARIAVEL* get_variavel(MEMORIA_FUNCOES* funcao, char * nome_variavel){
         return NULL;
     }
     
-    // Buscar apenas na função atual (não percorrer cadeia de funções)
-    VARIAVEL* aux2 = funcao->tabelaVar;
-    while(aux2 != NULL){
-        if(strcmp(aux2->nome, nome_variavel) == 0){
-            return aux2;
-        }
-        aux2 = aux2->prox;
-    }
+    MEMORIA_FUNCOES* aux = funcao;
 
-    // Se não estiver na função atual, procurar na tabela de globais
-    if(global != NULL){
-        aux2 = global->tabelaVar;
+    VARIAVEL* aux2 = NULL;
+    while(aux != NULL){
+        aux2 = aux->tabelaVar;
         while(aux2 != NULL){
             if(strcmp(aux2->nome, nome_variavel) == 0){
                 return aux2;
             }
             aux2 = aux2->prox;
         }
+        aux = aux->prox;
+    }
+
+    // Se nao estiver na funcao, procurar na tabela de globais
+    aux = global;
+    while(aux != NULL){
+        aux2 = aux->tabelaVar;
+        while(aux2 != NULL){
+            if(strcmp(aux2->nome, nome_variavel) == 0){
+                return aux2;
+            }
+            aux2 = aux2->prox;
+        }
+        aux = aux->prox;
     }
 
     printf(ANSI_COLOR_RED); printf("Erro: "); printf(ANSI_COLOR_RESET);
@@ -168,7 +180,7 @@ void apagar_temp(MEMORIA_FUNCOES* funcao){
     
     // Caso nao tenha parametros
     if(funcao->tamanho == 0){
-        // printf("Nao ha temporarios a serem apagados!\n");
+        printf("Nao ha temporarios a serem apagados!\n");
         return;
     }
 
@@ -287,57 +299,53 @@ MEMORIA_FUNCOES* buscar_funcao(MEMORIA* memoria, char* nome_funcao){
 }
 
 
-// Função para obter o tamanho do frame da função
 int get_sp(MEMORIA_FUNCOES* funcao){
     if(funcao == NULL){
-        printf("Erro: NULL passado como argumento em get_sp\n");
+        printf(ANSI_COLOR_RED); printf("Erro: "); printf(ANSI_COLOR_RESET);
+        printf("NULL passado como argumento em get_sp\n");
         return -1;
     }
     
-    // Retorna o tamanho total das variáveis da função
-    return funcao->tamanho;
+    // O sp aponta para o ultimo elemento da tabela de variaveis
+    return funcao->tamanho == 0 ? 0 : funcao->tamanho - 1; 
 }
 
-// Função para obter o offset base do frame pointer
 int get_fp(MEMORIA_FUNCOES* funcao){
     if(funcao == NULL){
-        printf("Erro: NULL passado como argumento em get_fp\n");
+        printf(ANSI_COLOR_RED); printf("Erro: "); printf(ANSI_COLOR_RESET);
+        printf("NULL passado como argumento em get_fp\n");
         return -1;
     }
-    
-    if (funcao == global) {
-        return 0; // Função global tem fp = 0
-    }
-    
-    // get_fp sempre retorna 0 para funções não-globais
-    // O frame pointer aponta para a posição 0, e argumentos ficam em posições negativas
+    if (funcao == global) return 0;
+    //return (get_variavel(funcao, "Vinculo Controle")->indice);
     return 0;
 }
 
-// Função para calcular offset relativo ao $sp
 int get_sp_relation(MEMORIA_FUNCOES* funcao, VARIAVEL* var){
     if(funcao == NULL || var == NULL){
-        printf("Erro: NULL passado como argumento em get_sp_relation\n");
+        printf(ANSI_COLOR_RED); printf("Erro: "); printf(ANSI_COLOR_RESET);
+        printf("NULL passado como argumento em get_sp_relation\n");
         return -1;
     }
     
-    // O $sp aponta para o final do frame, então calculamos de trás para frente
     return get_sp(funcao) - var->indice;
 }
 
-// Função para calcular offset relativo ao $fp
 int get_fp_relation(MEMORIA_FUNCOES* funcao, VARIAVEL* var){
     if(funcao == NULL || var == NULL){
-        printf("Erro: NULL passado como argumento em get_fp_relation\n");
+        printf(ANSI_COLOR_RED);
+        printf("Erro: ");
+        printf(ANSI_COLOR_RESET);
+        printf("NULL passado como argumento em get_fp_relation\n");
         return -1;
     }
 
     if(funcao == global){
-        // Para variáveis globais, usar offset direto
+        //printf(ANSI_COLOR_RED "Erro: " ANSI_COLOR_RESET);
+        //printf("%s - Funcao global nao tem fp\n", var->nome);
         return var->indice;
     } 
     
-    // Para variáveis locais, calcular offset relativo ao frame pointer
     return var->indice - get_fp(funcao);
 }
 

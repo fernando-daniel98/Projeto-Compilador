@@ -1,0 +1,8 @@
+/* Teste de erro semantico: Variavel declarada como void */
+/* Teste de variavel void - deve gerar erro semantico */
+int main(void) {
+    void x; /* Esta linha deve gerar erro */
+    int y;
+    y = 5;
+    return 0;
+}

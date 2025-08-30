@@ -26,25 +26,8 @@ typedef struct {
     unsigned int opcode:6;
 } BIN_J;
 
-// Funções de conversão
-unsigned int get_opcode(char* nome, tipoInstrucao tipo);
-unsigned int get_funct(char* nome);
-unsigned int get_register(int reg);
-unsigned int get_shamt(int shamt);
-unsigned int get_immediate(int imediato);
-unsigned int get_address(char* label);
-
-// Funções de geração binária
-BIN_R* binarioNop(void);
-BIN_R* binarioR(ASSEMBLY* instrucao);
-BIN_I* binarioI(ASSEMBLY* instrucao);
-BIN_J* binarioJ(ASSEMBLY* instrucao);
-
-// Funções de saída
-void printBits(size_t const size, void const * const ptr, FILE* arquivo);
 void binario(FILE* arquivo);
 void binario_debug(FILE* arquivo);
-void salvarBinario(const char* nomeArquivo);
-void salvarBinarioDebug(const char* nomeArquivo);
+
 
 #endif /* BINARIO_H */

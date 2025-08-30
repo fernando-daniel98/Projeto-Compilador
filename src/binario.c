@@ -1,66 +1,54 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "../include/codeGen.h"
-#include "../include/assembler.h"
-#include "../include/binario.h"
-#include "../include/label.h"
+#include "codeGen.h"
+#include "assembler.h" // Ja inclui label.h dentro dela
+#include "binario.h"
 
-// ===============================================
-// MAPEAMENTO DE OPCODES CONFORME ESPECIFICAÇÃO JSON
-// ===============================================
+unsigned int get_opcode(char* nome, tipoInstrucao tipo){
+    int opcode = -1;
 
-unsigned int get_opcode(char* nome, tipoInstrucao tipo) {
-    if (tipo == typeR) {
-        return 0b000000;
-    }
+    if(tipo == typeR) opcode = 0b000000;
+    else if(!strcmp(nome, "lw")) opcode = 0b100011;
+    else if(!strcmp(nome, "sw")) opcode = 0b101011;
+    else if(!strcmp(nome, "addi")) opcode = 0b001000;
+    else if(!strcmp(nome, "subi")) opcode = 0b001001;
+    else if(!strcmp(nome, "andi")) opcode = 0b001100;
+    else if(!strcmp(nome, "ori")) opcode = 0b001101;
+    else if(!strcmp(nome, "beq")) opcode = 0b000100;
+    else if(!strcmp(nome, "bne")) opcode = 0b000101;
+    else if(!strcmp(nome, "slti")) opcode = 0b001010;
+    else if(!strcmp(nome, "in")) opcode = 0b011111;
+    else if(!strcmp(nome, "out")) opcode = 0b011110;
+    else if(!strcmp(nome, "j")) opcode = 0b000010;
+    else if(!strcmp(nome, "jal")) opcode = 0b000011;
+    else if(!strcmp(nome, "halt")) opcode = 0b111111;
+    else if(!strcmp(nome, "xori")) opcode = 0b101101;
+    else if(!strcmp(nome, "inkey")) opcode = 0b000111;
+    else if(!strcmp(nome, "drawpixel")) opcode = 0b001111;
     
-    if (!strcmp(nome, "lw")) return 0b100011;
-    if (!strcmp(nome, "sw")) return 0b101011;
-    if (!strcmp(nome, "addi")) return 0b001000;
-    if (!strcmp(nome, "subi")) return 0b001001;
-    if (!strcmp(nome, "andi")) return 0b001100;
-    if (!strcmp(nome, "ori")) return 0b001101;
-    if (!strcmp(nome, "xori")) return 0b101101;
-    if (!strcmp(nome, "beq")) return 0b000100;
-    if (!strcmp(nome, "bneq")) return 0b000101;
-    if (!strcmp(nome, "slti")) return 0b001010;
-    if (!strcmp(nome, "in")) return 0b011111;
-    if (!strcmp(nome, "out")) return 0b011110;
-    
-    if (!strcmp(nome, "j")) return 0b000010;
-    if (!strcmp(nome, "jal")) return 0b000011;
-    if (!strcmp(nome, "halt")) return 0b111111;
-    
-    printf("ERRO: Opcode não encontrado para instrução: %s\n", nome);
-    return 0b111111;
+    return opcode;
 }
 
-// ===============================================
-// MAPEAMENTO DE FUNCTIONS PARA INSTRUÇÕES R-TYPE
-// ===============================================
+unsigned int get_funct(char* nome){
+    int funct = -1;
 
-unsigned int get_funct(char* nome) {
-    if (!strcmp(nome, "add")) return 0b100000;
-    if (!strcmp(nome, "sub")) return 0b100010;
-    if (!strcmp(nome, "and")) return 0b100100;
-    if (!strcmp(nome, "or")) return 0b100101;
-    if (!strcmp(nome, "jr")) return 0b001000;
-    if (!strcmp(nome, "jalr")) return 0b001001;
-    if (!strcmp(nome, "slt")) return 0b101010;
-    if(!strcmp(nome, "nor")) return 0b100111;
-    if (!strcmp(nome, "sll")) return 0b000000;
-    if (!strcmp(nome, "srl")) return 0b000010;
-    if (!strcmp(nome, "div")) return 0b011010;
-    if (!strcmp(nome, "mult")) return 0b011000;
-    if(!strcmp(nome, "xor")) return 0b101101;
-    printf("ERRO: Function code não encontrado para instrução R-Type: %s\n", nome);
-    return 0b000000;
+    if(!strcmp(nome, "add")) funct = 0b100000;
+    else if(!strcmp(nome, "sub")) funct = 0b100010;
+    else if(!strcmp(nome, "and")) funct = 0b100100;
+    else if(!strcmp(nome, "or")) funct = 0b100101;
+    else if(!strcmp(nome, "jr")) funct = 0b001000;
+    else if(!strcmp(nome, "jalr")) funct = 0b001001;
+    else if(!strcmp(nome, "slt")) funct = 0b101010;
+    else if(!strcmp(nome, "nor")) funct = 0b100111;
+    else if(!strcmp(nome, "sll")) funct = 0b000000;
+    else if(!strcmp(nome, "srl")) funct = 0b000010;
+    else if(!strcmp(nome, "div")) funct = 0b011010;
+    else if(!strcmp(nome, "mult")) funct = 0b011000;
+    else if(!strcmp(nome, "xor")) funct = 0b101101;
+    
+    return funct;
 }
-
-// ===============================================
-// FUNÇÕES AUXILIARES
-// ===============================================
 
 unsigned int get_register(int reg){
     return reg;
@@ -78,47 +66,27 @@ unsigned int get_address(char* label){
     return getEnderecoLabel(label);
 }
 
-// ===============================================
-// GERAÇÃO DE INSTRUÇÕES BINÁRIAS
-// ===============================================
-
-BIN_R* binarioNop(void) {
+BIN_R* binarioNop(){
     BIN_R* bin = (BIN_R*)malloc(sizeof(BIN_R));
-    if (bin == NULL) {
-        printf("ERRO: Falha na alocação de memória para NOP\n");
-        return NULL;
-    }
-    
-    bin->opcode = 0b000000;
+    bin->opcode = 0;
     bin->rs = $zero;
     bin->rt = $zero;
     bin->rd = $zero;
     bin->shamt = 0;
     bin->funct = 0b100000;
-    
     return bin;
 }
 
-BIN_R* binarioR(ASSEMBLY* instrucao) {
-    if (instrucao == NULL || instrucao->tipoR == NULL) {
-        printf("ERRO: Instrução R-Type inválida\n");
-        return binarioNop();
-    }
-    
+BIN_R* binarioR(ASSEMBLY* instrucao){
     BIN_R* bin = (BIN_R*)malloc(sizeof(BIN_R));
-    if (bin == NULL) {
-        printf("ERRO: Falha na alocação de memória para instrução R-Type\n");
-        return binarioNop();
-    }
-    
     bin->opcode = get_opcode(instrucao->tipoR->nome, instrucao->tipo);
     bin->rs = get_register(instrucao->tipoR->rs);
     bin->rt = get_register(instrucao->tipoR->rt);
     bin->rd = get_register(instrucao->tipoR->rd);
-    bin->shamt = get_shamt(0);
+    bin->shamt = get_shamt(instrucao->tipoR->shamt);
     bin->funct = get_funct(instrucao->tipoR->nome);
-    
     return bin;
+    
 }
 
 BIN_I* binarioI(ASSEMBLY* instrucao){
@@ -128,6 +96,7 @@ BIN_I* binarioI(ASSEMBLY* instrucao){
     bin->rt = get_register(instrucao->tipoI->rt);
     
     if(!strcmp(instrucao->tipoI->nome, "bne") || !strcmp(instrucao->tipoI->nome, "beq")){
+        // Converte numero para string
         char label[26];
         sprintf(label, "Label %d", instrucao->tipoI->label);
         bin->immediate = get_address(label);
@@ -144,23 +113,15 @@ BIN_J* binarioJ(ASSEMBLY* instrucao){
     bin->opcode = get_opcode(instrucao->tipoJ->nome, instrucao->tipo);
     bin->address = get_address(instrucao->tipoJ->labelImediato);
     return bin;
-}
+}		
 
-// ===============================================
-// FUNÇÕES DE SAÍDA BINÁRIA
-// ===============================================
 
-void printBits(size_t const size, void const * const ptr, FILE* arquivo) {
-    if (arquivo == NULL || ptr == NULL) {
-        printf("ERRO: Arquivo ou ponteiro NULL em printBits\n");
-        return;
-    }
-    
+void printBits(size_t const size, void const * const ptr, FILE* arquivo)
+{
     unsigned char *b = (unsigned char*) ptr;
     unsigned char byte;
     int i, j;
     
-    // Imprimir bits do MSB para LSB (big-endian)
     for (i = size-1; i >= 0; i--) {
         for (j = 7; j >= 0; j--) {
             byte = (b[i] >> j) & 1;
@@ -169,171 +130,73 @@ void printBits(size_t const size, void const * const ptr, FILE* arquivo) {
     }
 }
 
-void binario(FILE* arquivo) {
-    if (arquivo == NULL) {
-        printf("ERRO: Arquivo NULL fornecido para geração binária\n");
-        return;
-    }
-    
-    if (instrucoesAssembly == NULL) {
-        printf("ERRO: Array de instruções assembly não inicializado\n");
-        return;
-    }
-    
+void binario(FILE* arquivo){
     BIN_I* binI;
     BIN_J* binJ;
     BIN_R* binR;
     
-    for (int i = 0; i < indiceAssembly; i++) {
-        if (instrucoesAssembly[i] == NULL) {
+    for(int i = 0; i < indiceAssembly; i++){
+        switch (instrucoesAssembly[i]->tipo)
+        {
+        case typeR:
+            binR = binarioR(instrucoesAssembly[i]);
+            printBits(sizeof(*binR), &(*binR), arquivo);
+            free(binR);
+            break;
+        case typeI:
+            binI = binarioI(instrucoesAssembly[i]);
+            printBits(sizeof(*binI), &(*binI), arquivo);
+            free(binI);
+            break;
+        case typeJ:
+            binJ = binarioJ(instrucoesAssembly[i]);
+            printBits(sizeof(*binJ), &(*binJ), arquivo);
+            free(binJ);
+            break;
+        case typeLabel:
             binR = binarioNop();
-            if (binR != NULL) {
-                printBits(sizeof(*binR), binR, arquivo);
-                free(binR);
-            }
-            fprintf(arquivo, "\n");
-            continue;
-        }
-        
-        switch (instrucoesAssembly[i]->tipo) {
-            case typeR:
-                binR = binarioR(instrucoesAssembly[i]);
-                if (binR != NULL) {
-                    printBits(sizeof(*binR), binR, arquivo);
-                    free(binR);
-                }
-                break;
-                
-            case typeI:
-                binI = binarioI(instrucoesAssembly[i]);
-                if (binI != NULL) {
-                    printBits(sizeof(*binI), binI, arquivo);
-                    free(binI);
-                }
-                break;
-                
-            case typeJ:
-                binJ = binarioJ(instrucoesAssembly[i]);
-                if (binJ != NULL) {
-                    printBits(sizeof(*binJ), binJ, arquivo);
-                    free(binJ);
-                }
-                break;
-                
-            case typeLabel:
-                // Labels não geram código, usar NOP como placeholder
-                binR = binarioNop();
-                if (binR != NULL) {
-                    printBits(sizeof(*binR), binR, arquivo);
-                    free(binR);
-                }
-                break;
-                
-            default:
-                binR = binarioNop();
-                if (binR != NULL) {
-                    printBits(sizeof(*binR), binR, arquivo);
-                    free(binR);
-                }
-                break;
+            printBits(sizeof(*binR), &(*binR), arquivo);
+            free(binR);
+            break;
         }
         fprintf(arquivo, "\n");
     }
 }
 
-void binario_debug(FILE* arquivo) {
-    if (arquivo == NULL) {
-        printf("ERRO: Arquivo NULL fornecido para debug binário\n");
-        return;
-    }
-    
-    if (instrucoesAssembly == NULL) {
-        printf("ERRO: Array de instruções assembly não inicializado\n");
-        return;
-    }
-    
+void binario_debug(FILE* arquivo){
     BIN_I* binI;
     BIN_J* binJ;
     BIN_R* binR;
     
-    for (int i = 0; i < indiceAssembly; i++) {
+    for(int i = 0; i < indiceAssembly; i++){
         fprintf(arquivo, "%d:\t", i);
-        
-        if (instrucoesAssembly[i] == NULL) {
+        switch (instrucoesAssembly[i]->tipo)
+        {
+        case typeR:
+            binR = binarioR(instrucoesAssembly[i]);
+            printBits(sizeof(*binR), &(*binR), arquivo);
+            fprintf(arquivo, " : %s", instrucoesAssembly[i]->tipoR->nome);
+            free(binR);
+            break;
+        case typeI:
+            binI = binarioI(instrucoesAssembly[i]);
+            printBits(sizeof(*binI), &(*binI), arquivo);
+            fprintf(arquivo, " : %s", instrucoesAssembly[i]->tipoI->nome);
+            free(binI);
+            break;
+        case typeJ:
+            binJ = binarioJ(instrucoesAssembly[i]);
+            printBits(sizeof(*binJ), &(*binJ), arquivo);
+            fprintf(arquivo, " : %s", instrucoesAssembly[i]->tipoJ->nome);
+            free(binJ);
+            break;
+        case typeLabel:
             binR = binarioNop();
-            if (binR != NULL) {
-                printBits(sizeof(*binR), binR, arquivo);
-                fprintf(arquivo, " : nop (NULL instruction)");
-                free(binR);
-            }
-            fprintf(arquivo, "\n");
-            continue;
-        }
-        
-        switch (instrucoesAssembly[i]->tipo) {
-            case typeR:
-                binR = binarioR(instrucoesAssembly[i]);
-                if (binR != NULL) {
-                    printBits(sizeof(*binR), binR, arquivo);
-                    fprintf(arquivo, " : %s", instrucoesAssembly[i]->tipoR->nome);
-                    free(binR);
-                }
-                break;
-                
-            case typeI:
-                binI = binarioI(instrucoesAssembly[i]);
-                if (binI != NULL) {
-                    printBits(sizeof(*binI), binI, arquivo);
-                    fprintf(arquivo, " : %s", instrucoesAssembly[i]->tipoI->nome);
-                    free(binI);
-                }
-                break;
-                
-            case typeJ:
-                binJ = binarioJ(instrucoesAssembly[i]);
-                if (binJ != NULL) {
-                    printBits(sizeof(*binJ), binJ, arquivo);
-                    fprintf(arquivo, " : %s", instrucoesAssembly[i]->tipoJ->nome);
-                    free(binJ);
-                }
-                break;
-                
-            case typeLabel:
-                binR = binarioNop();
-                if (binR != NULL) {
-                    printBits(sizeof(*binR), binR, arquivo);
-                    fprintf(arquivo, " : nop (label: %s)", 
-                           instrucoesAssembly[i]->tipoLabel->nome);
-                    free(binR);
-                }
-                break;
-                
-            default:
-                fprintf(arquivo, "UNKNOWN_TYPE : erro");
-                break;
+            printBits(sizeof(*binR), &(*binR), arquivo);
+            fprintf(arquivo, " : nop");
+            free(binR);
+            break;
         }
         fprintf(arquivo, "\n");
     }
-}
-
-void salvarBinario(const char* nomeArquivo) {
-    FILE* arquivo = fopen(nomeArquivo, "w");
-    if (arquivo == NULL) {
-        printf("ERRO: Não foi possível criar o arquivo %s\n", nomeArquivo);
-        return;
-    }
-    
-    binario(arquivo);
-    fclose(arquivo);
-}
-
-void salvarBinarioDebug(const char* nomeArquivo) {
-    FILE* arquivo = fopen(nomeArquivo, "w");
-    if (arquivo == NULL) {
-        printf("ERRO: Não foi possível criar o arquivo %s\n", nomeArquivo);
-        return;
-    }
-    
-    binario_debug(arquivo);
-    fclose(arquivo);
 }

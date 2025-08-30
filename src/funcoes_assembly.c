@@ -1,20 +1,17 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include "../include/assembler.h"
-#include "../include/globals.h" // Adicionado para yyout
-#include "../include/memoria.h" // Adicionado para inicializa_memoria, vetorMemoria, funcaoAtual
+#include <stdlib.h>
+#include "assembler.h"
+#include "codeGen.h"
+#include "memoria.h"
 
-ASSEMBLY ** instrucoesAssembly = NULL;
-int indiceAssembly = 0;
+ASSEMBLY ** instrucoesAssembly = NULL; // Vetor de instrucoes assembly
+int indiceAssembly = 0; // Indice para o vetor de instrucoes assembly
 
 void inicializaAssembly(){
-    instrucoesAssembly = (ASSEMBLY **) malloc(sizeof(ASSEMBLY *) * MAX_ASSEMBLY);
-    if(instrucoesAssembly == NULL){
-        printf("Erro ao alocar memoria para o vetor de instrucoes assembly\n");
-        exit(1);
-    }
-    for(int i = 0; i < MAX_ASSEMBLY; i++){
+    instrucoesAssembly = (ASSEMBLY **)malloc(sizeof(ASSEMBLY*)*MAX_ASSEMBLY); // TODO Change to dinamic allocation
+
+    for(int i = 0; i < MAX_INSTRUCTION; i++){
         instrucoesAssembly[i] = NULL;
     }
 
@@ -36,6 +33,7 @@ ASSEMBLY * criarNoAssembly(tipoInstrucao tipo, char *nome){
         novoNoAssembly->tipoR->rd = -1;
         novoNoAssembly->tipoR->rs = -1;
         novoNoAssembly->tipoR->rt = -1;
+        novoNoAssembly->tipoR->shamt = 0;
         break;
 
     case typeI:
@@ -84,95 +82,84 @@ void liberarAssembly(){
 }
 
 void tipo_reg(int reg){
-    switch(reg){
+    switch (reg){
     case $zero:
-        fprintf(yyout, "$zero");
+        fprintf(arquivoSaida_Assembly, "$zero");
         break;
-    case $v0:
-        fprintf(yyout, "$v0");
-        break;
-    case $a0:
-        fprintf(yyout, "$a0");
-        break;
-    case $s0:
-        fprintf(yyout, "$s0");
-        break;
+    
     case $fp:
-        fprintf(yyout, "$fp");
+        fprintf(arquivoSaida_Assembly, "$fp");
         break;
+
     case $sp:
-        fprintf(yyout, "$sp");
+        fprintf(arquivoSaida_Assembly, "$sp");
         break;
+
     case $ra:
-        fprintf(yyout, "$ra");
+        fprintf(arquivoSaida_Assembly, "$ra");
         break;
+
     case $temp:
-        fprintf(yyout, "$t8");
+        fprintf(arquivoSaida_Assembly, "$temp");
         break;
+    
     case $pilha:
-        fprintf(yyout, "$k0");
+        fprintf(arquivoSaida_Assembly, "$pilha");
         break;
+        
     default:
-        if (reg >= 8 && reg <= 15) {
-            fprintf(yyout, "$t%d", reg - 8);
-        } else if (reg == 25) {
-            fprintf(yyout, "$t9");
-        }
-        else {
-            fprintf(yyout, "$%d", reg);
-        }
+        fprintf(arquivoSaida_Assembly, "$t%d", reg);
         break;
     }
 }
 
+// Mostrar as instrucoes em assembly
 void imprimirAssembly(){
-    if(instrucoesAssembly == NULL){
-        printf("Nao ha instrucoes assembly para imprimir\n");
-        return;
-    }
-    fprintf(yyout, "============== Assembly ==============\n");
+    int i = 0;
+    TIPO_I * tipoI = NULL;
+    TIPO_R * tipoR = NULL;
+    TIPO_J * tipoJ = NULL;
+    TIPO_LABEL * tipoLabel = NULL;
+
+    fprintf(arquivoSaida_Assembly, "============== Assembly ==============\n");
     for(int i = 0; i < indiceAssembly; i++){
-        if(instrucoesAssembly[i] != NULL){
-            if(instrucoesAssembly[i]->tipo == typeR){
-                fprintf(yyout, "%s ", instrucoesAssembly[i]->tipoR->nome);
-                tipo_reg(instrucoesAssembly[i]->tipoR->rd);
-                fprintf(yyout, ", ");
-                tipo_reg(instrucoesAssembly[i]->tipoR->rs);
-                fprintf(yyout, ", ");
-                tipo_reg(instrucoesAssembly[i]->tipoR->rt);
-                fprintf(yyout, "\n");
+        fprintf(arquivoSaida_Assembly, "%d: ", i);
+        if(i<10) fprintf(arquivoSaida_Assembly, " ");
+        if(instrucoesAssembly[i]->tipo == typeI){
+            tipoI = instrucoesAssembly[i]->tipoI;		
+            fprintf(arquivoSaida_Assembly, "\t%s ", tipoI->nome);
+            tipo_reg(tipoI->rt);
+            fprintf(arquivoSaida_Assembly, " ");
+
+            if(!strcmp(tipoI->nome, "lw") || !strcmp(tipoI->nome, "sw")){
+                fprintf(arquivoSaida_Assembly, "%d(", tipoI->imediato);
+                tipo_reg(tipoI->rs);
+                fprintf(arquivoSaida_Assembly, ")\n");
             }
-            else if(instrucoesAssembly[i]->tipo == typeI){
-                if (strcmp(instrucoesAssembly[i]->tipoI->nome, "beq") == 0 || strcmp(instrucoesAssembly[i]->tipoI->nome, "bne") == 0) {
-                    fprintf(yyout, "%s ", instrucoesAssembly[i]->tipoI->nome);
-                    tipo_reg(instrucoesAssembly[i]->tipoI->rs);
-                    fprintf(yyout, ", ");
-                    tipo_reg(instrucoesAssembly[i]->tipoI->rt);
-                    fprintf(yyout, ", Label%d\n", instrucoesAssembly[i]->tipoI->label);
-                } else if (strcmp(instrucoesAssembly[i]->tipoI->nome, "lw") == 0 || strcmp(instrucoesAssembly[i]->tipoI->nome, "sw") == 0) {
-                    fprintf(yyout, "%s ", instrucoesAssembly[i]->tipoI->nome);
-                    tipo_reg(instrucoesAssembly[i]->tipoI->rt);
-                    fprintf(yyout, ", %d(", instrucoesAssembly[i]->tipoI->imediato);
-                    tipo_reg(instrucoesAssembly[i]->tipoI->rs);
-                    fprintf(yyout, ")\n");
-                } else {
-                    fprintf(yyout, "%s ", instrucoesAssembly[i]->tipoI->nome);
-                    tipo_reg(instrucoesAssembly[i]->tipoI->rt);
-                    fprintf(yyout, ", ");
-                    tipo_reg(instrucoesAssembly[i]->tipoI->rs);
-                    fprintf(yyout, ", %d\n", instrucoesAssembly[i]->tipoI->imediato);
-                }
-            }
-            else if(instrucoesAssembly[i]->tipo == typeJ){
-                if (strcmp(instrucoesAssembly[i]->tipoJ->nome, "syscall") == 0 || strcmp(instrucoesAssembly[i]->tipoJ->nome, "halt") == 0) {
-                    fprintf(yyout, "%s\n", instrucoesAssembly[i]->tipoJ->nome);
-                } else {
-                    fprintf(yyout, "%s %s\n", instrucoesAssembly[i]->tipoJ->nome, instrucoesAssembly[i]->tipoJ->labelImediato);
-                }
-            }
-            else if(instrucoesAssembly[i]->tipo == typeLabel){
-                fprintf(yyout, "%s:\n", instrucoesAssembly[i]->tipoLabel->nome);
+            else{
+                tipo_reg(tipoI->rs);
+                fprintf(arquivoSaida_Assembly, " ");
+                if(tipoI->label != -1) fprintf(arquivoSaida_Assembly, "Label %d\n", tipoI->label);
+                else fprintf(arquivoSaida_Assembly, "%d\n", tipoI->imediato);
             }
         }
-    }
+        else if(instrucoesAssembly[i]->tipo == typeR){
+            tipoR = instrucoesAssembly[i]->tipoR;
+            fprintf(arquivoSaida_Assembly, "\t%s ", tipoR->nome);
+            tipo_reg(tipoR->rd);
+            fprintf(arquivoSaida_Assembly, " ");
+            tipo_reg(tipoR->rs);
+            fprintf(arquivoSaida_Assembly, " ");
+            tipo_reg(tipoR->rt);
+            fprintf(arquivoSaida_Assembly, "\n");
+        }
+        else if(instrucoesAssembly[i]->tipo == typeJ){
+            tipoJ = instrucoesAssembly[i]->tipoJ;
+            fprintf(arquivoSaida_Assembly, "\t%s %s\n", tipoJ->nome, tipoJ->labelImediato);
+        }
+        else if(instrucoesAssembly[i]->tipo == typeLabel){
+            tipoLabel = instrucoesAssembly[i]->tipoLabel;
+            fprintf(arquivoSaida_Assembly, "%s:\n", tipoLabel->nome);
+        }
+    }	
 }

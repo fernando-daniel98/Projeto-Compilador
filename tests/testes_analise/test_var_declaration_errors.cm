@@ -1,0 +1,36 @@
+/* Teste de Recuperação de Erros - Declarações de Variáveis
+   Focado em testar erros nas declarações */
+
+int main(void) {
+    // Declaração válida
+    int a;
+    
+    // Erro: nome inválido na declaração
+    int 123invalid;
+    
+    // Esta deve funcionar após o erro
+    int b;
+    
+    // Erro: falta ponto e vírgula
+    int c
+    
+    // Esta deve funcionar após o erro
+    int d;
+    
+    // Erro: declaração de vetor inválida
+    int array[invalid_size];
+    
+    // Esta deve funcionar após o erro
+    int validArray[10];
+    
+    // Erro: múltiplos erros em sequência
+    invalid_type var1;
+    int var2[;
+    missing_semicolon var3
+    
+    // Estas devem funcionar após os erros
+    int validVar1;
+    int validVar2;
+    
+    return 0;
+}
