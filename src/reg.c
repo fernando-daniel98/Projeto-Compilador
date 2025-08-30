@@ -20,6 +20,7 @@ typedef struct reg{
     char* nomeVar;
     char escopo[MAXLEXEMA];
     int descarte; // Diz se o registrador pode ser descartado (1, 2, ..., n) ou nao (0)
+    int ultimoUso; // Timestamp do ultimo uso para algoritmo LRU
 }REG;
 
 REG listaReg[MAX_REG]; // Lista encadeada com os registradores
@@ -31,6 +32,7 @@ void inicializaReg(){
         listaReg[i].nomeVar = NULL;
         strcpy(listaReg[i].escopo, "");
         listaReg[i].descarte = 0;
+        listaReg[i].ultimoUso = 0;
     }
 }
 
@@ -41,6 +43,7 @@ int adicionarVarReg(char* nomeVar, char* escopo){
             listaReg[i].nomeVar = nomeVar;
             strcpy(listaReg[i].escopo, escopo);
             listaReg[i].descarte = 0;
+            listaReg[i].ultimoUso = totalReg;
             totalReg++;
             totalRegEmUso++;
             return i;
@@ -56,6 +59,7 @@ int adicionaTempReg(){
             listaReg[i].nomeVar = stringTemp;
             strcpy(listaReg[i].escopo, funcName);
             listaReg[i].descarte = totalReg;
+            listaReg[i].ultimoUso = totalReg;
             totalReg++;
             totalRegEmUso++;
             return i;
@@ -68,6 +72,8 @@ int buscarVarReg(char* nomeVar, char* escopo){
     for(int i = 0; i < MAX_REG; i++){
         if(listaReg[i].nomeVar != NULL){
             if(strcmp(listaReg[i].nomeVar, nomeVar) == 0 && strcmp(listaReg[i].escopo, escopo) == 0){
+                listaReg[i].ultimoUso = totalReg; // Atualiza ultimo uso para LRU
+                totalReg++;
                 return i;
             }
         }
@@ -82,7 +88,7 @@ void mostrarReg(){
     printf("\n============== Registradores ===============\n");
     for(int i = 0; i < MAX_REG; i++){
         if(listaReg[i].nomeVar != NULL){
-            printf("t%d: %s, %s, %d\n", listaReg[i].numReg, listaReg[i].nomeVar, listaReg[i].escopo, listaReg[i].descarte);
+            printf("t%d: %s, %s, %d, uso:%d\n", listaReg[i].numReg, listaReg[i].nomeVar, listaReg[i].escopo, listaReg[i].descarte, listaReg[i].ultimoUso);
         }
     }
     printf(ANSI_COLOR_PURPLE);
@@ -90,39 +96,58 @@ void mostrarReg(){
     printf(ANSI_COLOR_RESET);
 }
 
-// Funcao para descartar um registrador que nao esta sendo mais utilizado no momento
+// Funcao para descartar um registrador usando algoritmo LRU (Least Recently Used)
 int descartarReg(){
-    int menor = 1000000; // Marca se houve descarte de registrador
+    int menorUltimoUso = totalReg + 1;
     int regDescartado = -1;
 
+    // Primeiro: tenta descartar entre registradores temporarios (stringTemp)
     for(int i = 0; i < MAX_REG; i++){	
-        if(listaReg[i].descarte > 0){
-            if(menor > listaReg[i].descarte){
-                menor = listaReg[i].descarte;
+        if(listaReg[i].nomeVar != NULL && strcmp(listaReg[i].nomeVar, stringTemp) == 0){ 
+            if(listaReg[i].ultimoUso < menorUltimoUso){
+                menorUltimoUso = listaReg[i].ultimoUso;
                 regDescartado = i;
             }
         }
     }
 
-    if(menor == MAX_REG_DESCARTE){
-        printf(ANSI_COLOR_RED);
-        printf("ERRO: Nao foi possivel descartar nenhum registrador\n");
-        printf(ANSI_COLOR_RESET);
+    // Segundo: se nao encontrou temporarios, descarta qualquer registrador
+    if(regDescartado == -1){
+        for(int i = 0; i < MAX_REG; i++){	
+            if(listaReg[i].nomeVar != NULL){ 
+                if(listaReg[i].ultimoUso < menorUltimoUso){
+                    menorUltimoUso = listaReg[i].ultimoUso;
+                    regDescartado = i;
+                }
+            }
+        }
+    }
 
+    // Se ainda nao encontrou, erro
+    if(regDescartado == -1){
+        fprintf(stderr, ANSI_COLOR_RED "ERRO: Nao foi possivel descartar nenhum registrador\n" ANSI_COLOR_RESET);
         return -1;
     }
 
+    // Limpa o registrador descartado
     listaReg[regDescartado].nomeVar = NULL;
     strcpy(listaReg[regDescartado].escopo, "");
     listaReg[regDescartado].descarte = 0;
+    listaReg[regDescartado].ultimoUso = 0;
     totalRegEmUso--;
     
-    if(DEBUG_MODE){
-        printf(ANSI_COLOR_PURPLE "WARNING: " ANSI_COLOR_RESET); 
-        printf("Descartado registrador t%d\n", regDescartado);
-    }
-    return regDescartado;
 
+    if(DEBUG_MODE){
+        if(listaReg[regDescartado].nomeVar == stringTemp) {
+            fprintf(stderr, ANSI_COLOR_PURPLE "LRU DESCARTE: " ANSI_COLOR_RESET "Registrador t%d (TEMPORARIO, ultimoUso:%d) descartado\n", 
+                    regDescartado, menorUltimoUso);
+        } else {
+            fprintf(stderr, ANSI_COLOR_PURPLE "LRU DESCARTE: " ANSI_COLOR_RESET "Registrador t%d (VARIAVEL '%s', ultimoUso:%d) descartado\n", 
+                    regDescartado, listaReg[regDescartado].nomeVar ? listaReg[regDescartado].nomeVar : "NULL", menorUltimoUso);
+        }
+    }
+    
+    return regDescartado;
 }
 
 /* Funcao para verificar se a variavel ja esta em um registrador
