@@ -1,19 +1,3 @@
-/*
- *  Projeto compilador desenvolvido para o trabalho final de disciplinas
- *  do curso de Engenharia da Computacao na Universidade Federal de Sao Paulo (UNIFESP)
- * 
- * 	Fase de Analise desenvolvida na disciplina de Compiladores
- *  Fase de Sintese desenvolvida na disciplina de Lab. de Compiladores
- * 
- *  Docente: Prof. Dr. Luis Augusto Martins Pereira
- *  Docente: Profa. Dra. Thaina Aparecida Azevedo Tosta
- * 
- *  Desenvolvido por: Eduardo Verissimo Faccio
- *  RA: 148859
- *  Data: 21/05/2023
- * 
- */
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
